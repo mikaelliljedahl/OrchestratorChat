@@ -97,4 +97,61 @@ public class AgentFactory : IAgentFactory
         
         _logger.LogInformation("Registered agent {AgentId} of type {AgentType}", agentId, agent.GetType().Name);
     }
+
+    public async Task<IEnumerable<AgentType>> GetAvailableAgentTypesAsync(CancellationToken cancellationToken = default)
+    {
+        // Return available agent types that can be created
+        var availableTypes = new List<AgentType>
+        {
+            AgentType.Claude,
+            AgentType.Saturn,
+            AgentType.GPT4
+        };
+        
+        return await Task.FromResult(availableTypes);
+    }
+
+    public async Task DisposeAgentAsync(string agentId, CancellationToken cancellationToken = default)
+    {
+        if (_agentRegistry.TryRemove(agentId, out var agent))
+        {
+            _logger.LogInformation("Disposing agent {AgentId}", agentId);
+            
+            // Handle disposal for agents that implement IDisposable or IAsyncDisposable
+            try
+            {
+                if (agent is IAsyncDisposable asyncDisposable)
+                {
+                    await asyncDisposable.DisposeAsync();
+                }
+                else if (agent is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+                
+                _logger.LogInformation("Successfully disposed agent {AgentId}", agentId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error disposing agent {AgentId}: {Error}", agentId, ex.Message);
+                throw;
+            }
+        }
+        else
+        {
+            _logger.LogWarning("Attempted to dispose agent {AgentId} that does not exist", agentId);
+        }
+    }
+
+    public async Task<AgentStatus> GetAgentStatusAsync(string agentId, CancellationToken cancellationToken = default)
+    {
+        var agent = await GetAgentAsync(agentId);
+        if (agent == null)
+        {
+            _logger.LogWarning("Agent {AgentId} not found when requesting status", agentId);
+            return AgentStatus.Unknown;
+        }
+        
+        return agent.Status;
+    }
 }

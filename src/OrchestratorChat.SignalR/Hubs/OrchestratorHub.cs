@@ -75,21 +75,13 @@ namespace OrchestratorChat.SignalR.Hubs
         /// </summary>
         /// <param name="request">Session creation request</param>
         /// <returns>Session creation response</returns>
-        public async Task<SessionCreatedResponse> CreateSession(Contracts.Requests.CreateSessionRequest request)
+        public async Task<SessionCreatedResponse> CreateSession(CreateSessionRequest request)
         {
             try
             {
                 _logger.LogInformation("Creating session {SessionName} of type {SessionType}", request.Name, request.Type);
 
-                var coreRequest = new Core.Sessions.CreateSessionRequest
-                {
-                    Name = request.Name,
-                    Type = request.Type,
-                    AgentIds = request.AgentIds,
-                    WorkingDirectory = request.WorkingDirectory
-                };
-
-                var session = await _sessionManager.CreateSessionAsync(coreRequest);
+                var session = await _sessionManager.CreateSessionAsync(request);
 
                 // Add to session group
                 await Groups.AddToGroupAsync(Context.ConnectionId, $"session-{session.Id}");

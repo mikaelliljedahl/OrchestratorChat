@@ -16,6 +16,11 @@ public enum AgentType
     Saturn,
     
     /// <summary>
+    /// GPT-4 based agent type
+    /// </summary>
+    GPT4,
+    
+    /// <summary>
     /// Custom agent type
     /// </summary>
     Custom,

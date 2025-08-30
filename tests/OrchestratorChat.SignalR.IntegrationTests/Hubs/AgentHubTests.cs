@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using OrchestratorChat.Core.Agents;
@@ -75,12 +74,12 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
             // Assert
             await Task.Delay(500); // Wait for streaming to complete
 
-            receivedResponses.Should().HaveCount(3);
-            receivedResponses.Should().AllSatisfy(r =>
+            Assert.Equal(3, receivedResponses.Count);
+            Assert.All(receivedResponses, r =>
             {
-                r.AgentId.Should().Be("test-agent");
-                r.SessionId.Should().Be("test-session");
-                r.Response.Should().NotBeNull();
+                Assert.Equal("test-agent", r.AgentId);
+                Assert.Equal("test-session", r.SessionId);
+                Assert.NotNull(r.Response);
             });
 
             // Verify session was updated
@@ -121,11 +120,11 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
 
             // Assert
             await Task.Delay(100);
-            errorReceived.Should().BeTrue();
-            receivedError.Should().NotBeNull();
-            receivedError!.Error.Should().Be("Session access failed");
-            receivedError.AgentId.Should().Be("test-agent");
-            receivedError.SessionId.Should().Be("test-session");
+            Assert.True(errorReceived);
+            Assert.NotNull(receivedError);
+            Assert.Equal("Session access failed", receivedError!.Error);
+            Assert.Equal("test-agent", receivedError.AgentId);
+            Assert.Equal("test-session", receivedError.SessionId);
         }
 
         [Fact]
@@ -155,10 +154,10 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
             var response = await _client.InvokeAsync<ToolExecutionResponse>("ExecuteTool", request);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Success.Should().BeTrue();
-            response.Output.Should().Be(testResult.Output);
-            response.ExecutionTime.Should().Be(testResult.ExecutionTime);
+            Assert.NotNull(response);
+            Assert.True(response.Success);
+            Assert.Equal(testResult.Output, response.Output);
+            Assert.Equal(testResult.ExecutionTime, response.ExecutionTime);
         }
 
         [Fact]
@@ -187,9 +186,9 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
             var response = await _client.InvokeAsync<ToolExecutionResponse>("ExecuteTool", request);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Success.Should().BeFalse();
-            response.Error.Should().Be("Tool execution failed");
+            Assert.NotNull(response);
+            Assert.False(response.Success);
+            Assert.Equal("Tool execution failed", response.Error);
         }
 
         [Fact]
@@ -219,11 +218,13 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
 
             // Assert
             await Task.Delay(100);
-            statusReceived.Should().BeTrue();
-            receivedStatus.Should().NotBeNull();
-            receivedStatus!.AgentId.Should().Be("test-agent");
-            receivedStatus.Status.Should().Be(AgentStatus.Processing);
-            receivedStatus.Capabilities.Should().Contain("chat", "code", "tools");
+            Assert.True(statusReceived);
+            Assert.NotNull(receivedStatus);
+            Assert.Equal("test-agent", receivedStatus!.AgentId);
+            Assert.Equal(AgentStatus.Processing, receivedStatus.Status);
+            Assert.Contains("chat", receivedStatus.Capabilities);
+            Assert.Contains("code", receivedStatus.Capabilities);
+            Assert.Contains("tools", receivedStatus.Capabilities);
         }
 
         [Fact]
@@ -276,8 +277,8 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
 
             // Assert
             await Task.Delay(200);
-            statusUpdates.Should().HaveCountGreaterThan(1); // Initial status + status change
-            statusUpdates.Last().Status.Should().Be(AgentStatus.Processing);
+            Assert.True(statusUpdates.Count > 1); // Initial status + status change
+            Assert.Equal(AgentStatus.Processing, statusUpdates.Last().Status);
         }
 
         [Fact]
@@ -324,10 +325,10 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
 
             // Assert
             await Task.Delay(200);
-            capturedMessage.Should().NotBeNull();
-            capturedMessage!.Attachments.Should().HaveCount(1);
-            capturedMessage.Attachments.First().MimeType.Should().Be("file");
-            capturedMessage.Attachments.First().Url.Should().Be("/path/to/file.txt");
+            Assert.NotNull(capturedMessage);
+            Assert.Single(capturedMessage!.Attachments);
+            Assert.Equal("file", capturedMessage.Attachments.First().MimeType);
+            Assert.Equal("/path/to/file.txt", capturedMessage.Attachments.First().Url);
         }
 
         public async ValueTask DisposeAsync()

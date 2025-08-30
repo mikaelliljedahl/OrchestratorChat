@@ -3,10 +3,10 @@
 <MudPaper Class="pa-3" Style="height: 100%;">
     <MudText Typo="Typo.h6" Class="mb-3">Agents</MudText>
     
-    <MudList Clickable="true">
+    <MudList T="object">
         @foreach (var agent in Agents)
         {
-            <MudListItem @onclick="@(() => SelectAgent(agent))"
+            <MudListItem T="object" @onclick="@(() => SelectAgent(agent))"
                          Class="@(SelectedAgent?.Id == agent.Id ? "selected-agent" : "")">
                 <div class="d-flex align-center">
                     <MudAvatar Size="Size.Small" 

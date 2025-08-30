@@ -33,4 +33,13 @@ public interface IEventBus
     /// <typeparam name="TEvent">Type of event to publish</typeparam>
     /// <param name="event">The event to publish</param>
     void Publish<TEvent>(TEvent @event) where TEvent : IEvent;
+    
+    /// <summary>
+    /// Subscribe to events of a specific type asynchronously
+    /// </summary>
+    /// <typeparam name="TEvent">Type of event to subscribe to</typeparam>
+    /// <param name="handler">Async handler to call when events are received</param>
+    /// <param name="cancellationToken">Cancellation token for the subscription</param>
+    /// <returns>A subscription object that can be disposed to unsubscribe</returns>
+    Task<IEventSubscription> SubscribeAsync<TEvent>(Func<TEvent, Task> handler, CancellationToken cancellationToken = default) where TEvent : IEvent;
 }

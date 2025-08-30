@@ -5,6 +5,7 @@ using OrchestratorChat.Core.Messages;
 using OrchestratorChat.Core.Tools;
 using OrchestratorChat.Agents.Saturn;
 using OrchestratorChat.Agents.Tests.TestHelpers;
+using OrchestratorChat.Saturn.Models;
 using AgentsSaturnCore = OrchestratorChat.Agents.Saturn.ISaturnCore;
 using AgentsSaturnConfig = OrchestratorChat.Agents.Saturn.SaturnConfiguration;
 using SaturnProviderType = OrchestratorChat.Saturn.Models.ProviderType;
@@ -30,9 +31,9 @@ public class SaturnAgentTests : IDisposable
         
         var config = new AgentsSaturnConfig
         {
-            DefaultProvider = "OpenRouter",
+            DefaultProvider = ProviderType.OpenRouter,
             MaxSubAgents = TestConstants.MaxSubAgents,
-            SupportedModels = new[] { TestConstants.ValidOpenRouterModel, TestConstants.ValidClaudeModel },
+            SupportedModels = new List<string> { TestConstants.ValidOpenRouterModel, TestConstants.ValidClaudeModel },
             EnableToolExecution = true,
             HealthCheckIntervalMs = TestConstants.HealthCheckIntervalMs
         };
@@ -45,10 +46,9 @@ public class SaturnAgentTests : IDisposable
     {
         // Arrange
         var mockProvider = Substitute.For<OrchestratorChat.Saturn.Providers.ILLMProvider>();
-        mockProvider.IsAvailable.Returns(true);
         mockProvider.ProviderType.Returns(SaturnProviderType.OpenRouter);
         
-        _mockSaturnCore.CreateProviderAsync("OpenRouter", Arg.Any<Dictionary<string, object>>())
+        _mockSaturnCore.CreateProviderAsync(ProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
             .Returns(mockProvider);
 
         var agent = new SaturnAgent(_logger, _mockSaturnCore, _configuration);
@@ -60,7 +60,7 @@ public class SaturnAgentTests : IDisposable
             WorkingDirectory = Directory.GetCurrentDirectory(),
             Parameters = new Dictionary<string, object>
             {
-                { "provider", "OpenRouter" },
+                { "provider", ProviderType.OpenRouter },
                 { "model", TestConstants.ValidOpenRouterModel },
                 { "api_key", TestConstants.TestApiKey }
             }
@@ -77,7 +77,7 @@ public class SaturnAgentTests : IDisposable
         Assert.NotNull(result.Capabilities);
 
         // Verify SaturnCore was called
-        await _mockSaturnCore.Received(1).CreateProviderAsync("OpenRouter", Arg.Any<Dictionary<string, object>>());
+        await _mockSaturnCore.Received(1).CreateProviderAsync(ProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>());
     }
 
     [Fact]
@@ -85,7 +85,6 @@ public class SaturnAgentTests : IDisposable
     {
         // Arrange
         var mockProvider = Substitute.For<OrchestratorChat.Saturn.Providers.ILLMProvider>();
-        mockProvider.IsAvailable.Returns(true);
         mockProvider.ProviderType.Returns(SaturnProviderType.OpenRouter);
         
         var mockResponse = new AgentResponse
@@ -98,7 +97,7 @@ public class SaturnAgentTests : IDisposable
             TokenUsage = new TokenUsage { InputTokens = 10, OutputTokens = 15 }
         };
 
-        _mockSaturnCore.CreateProviderAsync("OpenRouter", Arg.Any<Dictionary<string, object>>())
+        _mockSaturnCore.CreateProviderAsync(ProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
             .Returns(mockProvider);
         _mockSaturnCore.SendMessageAsync(Arg.Any<AgentMessage>(), Arg.Any<OrchestratorChat.Saturn.Providers.ILLMProvider>())
             .Returns(mockResponse);
@@ -111,7 +110,7 @@ public class SaturnAgentTests : IDisposable
             Type = AgentType.Saturn,
             Parameters = new Dictionary<string, object>
             {
-                { "provider", "OpenRouter" },
+                { "provider", ProviderType.OpenRouter },
                 { "model", TestConstants.ValidOpenRouterModel },
                 { "api_key", TestConstants.TestApiKey }
             }
@@ -135,9 +134,9 @@ public class SaturnAgentTests : IDisposable
         Assert.Equal(ResponseType.Success, response.Type);
         Assert.Contains("Response from OpenRouter", response.Content);
         Assert.Equal(MessageRole.Assistant, response.Role);
-        Assert.NotNull(response.TokenUsage);
-        Assert.Equal(10, response.TokenUsage.InputTokens);
-        Assert.Equal(15, response.TokenUsage.OutputTokens);
+        Assert.NotNull(response.Usage);
+        Assert.Equal(10, response.Usage.InputTokens);
+        Assert.Equal(15, response.Usage.OutputTokens);
 
         // Verify SaturnCore was called
         await _mockSaturnCore.Received(1).SendMessageAsync(Arg.Any<AgentMessage>(), mockProvider);
@@ -148,7 +147,6 @@ public class SaturnAgentTests : IDisposable
     {
         // Arrange
         var mockProvider = Substitute.For<OrchestratorChat.Saturn.Providers.ILLMProvider>();
-        mockProvider.IsAvailable.Returns(true);
         mockProvider.ProviderType.Returns(SaturnProviderType.Anthropic);
         
         var mockResponse = new AgentResponse
@@ -161,7 +159,7 @@ public class SaturnAgentTests : IDisposable
             TokenUsage = new TokenUsage { InputTokens = 12, OutputTokens = 18 }
         };
 
-        _mockSaturnCore.CreateProviderAsync("Anthropic", Arg.Any<Dictionary<string, object>>())
+        _mockSaturnCore.CreateProviderAsync(ProviderType.Anthropic, Arg.Any<Dictionary<string, object>>())
             .Returns(mockProvider);
         _mockSaturnCore.SendMessageAsync(Arg.Any<AgentMessage>(), Arg.Any<OrchestratorChat.Saturn.Providers.ILLMProvider>())
             .Returns(mockResponse);
@@ -174,7 +172,7 @@ public class SaturnAgentTests : IDisposable
             Type = AgentType.Saturn,
             Parameters = new Dictionary<string, object>
             {
-                { "provider", "Anthropic" },
+                { "provider", ProviderType.Anthropic },
                 { "model", TestConstants.ValidClaudeModel },
                 { "access_token", TestConstants.TestAccessToken }
             }
@@ -198,9 +196,9 @@ public class SaturnAgentTests : IDisposable
         Assert.Equal(ResponseType.Success, response.Type);
         Assert.Contains("Response from Anthropic Claude", response.Content);
         Assert.Equal(MessageRole.Assistant, response.Role);
-        Assert.NotNull(response.TokenUsage);
-        Assert.Equal(12, response.TokenUsage.InputTokens);
-        Assert.Equal(18, response.TokenUsage.OutputTokens);
+        Assert.NotNull(response.Usage);
+        Assert.Equal(12, response.Usage.InputTokens);
+        Assert.Equal(18, response.Usage.OutputTokens);
 
         // Verify SaturnCore was called
         await _mockSaturnCore.Received(1).SendMessageAsync(Arg.Any<AgentMessage>(), mockProvider);
@@ -211,7 +209,6 @@ public class SaturnAgentTests : IDisposable
     {
         // Arrange
         var mockProvider = Substitute.For<OrchestratorChat.Saturn.Providers.ILLMProvider>();
-        mockProvider.IsAvailable.Returns(true);
         
         var toolResult = new ToolExecutionResult
         {
@@ -221,7 +218,7 @@ public class SaturnAgentTests : IDisposable
             ExecutionTime = TimeSpan.FromMilliseconds(100)
         };
 
-        _mockSaturnCore.CreateProviderAsync("OpenRouter", Arg.Any<Dictionary<string, object>>())
+        _mockSaturnCore.CreateProviderAsync(ProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
             .Returns(mockProvider);
         _mockSaturnCore.ExecuteToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object>>())
             .Returns(Task.FromResult(new OrchestratorChat.Saturn.Models.ToolExecutionResult
@@ -240,7 +237,7 @@ public class SaturnAgentTests : IDisposable
             Type = AgentType.Saturn,
             Parameters = new Dictionary<string, object>
             {
-                { "provider", "OpenRouter" },
+                { "provider", ProviderType.OpenRouter },
                 { "model", TestConstants.ValidOpenRouterModel },
                 { "api_key", TestConstants.TestApiKey }
             }
@@ -275,12 +272,11 @@ public class SaturnAgentTests : IDisposable
     {
         // Arrange
         var mockProvider = Substitute.For<OrchestratorChat.Saturn.Providers.ILLMProvider>();
-        mockProvider.IsAvailable.Returns(true);
         
         var outputEvents = new List<string>();
         var statusChanges = new List<AgentStatus>();
 
-        _mockSaturnCore.CreateProviderAsync("OpenRouter", Arg.Any<Dictionary<string, object>>())
+        _mockSaturnCore.CreateProviderAsync(ProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
             .Returns(mockProvider);
 
         var agent = new SaturnAgent(_logger, _mockSaturnCore, _configuration);
@@ -295,7 +291,7 @@ public class SaturnAgentTests : IDisposable
             Type = AgentType.Saturn,
             Parameters = new Dictionary<string, object>
             {
-                { "provider", "OpenRouter" },
+                { "provider", ProviderType.OpenRouter },
                 { "model", TestConstants.ValidOpenRouterModel },
                 { "api_key", TestConstants.TestApiKey }
             }
@@ -348,9 +344,8 @@ public class SaturnAgentTests : IDisposable
     {
         // Arrange
         var mockProvider = Substitute.For<OrchestratorChat.Saturn.Providers.ILLMProvider>();
-        mockProvider.IsAvailable.Returns(true);
         
-        _mockSaturnCore.CreateProviderAsync("OpenRouter", Arg.Any<Dictionary<string, object>>())
+        _mockSaturnCore.CreateProviderAsync(ProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
             .Returns(mockProvider);
 
         var agent = new SaturnAgent(_logger, _mockSaturnCore, _configuration);
@@ -361,7 +356,7 @@ public class SaturnAgentTests : IDisposable
             Type = AgentType.Saturn,
             Parameters = new Dictionary<string, object>
             {
-                { "provider", "OpenRouter" },
+                { "provider", ProviderType.OpenRouter },
                 { "model", TestConstants.ValidOpenRouterModel },
                 { "api_key", TestConstants.TestApiKey }
             }
@@ -376,7 +371,7 @@ public class SaturnAgentTests : IDisposable
         await agent.ShutdownAsync();
 
         // Assert
-        Assert.Equal(AgentStatus.Stopped, agent.Status);
+        Assert.Equal(AgentStatus.Shutdown, agent.Status);
         
         // Verify cleanup was called on Saturn core
         _mockSaturnCore.Received(1).Dispose();
@@ -387,9 +382,8 @@ public class SaturnAgentTests : IDisposable
     {
         // Arrange
         var mockProvider = Substitute.For<OrchestratorChat.Saturn.Providers.ILLMProvider>();
-        mockProvider.IsAvailable.Returns(true);
         
-        _mockSaturnCore.CreateProviderAsync("OpenRouter", Arg.Any<Dictionary<string, object>>())
+        _mockSaturnCore.CreateProviderAsync(ProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
             .Returns(mockProvider);
 
         var agent = new SaturnAgent(_logger, _mockSaturnCore, _configuration);
@@ -406,7 +400,7 @@ public class SaturnAgentTests : IDisposable
             Type = AgentType.Saturn,
             Parameters = new Dictionary<string, object>
             {
-                { "provider", "OpenRouter" },
+                { "provider", ProviderType.OpenRouter },
                 { "model", TestConstants.ValidOpenRouterModel },
                 { "api_key", TestConstants.TestApiKey }
             }
@@ -431,7 +425,7 @@ public class SaturnAgentTests : IDisposable
     public async Task InitializeAsync_InvalidProvider_ReturnsError()
     {
         // Arrange
-        _mockSaturnCore.CreateProviderAsync("InvalidProvider", Arg.Any<Dictionary<string, object>>())
+        _mockSaturnCore.CreateProviderAsync((ProviderType)99, Arg.Any<Dictionary<string, object>>())
             .Throws(new InvalidOperationException("Provider not supported"));
 
         var agent = new SaturnAgent(_logger, _mockSaturnCore, _configuration);
@@ -442,7 +436,7 @@ public class SaturnAgentTests : IDisposable
             Type = AgentType.Saturn,
             Parameters = new Dictionary<string, object>
             {
-                { "provider", "InvalidProvider" },
+                { "provider", (ProviderType)99 },
                 { "model", "invalid-model" }
             }
         };

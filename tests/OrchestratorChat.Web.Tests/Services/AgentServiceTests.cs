@@ -264,8 +264,8 @@ public class AgentServiceTests
         var mockAgent = CreateMockAgent("properties-test", "Properties Agent", AgentStatus.Ready);
         mockAgent.Capabilities.Returns(new AgentCapabilities 
         { 
-            CanExecuteCode = true,
-            CanReadFiles = true 
+            SupportsTools = true,
+            SupportsFileOperations = true 
         });
         mockAgent.WorkingDirectory.Returns("/test/working/dir");
 
@@ -285,8 +285,8 @@ public class AgentServiceTests
         Assert.Contains("Claude", agent.Description);
         Assert.Equal(AgentStatus.Ready, agent.Status);
         Assert.NotNull(agent.Capabilities);
-        Assert.True(agent.Capabilities.CanExecuteCode);
-        Assert.True(agent.Capabilities.CanReadFiles);
+        Assert.True(agent.Capabilities.SupportsTools);
+        Assert.True(agent.Capabilities.SupportsFileOperations);
         Assert.Equal("/test/working/dir", agent.WorkingDirectory);
         Assert.True(agent.LastActive <= DateTime.UtcNow);
     }

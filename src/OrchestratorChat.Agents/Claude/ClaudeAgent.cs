@@ -280,7 +280,7 @@ public class ClaudeAgent : IAgent, IDisposable
         return result;
     }
 
-    public async Task<IAsyncEnumerable<AgentResponse>> SendMessageAsync(
+    public async Task<IAsyncEnumerable<AgentResponse>> SendMessageStreamAsync(
         AgentMessage message,
         CancellationToken cancellationToken = default)
     {
@@ -289,6 +289,40 @@ public class ClaudeAgent : IAgent, IDisposable
         {
             SetStatus(AgentStatus.Busy);
             return await ProcessMessageInternalAsync(message, cancellationToken);
+        }
+        finally
+        {
+            _processLock.Release();
+            SetStatus(AgentStatus.Ready);
+        }
+    }
+
+    public async Task<AgentResponse> SendMessageAsync(
+        AgentMessage message,
+        CancellationToken cancellationToken = default)
+    {
+        await _processLock.WaitAsync(cancellationToken);
+        try
+        {
+            SetStatus(AgentStatus.Busy);
+            var streamResponse = await ProcessMessageInternalAsync(message, cancellationToken);
+            
+            // Collect all responses and return the final one
+            AgentResponse finalResponse = new AgentResponse { Type = ResponseType.Success };
+            await foreach (var response in streamResponse.WithCancellation(cancellationToken))
+            {
+                finalResponse = response;
+                if (response.IsComplete)
+                    break;
+            }
+            
+            // Ensure success type for completed responses
+            if (finalResponse.Type != ResponseType.Error && finalResponse.IsComplete)
+            {
+                finalResponse.Type = ResponseType.Success;
+            }
+            
+            return finalResponse;
         }
         finally
         {
@@ -456,6 +490,26 @@ public class ClaudeAgent : IAgent, IDisposable
                 Error = $"Tool execution failed: {ex.Message}"
             };
         }
+    }
+
+    public async Task<AgentStatusInfo> GetStatusAsync()
+    {
+        return await Task.FromResult(new AgentStatusInfo
+        {
+            AgentId = Id,
+            AgentName = Name,
+            Type = Type,
+            Status = _status,
+            IsHealthy = _status != AgentStatus.Error && _status != AgentStatus.Shutdown,
+            LastActivity = DateTime.UtcNow, // Could track actual last activity time
+            Capabilities = Capabilities,
+            WorkingDirectory = WorkingDirectory,
+            Metadata = new Dictionary<string, object>
+            {
+                { "ProcessId", _process?.Id ?? -1 },
+                { "HasProcess", _process != null && !_process.HasExited }
+            }
+        });
     }
 
     public async Task ShutdownAsync()

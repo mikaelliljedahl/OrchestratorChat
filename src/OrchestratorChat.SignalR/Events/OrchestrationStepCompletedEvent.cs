@@ -52,4 +52,24 @@ public class OrchestrationStepCompletedEvent : IEvent
     /// Time taken to execute the step
     /// </summary>
     public TimeSpan ExecutionTime { get; set; }
+    
+    /// <summary>
+    /// Unique identifier for the step
+    /// </summary>
+    public string StepId { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Name of the step that was executed
+    /// </summary>
+    public string StepName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Timestamp when the step completed
+    /// </summary>
+    public DateTime CompletedAt { get; set; } = DateTime.UtcNow;
+    
+    /// <summary>
+    /// Progress percentage of the overall orchestration (0-100)
+    /// </summary>
+    public int Progress { get; set; } = 0;
 }

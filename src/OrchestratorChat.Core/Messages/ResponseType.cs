@@ -28,5 +28,10 @@ public enum ResponseType
     /// <summary>
     /// Thinking/reasoning response
     /// </summary>
-    Thinking
+    Thinking,
+    
+    /// <summary>
+    /// Successful response (for test compatibility)
+    /// </summary>
+    Success
 }

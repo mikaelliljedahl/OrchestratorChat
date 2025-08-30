@@ -38,7 +38,7 @@ public class AgentHealthMonitor : IAgentHealthMonitor, IDisposable
             var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var responses = new List<AgentResponse>();
 
-            var responseStream = await agent.SendMessageAsync(healthMessage, cts.Token);
+            var responseStream = await agent.SendMessageStreamAsync(healthMessage, cts.Token);
             await foreach (var response in responseStream)
             {
                 responses.Add(response);

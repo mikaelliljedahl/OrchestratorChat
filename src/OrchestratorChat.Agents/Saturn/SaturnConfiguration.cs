@@ -20,4 +20,8 @@ public class SaturnConfiguration
     public Dictionary<string, string> ProviderSettings { get; set; } = new();
     public bool EnableMultiAgent { get; set; } = true;
     public int MaxSubAgents { get; set; } = 5;
+    
+    // Properties for test compatibility
+    public bool EnableToolExecution { get; set; } = true;
+    public int HealthCheckIntervalMs { get; set; } = 30000;
 }

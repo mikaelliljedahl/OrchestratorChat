@@ -9,6 +9,12 @@ public class ClaudeConfiguration
     public bool EnableMcp { get; set; } = true;
     public string? McpConfigPath { get; set; }
     public Dictionary<string, string> EnvironmentVariables { get; set; } = new();
+    
+    // Legacy property names for test compatibility
+    public string ExecutablePath { get => ClaudeExecutablePath; set => ClaudeExecutablePath = value; }
+    public int TimeoutSeconds { get; set; } = 30;
+    public int HealthCheckIntervalMs { get; set; } = 30000;
+    public int ProcessRestartDelayMs { get; set; } = 1000;
 }
 
 internal class ClaudeJsonResponse

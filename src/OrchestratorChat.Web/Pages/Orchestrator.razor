@@ -32,7 +32,7 @@
                 <div class="d-flex flex-wrap gap-2">
                     @foreach (var agent in _availableAgents)
                     {
-                        <MudChip Value="@agent.Id" 
+                        <MudChip T="string" Value="@agent.Id" 
                                 Color="@(_selectedAgentIds.Contains(agent.Id) ? Color.Primary : Color.Default)" 
                                 Variant="Variant.Outlined"
                                 OnClick="@(() => ToggleAgent(agent.Id))">

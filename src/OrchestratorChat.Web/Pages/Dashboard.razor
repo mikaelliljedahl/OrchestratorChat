@@ -38,7 +38,7 @@
     }
 </MudGrid>
 
-<MudDialog @bind-IsVisible="_showNewSessionDialog">
+<MudDialog @bind-Visible="_showNewSessionDialog">
     <DialogContent>
         <MudText Typo="Typo.h6" Class="mb-3">Create New Session</MudText>
         <MudTextField @bind-Value="_newSessionName" 
@@ -59,7 +59,7 @@
     </DialogActions>
 </MudDialog>
 
-<MudDialog @bind-IsVisible="_showAddAgentDialog">
+<MudDialog @bind-Visible="_showAddAgentDialog">
     <DialogContent>
         <MudText Typo="Typo.h6" Class="mb-3">Add New Agent</MudText>
         <MudTextField @bind-Value="_newAgentName" 

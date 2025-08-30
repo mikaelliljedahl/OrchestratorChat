@@ -26,11 +26,11 @@
                     </MudItem>
                 </MudGrid>
                 
-                <MudSwitch @bind-Checked="_enableAutoSave" 
+                <MudSwitch T="bool" @bind-Value="_enableAutoSave" 
                          Label="Auto-save sessions" 
                          Class="mt-3" />
                 
-                <MudSwitch @bind-Checked="_enableLogging" 
+                <MudSwitch T="bool" @bind-Value="_enableLogging" 
                          Label="Enable detailed logging" 
                          Class="mt-2" />
             </MudCardContent>
@@ -62,11 +62,11 @@
                     Font Size: @_fontSize px
                 </MudSlider>
                 
-                <MudSwitch @bind-Checked="_enableAnimations" 
+                <MudSwitch T="bool" @bind-Value="_enableAnimations" 
                          Label="Enable animations" 
                          Class="mt-3" />
                 
-                <MudSwitch @bind-Checked="_enableSounds" 
+                <MudSwitch T="bool" @bind-Value="_enableSounds" 
                          Label="Enable notification sounds" 
                          Class="mt-2" />
             </MudCardContent>
@@ -78,11 +78,11 @@
             <MudCardContent>
                 <MudText Typo="Typo.h6" Class="mb-3">Security Settings</MudText>
                 
-                <MudSwitch @bind-Checked="_encryptSessions" 
+                <MudSwitch T="bool" @bind-Value="_encryptSessions" 
                          Label="Encrypt saved sessions" 
                          Class="mb-3" />
                 
-                <MudSwitch @bind-Checked="_requireAuthentication" 
+                <MudSwitch T="bool" @bind-Value="_requireAuthentication" 
                          Label="Require authentication" 
                          Class="mb-3" />
                 

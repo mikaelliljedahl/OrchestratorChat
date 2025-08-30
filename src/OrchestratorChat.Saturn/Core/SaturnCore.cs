@@ -109,8 +109,8 @@ public class SaturnCore : ISaturnCore
                 Type = ProviderType.Anthropic,
                 SupportedModels = new List<string>
                 {
-                    "claude-3-sonnet-20240229",
-                    "claude-3-haiku-20240307"
+                    "claude-sonnet-4-20250514",
+                    "claude-opus-4-1-20250805"
                 },
                 IsConfigured = _providers.ContainsKey("anthropic")
             }

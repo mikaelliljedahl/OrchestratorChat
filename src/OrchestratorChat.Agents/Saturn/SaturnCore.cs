@@ -66,7 +66,7 @@ public class SaturnCoreOperations : ISaturnCoreOperations, IDisposable
             // Create Saturn agent configuration
             var agentConfig = new SaturnAgentConfiguration
             {
-                Model = config.SupportedModels.FirstOrDefault() ?? "claude-3-sonnet-20240229",
+                Model = config.SupportedModels.FirstOrDefault() ?? "claude-sonnet-4-20250514",
                 Temperature = 0.7,
                 MaxTokens = 4096,
                 SystemPrompt = "You are a helpful AI assistant integrated into the OrchestratorChat system.",

@@ -4,14 +4,14 @@
 <div class="d-flex align-center">
     @if (_currentSession != null)
     {
-        <MudChip Color="Color.Success" Size="Size.Small" Class="mr-2">
+        <MudChip T="string" Color="Color.Success" Size="Size.Small" Class="mr-2">
             @_currentSession.Name
         </MudChip>
         <MudText Typo="Typo.caption">Session Active</MudText>
     }
     else
     {
-        <MudChip Color="Color.Default" Size="Size.Small" Class="mr-2">
+        <MudChip T="string" Color="Color.Default" Size="Size.Small" Class="mr-2">
             No Session
         </MudChip>
     }

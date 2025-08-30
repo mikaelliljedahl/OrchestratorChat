@@ -41,4 +41,19 @@ public class AgentResponse
     /// Token usage information for this response
     /// </summary>
     public TokenUsage Usage { get; set; }
+    
+    /// <summary>
+    /// Unique identifier for the response (for test compatibility)
+    /// </summary>
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    
+    /// <summary>
+    /// Role of the agent that generated this response (for test compatibility)
+    /// </summary>
+    public MessageRole Role { get; set; } = MessageRole.Assistant;
+    
+    /// <summary>
+    /// Timestamp when the response was generated (for test compatibility)
+    /// </summary>
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }

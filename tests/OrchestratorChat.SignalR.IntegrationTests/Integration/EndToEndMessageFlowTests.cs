@@ -1,10 +1,10 @@
-using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using OrchestratorChat.Core.Agents;
 using OrchestratorChat.Core.Messages;
 using OrchestratorChat.Core.Sessions;
 using OrchestratorChat.Core.Orchestration;
+using OrchestratorChat.Core.Tools;
 using OrchestratorChat.SignalR.Contracts.Requests;
 using OrchestratorChat.SignalR.Contracts.Responses;
 using OrchestratorChat.SignalR.IntegrationTests.Fixtures;
@@ -66,20 +66,21 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             var createSessionRequest = new CreateSessionRequest
             {
                 Name = "E2E Test Session",
-                Type = "Integration",
+                Type = SessionType.MultiAgent,
                 AgentIds = new List<string> { "agent-1", "agent-2" },
                 WorkingDirectory = "/test"
             };
 
             var sessionResponse = await _orchestratorClient.InvokeAsync<SessionCreatedResponse>("CreateSession", createSessionRequest);
             
-            sessionResponse.Should().NotBeNull();
-            sessionResponse.Success.Should().BeTrue();
-            sessionResponse.SessionId.Should().Be(testSession.Id);
+            Assert.NotNull(sessionResponse);
+            Assert.True(sessionResponse.Success);
+            Assert.Equal(testSession.Id, sessionResponse.SessionId);
 
             // Wait for events
             await Task.Delay(200);
-            sessionEvents.Should().Contain("Connected", "SessionCreated");
+            Assert.Contains("Connected", sessionEvents);
+            Assert.Contains("SessionCreated", sessionEvents);
 
             // Act & Assert - Step 2: Send Orchestration Message
             var orchestrationRequest = new OrchestrationMessageRequest
@@ -96,7 +97,8 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             await Task.Delay(1000);
 
             // Assert orchestration flow
-            orchestrationEvents.Should().Contain("PlanCreated", "Completed");
+            Assert.Contains("PlanCreated", orchestrationEvents);
+            Assert.Contains("Completed", orchestrationEvents);
             
             // Verify mocks were called correctly
             _fixture.MockOrchestrator.Verify(x => x.CreatePlanAsync(It.IsAny<OrchestrationRequest>()), Times.Once);
@@ -146,12 +148,12 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             // Assert
             await Task.Delay(500);
 
-            receivedResponses.Should().HaveCount(3);
-            receivedResponses.Should().AllSatisfy(response =>
+            Assert.Equal(3, receivedResponses.Count);
+            Assert.All(receivedResponses, response =>
             {
-                response.AgentId.Should().Be("agent-1");
-                response.SessionId.Should().Be(testSession.Id);
-                response.Response.Should().NotBeNull();
+                Assert.Equal("agent-1", response.AgentId);
+                Assert.Equal(testSession.Id, response.SessionId);
+                Assert.NotNull(response.Response);
             });
 
             // Verify session was updated
@@ -187,8 +189,8 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             await Task.Delay(200);
 
             // Assert - Both clients should receive join confirmation
-            client1Events.Should().Contain("SessionJoined");
-            client2Events.Should().Contain("SessionJoined");
+            Assert.Contains("SessionJoined", client1Events);
+            Assert.Contains("SessionJoined", client2Events);
 
             // Act - Client 1 leaves
             await client1.InvokeAsync("LeaveSession", testSession.Id);
@@ -231,10 +233,10 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             var response = await _agentClient.InvokeAsync<ToolExecutionResponse>("ExecuteTool", toolRequest);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Success.Should().BeTrue();
-            response.Output.Should().Be(testResult.Output);
-            response.ExecutionTime.Should().Be(testResult.ExecutionTime);
+            Assert.NotNull(response);
+            Assert.True(response.Success);
+            Assert.Equal(testResult.Output, response.Output);
+            Assert.Equal(testResult.ExecutionTime, response.ExecutionTime);
 
             // Verify tool was called with correct parameters
             testAgent.Verify(
@@ -289,11 +291,11 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             // Assert
             await Task.Delay(300);
 
-            orchestratorErrors.Should().HaveCount(1);
-            orchestratorErrors.First().Error.Should().Be("Orchestration failed");
+            Assert.Single(orchestratorErrors);
+            Assert.Equal("Orchestration failed", orchestratorErrors.First().Error);
 
-            agentErrors.Should().HaveCount(1);
-            agentErrors.First().Error.Should().Be("Session not found");
+            Assert.Single(agentErrors);
+            Assert.Equal("Session not found", agentErrors.First().Error);
         }
 
         [Fact]
@@ -352,7 +354,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             await Task.Delay(1000);
 
             // Should receive 3 responses per message (5 messages × 3 responses)
-            allResponses.Should().HaveCount(15);
+            Assert.Equal(15, allResponses.Count);
             
             // Verify all agents were created and called
             testAgent.Verify(x => x.SendMessageAsync(It.IsAny<AgentMessage>()), Times.Exactly(5));

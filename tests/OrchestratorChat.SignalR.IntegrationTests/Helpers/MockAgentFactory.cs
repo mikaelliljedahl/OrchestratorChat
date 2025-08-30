@@ -45,10 +45,10 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Helpers
                     return agent;
                 });
 
-            Setup(x => x.GetAvailableAgentTypesAsync())
-                .ReturnsAsync(new List<AgentType> { AgentType.Claude, AgentType.GPT4, AgentType.Local });
+            Setup(x => x.GetAvailableAgentTypesAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new List<AgentType> { AgentType.Claude, AgentType.GPT4, AgentType.Saturn });
 
-            Setup(x => x.DisposeAgentAsync(It.IsAny<string>()))
+            Setup(x => x.DisposeAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .Returns((string agentId) =>
                 {
                     _createdAgents.TryRemove(agentId, out _);

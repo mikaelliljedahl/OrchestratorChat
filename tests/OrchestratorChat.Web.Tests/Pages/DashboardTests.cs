@@ -1,6 +1,7 @@
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Components;
+using MudBlazor.Services;
 using OrchestratorChat.Web.Pages;
 using OrchestratorChat.Web.Services;
 using OrchestratorChat.Web.Tests.TestHelpers;
@@ -15,7 +16,7 @@ public class DashboardTests : TestContext
 {
     public DashboardTests()
     {
-        Services.AddMudServices();
+        Services.AddMudServices(configuration => { });
         
         // Mock NavigationManager
         Services.AddSingleton(MockServiceFactory.CreateMockNavigationManager());

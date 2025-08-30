@@ -81,34 +81,33 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Helpers
                         Task = "Implement core features",
                         Order = 2
                     }
-                },
-                CreatedAt = DateTime.UtcNow
+                }
             };
         }
 
         /// <summary>
         /// Creates a test orchestration result
         /// </summary>
-        public static OrchestrationResult CreateTestOrchestrationResult(string? planId = null)
+        public static OrchestrationResult CreateTestOrchestrationResult()
         {
             return new OrchestrationResult
             {
-                PlanId = planId ?? Guid.NewGuid().ToString(),
                 Success = true,
-                StartedAt = DateTime.UtcNow.AddMinutes(-5),
-                CompletedAt = DateTime.UtcNow,
-                Results = new List<StepResult>
+                StepResults = new List<StepResult>
                 {
                     new StepResult
                     {
-                        StepId = "step-1",
+                        StepOrder = 1,
+                        StepName = "Project structure initialization",
+                        AgentId = "agent-1",
                         Success = true,
                         Output = "Project structure initialized",
-                        StartedAt = DateTime.UtcNow.AddMinutes(-5),
-                        CompletedAt = DateTime.UtcNow.AddMinutes(-3)
+                        StartTime = DateTime.UtcNow.AddMinutes(-5),
+                        ExecutionTime = TimeSpan.FromMinutes(2)
                     }
                 },
-                Summary = "Orchestration completed successfully"
+                FinalOutput = "Orchestration completed successfully",
+                TotalDuration = TimeSpan.FromMinutes(5)
             };
         }
 
@@ -121,11 +120,10 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Helpers
             {
                 CurrentStep = 1,
                 TotalSteps = 2,
+                CurrentAgent = "agent-1",
                 CurrentTask = "Initialize Project",
                 PercentComplete = 50.0,
-                StartedAt = DateTime.UtcNow.AddMinutes(-2),
-                ElapsedTime = TimeSpan.FromMinutes(2),
-                EstimatedTimeRemaining = TimeSpan.FromMinutes(2)
+                ElapsedTime = TimeSpan.FromMinutes(2)
             };
         }
 
@@ -156,9 +154,8 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Helpers
             {
                 ToolName = "test-tool",
                 Status = "executing",
-                Progress = 75,
-                Message = "Tool execution in progress",
-                Timestamp = DateTime.UtcNow
+                Progress = 0.75,
+                Message = "Tool execution in progress"
             };
         }
 
@@ -201,21 +198,25 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Helpers
             return new OrchestrationStepCompletedEvent
             {
                 SessionId = "test-session",
-                StepId = "step-1",
-                StepName = "Test Step",
-                CompletedAt = DateTime.UtcNow,
-                Progress = CreateTestOrchestrationProgress()
+                Step = new OrchestrationStep
+                {
+                    AgentId = "agent-1",
+                    Task = "Test Step",
+                    Order = 1
+                },
+                Success = true,
+                Output = "Step completed successfully",
+                ExecutionTime = TimeSpan.FromSeconds(30)
             };
         }
 
         /// <summary>
         /// Creates a test agent configuration
         /// </summary>
-        public static AgentConfiguration CreateTestAgentConfiguration(string? id = null)
+        public static AgentConfiguration CreateTestAgentConfiguration()
         {
             return new AgentConfiguration
             {
-                Id = id ?? Guid.NewGuid().ToString(),
                 Name = "Test Agent",
                 Type = AgentType.Claude,
                 SystemPrompt = "You are a test agent",
@@ -275,7 +276,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Helpers
             {
                 AgentId = agentId,
                 Status = status,
-                LastUpdated = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow
             };
         }
     }

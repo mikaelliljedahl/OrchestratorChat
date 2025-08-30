@@ -4,7 +4,6 @@ using Microsoft.Extensions.Hosting;
 using OrchestratorChat.Core.Sessions;
 using OrchestratorChat.Core.Orchestration;
 using OrchestratorChat.SignalR.Clients;
-using OrchestratorChat.SignalR.Contracts.Requests;
 using OrchestratorChat.SignalR.Contracts.Responses;
 using OrchestratorChat.ConsoleClient.Models;
 using OrchestratorChat.ConsoleClient.Services;

@@ -16,6 +16,11 @@ public class AgentOutputEventArgs : EventArgs
     public string Content { get; set; }
     
     /// <summary>
+    /// Legacy property name for test compatibility
+    /// </summary>
+    public string Output { get => Content; set => Content = value; }
+    
+    /// <summary>
     /// Type of output (stdout, stderr, etc.)
     /// </summary>
     public string OutputType { get; set; }

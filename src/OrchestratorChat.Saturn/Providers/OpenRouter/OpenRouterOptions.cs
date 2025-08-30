@@ -18,7 +18,7 @@ public class OpenRouterOptions
     /// <summary>
     /// Default model to use when none is specified
     /// </summary>
-    public string DefaultModel { get; set; } = "anthropic/claude-3-sonnet-20240229";
+    public string DefaultModel { get; set; } = "anthropic/claude-sonnet-4-20250514";
     
     /// <summary>
     /// HTTP request timeout in seconds

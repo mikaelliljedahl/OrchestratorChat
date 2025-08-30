@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using OrchestratorChat.SignalR.Services;
@@ -32,12 +31,12 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
 
             // Assert
             var retrievedUserId = _connectionManager.GetUserId(connectionId);
-            retrievedUserId.Should().Be(userId);
+            Assert.Equal(userId, retrievedUserId);
 
             var connectionIds = _connectionManager.GetConnectionIds(userId);
-            connectionIds.Should().Contain(connectionId);
+            Assert.Contains(connectionId, connectionIds);
 
-            _connectionManager.IsUserOnline(userId).Should().BeTrue();
+            Assert.True(_connectionManager.IsUserOnline(userId));
         }
 
         [Fact]
@@ -54,11 +53,12 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
 
             // Assert
             var connectionIds = _connectionManager.GetConnectionIds(userId);
-            connectionIds.Should().HaveCount(2);
-            connectionIds.Should().Contain(connectionId1, connectionId2);
+            Assert.Equal(2, connectionIds.Count());
+            Assert.Contains(connectionId1, connectionIds);
+            Assert.Contains(connectionId2, connectionIds);
 
-            _connectionManager.GetUserId(connectionId1).Should().Be(userId);
-            _connectionManager.GetUserId(connectionId2).Should().Be(userId);
+            Assert.Equal(userId, _connectionManager.GetUserId(connectionId1));
+            Assert.Equal(userId, _connectionManager.GetUserId(connectionId2));
         }
 
         [Fact]
@@ -73,9 +73,9 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
             _connectionManager.RemoveConnection(connectionId);
 
             // Assert
-            _connectionManager.GetUserId(connectionId).Should().BeNull();
-            _connectionManager.IsUserOnline(userId).Should().BeFalse();
-            _connectionManager.GetConnectionIds(userId).Should().BeEmpty();
+            Assert.Null(_connectionManager.GetUserId(connectionId));
+            Assert.False(_connectionManager.IsUserOnline(userId));
+            Assert.Empty(_connectionManager.GetConnectionIds(userId));
         }
 
         [Fact]
@@ -92,21 +92,21 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
             _connectionManager.RemoveConnection(connectionId1);
 
             // Assert
-            _connectionManager.GetUserId(connectionId1).Should().BeNull();
-            _connectionManager.GetUserId(connectionId2).Should().Be(userId);
-            _connectionManager.IsUserOnline(userId).Should().BeTrue();
+            Assert.Null(_connectionManager.GetUserId(connectionId1));
+            Assert.Equal(userId, _connectionManager.GetUserId(connectionId2));
+            Assert.True(_connectionManager.IsUserOnline(userId));
 
             var connectionIds = _connectionManager.GetConnectionIds(userId);
-            connectionIds.Should().HaveCount(1);
-            connectionIds.Should().Contain(connectionId2);
+            Assert.Single(connectionIds);
+            Assert.Contains(connectionId2, connectionIds);
         }
 
         [Fact]
         public void RemoveConnection_WithNonExistentConnection_ShouldNotThrow()
         {
             // Act & Assert
-            Action act = () => _connectionManager.RemoveConnection("non-existent");
-            act.Should().NotThrow();
+            // Act & Assert - Should not throw exception
+            _connectionManager.RemoveConnection("non-existent");
         }
 
         [Fact]
@@ -116,7 +116,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
             var userId = _connectionManager.GetUserId("non-existent");
 
             // Assert
-            userId.Should().BeNull();
+            Assert.Null(userId);
         }
 
         [Fact]
@@ -126,8 +126,8 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
             var connectionIds = _connectionManager.GetConnectionIds("non-existent");
 
             // Assert
-            connectionIds.Should().NotBeNull();
-            connectionIds.Should().BeEmpty();
+            Assert.NotNull(connectionIds);
+            Assert.Empty(connectionIds);
         }
 
         [Fact]
@@ -137,7 +137,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
             var isOnline = _connectionManager.IsUserOnline("non-existent");
 
             // Assert
-            isOnline.Should().BeFalse();
+            Assert.False(isOnline);
         }
 
         [Fact]
@@ -153,12 +153,12 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
             var result = await _connectionManager.AddUserToSessionAsync(connectionId, sessionId);
 
             // Assert
-            result.Should().BeTrue();
+            Assert.True(result);
             var userSessions = _connectionManager.GetUserSessions(connectionId);
-            userSessions.Should().Contain(sessionId);
+            Assert.Contains(sessionId, userSessions);
 
             var sessionUsers = _connectionManager.GetSessionUsers(sessionId);
-            sessionUsers.Should().Contain(connectionId);
+            Assert.Contains(connectionId, sessionUsers);
         }
 
         [Fact]
@@ -177,8 +177,9 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
 
             // Assert
             var userSessions = _connectionManager.GetUserSessions(connectionId);
-            userSessions.Should().HaveCount(2);
-            userSessions.Should().Contain(sessionId1, sessionId2);
+            Assert.Equal(2, userSessions.Count());
+            Assert.Contains(sessionId1, userSessions);
+            Assert.Contains(sessionId2, userSessions);
         }
 
         [Fact]
@@ -195,12 +196,12 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
             var result = await _connectionManager.RemoveUserFromSessionAsync(connectionId, sessionId);
 
             // Assert
-            result.Should().BeTrue();
+            Assert.True(result);
             var userSessions = _connectionManager.GetUserSessions(connectionId);
-            userSessions.Should().NotContain(sessionId);
+            Assert.DoesNotContain(sessionId, userSessions);
 
             var sessionUsers = _connectionManager.GetSessionUsers(sessionId);
-            sessionUsers.Should().NotContain(connectionId);
+            Assert.DoesNotContain(connectionId, sessionUsers);
         }
 
         [Fact]
@@ -220,8 +221,8 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
 
             // Assert
             var userSessions = _connectionManager.GetUserSessions(connectionId);
-            userSessions.Should().HaveCount(1);
-            userSessions.Should().Contain(sessionId2);
+            Assert.Single(userSessions);
+            Assert.Contains(sessionId2, userSessions);
         }
 
         [Fact]
@@ -231,8 +232,8 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
             var sessions = _connectionManager.GetUserSessions("non-existent");
 
             // Assert
-            sessions.Should().NotBeNull();
-            sessions.Should().BeEmpty();
+            Assert.NotNull(sessions);
+            Assert.Empty(sessions);
         }
 
         [Fact]
@@ -242,8 +243,8 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
             var users = _connectionManager.GetSessionUsers("non-existent");
 
             // Assert
-            users.Should().NotBeNull();
-            users.Should().BeEmpty();
+            Assert.NotNull(users);
+            Assert.Empty(users);
         }
 
         [Fact]
@@ -265,13 +266,14 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
 
             // Assert
             var sessionUsers = _connectionManager.GetSessionUsers(sessionId);
-            sessionUsers.Should().HaveCount(2);
-            sessionUsers.Should().Contain(connectionId1, connectionId2);
+            Assert.Equal(2, sessionUsers.Count());
+            Assert.Contains(connectionId1, sessionUsers);
+            Assert.Contains(connectionId2, sessionUsers);
 
             var user1Sessions = _connectionManager.GetUserSessions(connectionId1);
             var user2Sessions = _connectionManager.GetUserSessions(connectionId2);
-            user1Sessions.Should().Contain(sessionId);
-            user2Sessions.Should().Contain(sessionId);
+            Assert.Contains(sessionId, user1Sessions);
+            Assert.Contains(sessionId, user2Sessions);
         }
 
         [Fact]
@@ -294,12 +296,12 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
 
             // Assert - Session should still have user 2
             var sessionUsers = _connectionManager.GetSessionUsers(sessionId);
-            sessionUsers.Should().HaveCount(1);
-            sessionUsers.Should().Contain(connectionId2);
+            Assert.Single(sessionUsers);
+            Assert.Contains(connectionId2, sessionUsers);
 
             // User 1 should no longer be trackable
-            _connectionManager.GetUserId(connectionId1).Should().BeNull();
-            _connectionManager.IsUserOnline(userId1).Should().BeFalse();
+            Assert.Null(_connectionManager.GetUserId(connectionId1));
+            Assert.False(_connectionManager.IsUserOnline(userId1));
         }
     }
 }

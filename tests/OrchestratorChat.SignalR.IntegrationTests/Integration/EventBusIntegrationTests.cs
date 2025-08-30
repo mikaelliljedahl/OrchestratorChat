@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using OrchestratorChat.Core.Events;
@@ -64,7 +63,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             
             // This test primarily verifies that the event handling infrastructure is in place
             // In a real implementation, the event handlers would route these events to SignalR clients
-            _fixture.MockEventBus.Object.Should().NotBeNull();
+            Assert.NotNull(_fixture.MockEventBus.Object);
         }
 
         [Fact]
@@ -99,8 +98,8 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             await Task.Delay(100);
 
             // Assert - Verify event infrastructure exists
-            progressEvent.Should().NotBeNull();
-            progressEvent.SessionId.Should().Be(testSession.Id);
+            Assert.NotNull(progressEvent);
+            Assert.Equal(testSession.Id, progressEvent.SessionId);
         }
 
         [Fact]
@@ -129,9 +128,9 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             };
 
             // Assert - Verify event structure
-            statusChangeEvent.Should().NotBeNull();
-            statusChangeEvent.AgentId.Should().Be(agentId);
-            statusChangeEvent.NewStatus.Should().Be(Core.Agents.AgentStatus.Processing);
+            Assert.NotNull(statusChangeEvent);
+            Assert.Equal(agentId, statusChangeEvent.AgentId);
+            Assert.Equal(Core.Agents.AgentStatus.Processing, statusChangeEvent.NewStatus);
         }
 
         [Fact]
@@ -149,11 +148,11 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             // Act & Assert - Verify event types can be subscribed to
             foreach (var eventType in eventTypes)
             {
-                eventType.Should().BeAssignableTo<IEvent>();
+                Assert.True(typeof(IEvent).IsAssignableFrom(eventType));
             }
 
             // Verify event bus mock is configured
-            eventBus.Should().NotBeNull();
+            Assert.NotNull(eventBus);
         }
 
         [Fact]
@@ -169,7 +168,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
 
             // Assert - In a real implementation, these handlers would be registered
             // For the test, we verify the service provider is configured
-            serviceProvider.Should().NotBeNull();
+            Assert.NotNull(serviceProvider);
         }
 
         [Fact]
@@ -203,7 +202,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             await Task.WhenAll(publishTasks);
 
             // Assert
-            publishedEvents.Should().HaveCount(100);
+            Assert.Equal(100, publishedEvents.Count);
             _fixture.MockEventBus.Verify(x => x.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()), 
                 Times.Exactly(100));
         }
@@ -225,10 +224,11 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
 
             // Act & Assert - Should not throw
             var act = async () => await _fixture.MockEventBus.Object.PublishAsync(problematicEvent, CancellationToken.None);
-            await act.Should().ThrowAsync<Exception>().WithMessage("Event publishing failed");
+            var exception = await Assert.ThrowsAsync<Exception>(act);
+            Assert.Equal("Event publishing failed", exception.Message);
 
             // Verify system remains stable
-            _fixture.Factory.Should().NotBeNull();
+            Assert.NotNull(_fixture.Factory);
         }
 
         [Fact]
@@ -250,8 +250,8 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
                 CancellationToken.None);
 
             // Assert subscription is active
-            eventSubscription.Should().NotBeNull();
-            eventSubscription.IsActive.Should().BeTrue();
+            Assert.NotNull(eventSubscription);
+            Assert.True(eventSubscription.IsActive);
 
             // Act - Unsubscribe
             eventSubscription.Dispose();

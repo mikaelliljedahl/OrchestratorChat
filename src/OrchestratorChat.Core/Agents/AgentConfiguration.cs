@@ -6,6 +6,11 @@ namespace OrchestratorChat.Core.Agents;
 public class AgentConfiguration
 {
     /// <summary>
+    /// Unique identifier for the agent configuration
+    /// </summary>
+    public string Id { get; init; } = Guid.NewGuid().ToString();
+    
+    /// <summary>
     /// Name of the agent
     /// </summary>
     public string? Name { get; set; }
@@ -23,7 +28,7 @@ public class AgentConfiguration
     /// <summary>
     /// The model to use for this agent
     /// </summary>
-    public string Model { get; set; } = "claude-3-sonnet";
+    public string Model { get; set; } = "claude-sonnet-4-20250514";
     
     /// <summary>
     /// Temperature setting for response generation
@@ -54,4 +59,9 @@ public class AgentConfiguration
     /// Whether tool execution requires user approval
     /// </summary>
     public bool RequireApproval { get; set; } = false;
+    
+    /// <summary>
+    /// Additional parameters specific to the agent configuration
+    /// </summary>
+    public Dictionary<string, object> Parameters { get; init; } = new();
 }

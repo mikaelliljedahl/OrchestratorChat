@@ -36,7 +36,7 @@ public static class DatabaseInitializer
             CreatedAt = DateTime.UtcNow,
             Configuration = new AgentConfigurationEntity
             {
-                Model = "claude-3-sonnet-20240229",
+                Model = "claude-sonnet-4-20250514",
                 Temperature = 0.7,
                 MaxTokens = 4096,
                 SystemPrompt = "You are a helpful AI assistant.",
@@ -64,7 +64,7 @@ public static class DatabaseInitializer
             CreatedAt = DateTime.UtcNow,
             Configuration = new AgentConfigurationEntity
             {
-                Model = "claude-3-opus-20240229",
+                Model = "claude-opus-4-1-20250805",
                 Temperature = 0.3,
                 MaxTokens = 8192,
                 SystemPrompt = "You are an expert software developer.",

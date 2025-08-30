@@ -1,5 +1,6 @@
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
+using MudBlazor.Services;
 using OrchestratorChat.Web.Components;
 using OrchestratorChat.Web.Models;
 using OrchestratorChat.Web.Tests.TestHelpers;
@@ -13,7 +14,7 @@ public class MessageBubbleTests : TestContext
 {
     public MessageBubbleTests()
     {
-        Services.AddMudServices();
+        Services.AddMudServices(configuration => { });
     }
 
     [Fact]

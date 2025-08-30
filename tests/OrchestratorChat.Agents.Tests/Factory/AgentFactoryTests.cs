@@ -6,6 +6,7 @@ using OrchestratorChat.Agents.Claude;
 using OrchestratorChat.Agents.Saturn;
 using OrchestratorChat.Agents.Exceptions;
 using OrchestratorChat.Agents.Tests.TestHelpers;
+using OrchestratorChat.Saturn.Models;
 
 namespace OrchestratorChat.Agents.Tests.Factory;
 
@@ -47,9 +48,9 @@ public class AgentFactoryTests : IDisposable
             var mockToolExecutor = Substitute.For<OrchestratorChat.Core.Tools.IToolExecutor>();
             var config = Microsoft.Extensions.Options.Options.Create(new SaturnConfiguration
             {
-                DefaultProvider = "OpenRouter",
+                DefaultProvider = ProviderType.OpenRouter,
                 MaxSubAgents = TestConstants.MaxSubAgents,
-                SupportedModels = new[] { TestConstants.ValidOpenRouterModel }
+                SupportedModels = new List<string> { TestConstants.ValidOpenRouterModel }
             });
             return new SaturnAgent(logger, mockSaturnCore, mockToolExecutor, config);
         });
@@ -111,7 +112,7 @@ public class AgentFactoryTests : IDisposable
             WorkingDirectory = Directory.GetCurrentDirectory(),
             Parameters = new Dictionary<string, object>
             {
-                { "provider", "OpenRouter" },
+                { "provider", ProviderType.OpenRouter },
                 { "model", TestConstants.ValidOpenRouterModel },
                 { "api_key", TestConstants.TestApiKey }
             }
@@ -352,7 +353,7 @@ public class AgentFactoryTests : IDisposable
             Type = AgentType.Saturn,
             Parameters = new Dictionary<string, object>
             {
-                { "provider", "OpenRouter" },
+                { "provider", ProviderType.OpenRouter },
                 { "model", TestConstants.ValidOpenRouterModel }
             }
         };

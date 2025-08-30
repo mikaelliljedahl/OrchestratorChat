@@ -153,7 +153,7 @@ public class ClaudeProcessManagementTests : IDisposable
         
         // Assert
         Assert.True(completed);
-        Assert.Equal(AgentStatus.Stopped, agent.Status);
+        Assert.Equal(AgentStatus.Shutdown, agent.Status);
     }
 
     [Fact]

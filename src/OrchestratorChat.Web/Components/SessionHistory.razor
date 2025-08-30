@@ -18,10 +18,10 @@
                       Class="mb-3" />
     </div>
     
-    <MudList Clickable="true">
+    <MudList T="object">
         @foreach (var session in _filteredSessions)
         {
-            <MudListItem OnClick="@(() => LoadSession(session))">
+            <MudListItem T="object" OnClick="@(() => LoadSession(session))">
                 <div>
                     <MudText Typo="Typo.subtitle1">@session.Name</MudText>
                     <MudText Typo="Typo.caption">
@@ -35,12 +35,12 @@
                         </MudText>
                     }
                     <div class="mt-1">
-                        <MudChip Size="Size.Small" Color="@GetStatusColor(session.Status)">
+                        <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(session.Status)">
                             @session.Status
                         </MudChip>
                         @foreach (var participant in session.ParticipantNames.Take(3))
                         {
-                            <MudChip Size="Size.Small" Color="Color.Default" Class="ml-1">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Class="ml-1">
                                 @participant
                             </MudChip>
                         }

@@ -39,7 +39,7 @@ public static class TestDataFactory
             Id = Guid.NewGuid().ToString(),
             Name = name,
             Type = AgentType.Claude,
-            Status = AgentStatus.Available,
+            Status = AgentStatus.Ready,
             Description = "Test agent description"
         };
     }

@@ -37,7 +37,7 @@
             <div class="d-flex gap-1 flex-wrap">
                 @foreach (var attachment in _attachments)
                 {
-                    <MudChip Size="Size.Small" 
+                    <MudChip T="string" Size="Size.Small" 
                              OnClose="@(() => RemoveAttachment(attachment))"
                              CloseIcon="@Icons.Material.Filled.Close">
                         @attachment

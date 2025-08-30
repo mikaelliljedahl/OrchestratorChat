@@ -388,36 +388,64 @@ public static class TestDataBuilder
     /// </summary>
     public class ToolCallBuilder
     {
-        private ToolCall _toolCall = new()
-        {
-            Id = Guid.NewGuid().ToString()
-        };
+        private string _id = Guid.NewGuid().ToString();
+        private string _toolName = string.Empty;
+        private Dictionary<string, object> _parameters = new();
+        private string? _agentId;
+        private string? _sessionId;
+        private DateTime _timestamp = DateTime.UtcNow;
 
         public ToolCallBuilder WithId(string id)
         {
-            _toolCall.Id = id;
+            _id = id;
             return this;
         }
 
         public ToolCallBuilder WithToolName(string toolName)
         {
-            _toolCall.ToolName = toolName;
+            _toolName = toolName;
             return this;
         }
 
         public ToolCallBuilder WithParameter(string name, object value)
         {
-            _toolCall.Parameters[name] = value;
+            _parameters[name] = value;
             return this;
         }
 
         public ToolCallBuilder WithParameters(Dictionary<string, object> parameters)
         {
-            _toolCall.Parameters = parameters;
+            _parameters = parameters;
             return this;
         }
 
-        public ToolCall Build() => _toolCall;
+        public ToolCallBuilder WithAgentId(string agentId)
+        {
+            _agentId = agentId;
+            return this;
+        }
+
+        public ToolCallBuilder WithSessionId(string sessionId)
+        {
+            _sessionId = sessionId;
+            return this;
+        }
+
+        public ToolCallBuilder WithTimestamp(DateTime timestamp)
+        {
+            _timestamp = timestamp;
+            return this;
+        }
+
+        public ToolCall Build() => new()
+        {
+            Id = _id,
+            ToolName = _toolName,
+            Parameters = _parameters,
+            AgentId = _agentId,
+            SessionId = _sessionId,
+            Timestamp = _timestamp
+        };
     }
 
     /// <summary>

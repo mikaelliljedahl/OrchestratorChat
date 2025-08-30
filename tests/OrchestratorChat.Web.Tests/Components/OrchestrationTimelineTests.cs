@@ -12,7 +12,7 @@ public class OrchestrationTimelineTests : TestContext
 {
     public OrchestrationTimelineTests()
     {
-        Services.AddMudServices();
+        Services.AddMudServices(configuration => { });
     }
 
     [Fact]

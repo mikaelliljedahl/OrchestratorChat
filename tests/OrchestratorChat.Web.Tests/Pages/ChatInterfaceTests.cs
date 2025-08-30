@@ -2,7 +2,9 @@ using Bunit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
+using MudBlazor.Services;
 using OrchestratorChat.Web.Pages;
+using OrchestratorChat.Web.Components;
 using OrchestratorChat.Web.Services;
 using OrchestratorChat.Web.Tests.TestHelpers;
 using OrchestratorChat.Core.Sessions;
@@ -15,7 +17,7 @@ public class ChatInterfaceTests : TestContext
 {
     public ChatInterfaceTests()
     {
-        Services.AddMudServices();
+        Services.AddMudServices(configuration => { });
         
         // Mock JSRuntime for JavaScript interactions
         var mockJSRuntime = Substitute.For<IJSRuntime>();

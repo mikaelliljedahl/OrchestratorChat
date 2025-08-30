@@ -101,7 +101,7 @@ namespace OrchestratorChat.SignalR.Hubs
                 }
 
                 // Stream responses
-                var responseStream = await agent.SendMessageAsync(message);
+                var responseStream = await agent.SendMessageStreamAsync(message);
                 await foreach (var response in responseStream)
                 {
                     var responseDto = new AgentResponseDto

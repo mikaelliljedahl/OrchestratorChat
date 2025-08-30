@@ -1,5 +1,6 @@
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
+using MudBlazor.Services;
 using OrchestratorChat.Web.Components;
 using OrchestratorChat.Web.Tests.TestHelpers;
 using OrchestratorChat.Core.Sessions;
@@ -12,7 +13,7 @@ public class SessionIndicatorTests : TestContext
 {
     public SessionIndicatorTests()
     {
-        Services.AddMudServices();
+        Services.AddMudServices(configuration => { });
     }
 
     [Fact]

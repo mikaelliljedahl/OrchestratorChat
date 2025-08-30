@@ -46,4 +46,10 @@ public class AgentCapabilities
     /// Maximum number of concurrent requests the agent can handle
     /// </summary>
     public int MaxConcurrentRequests { get; set; } = 1;
+    
+    /// <summary>
+    /// Legacy property name for test compatibility
+    /// </summary>
+    public bool SupportsToolExecution => SupportsTools;
+    
 }

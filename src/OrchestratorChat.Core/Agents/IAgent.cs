@@ -46,12 +46,22 @@ public interface IAgent
     Task<AgentInitializationResult> InitializeAsync(AgentConfiguration configuration);
     
     /// <summary>
-    /// Send a message to the agent
+    /// Send a message to the agent and get streaming responses
     /// </summary>
     /// <param name="message">Message to send to the agent</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Async enumerable of agent responses</returns>
-    Task<IAsyncEnumerable<AgentResponse>> SendMessageAsync(
+    Task<IAsyncEnumerable<AgentResponse>> SendMessageStreamAsync(
+        AgentMessage message, 
+        CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Send a message to the agent and get the final response
+    /// </summary>
+    /// <param name="message">Message to send to the agent</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Final agent response</returns>
+    Task<AgentResponse> SendMessageAsync(
         AgentMessage message, 
         CancellationToken cancellationToken = default);
     
@@ -64,6 +74,12 @@ public interface IAgent
     Task<ToolExecutionResult> ExecuteToolAsync(
         ToolCall toolCall, 
         CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Get detailed status information about the agent
+    /// </summary>
+    /// <returns>Agent status information</returns>
+    Task<AgentStatusInfo> GetStatusAsync();
     
     /// <summary>
     /// Shutdown the agent gracefully

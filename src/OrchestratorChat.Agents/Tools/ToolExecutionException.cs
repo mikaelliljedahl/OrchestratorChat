@@ -7,37 +7,35 @@ namespace OrchestratorChat.Agents.Tools
     /// </summary>
     public class ToolExecutionException : Exception
     {
-        public string ToolName { get; }
+        public string ToolName { get; } = string.Empty;
         public string? ErrorCode { get; }
 
         public ToolExecutionException(string message) 
             : base(message)
         {
-            ToolName = string.Empty;
         }
 
         public ToolExecutionException(string message, Exception innerException) 
             : base(message, innerException)
         {
-            ToolName = string.Empty;
         }
 
         public ToolExecutionException(string toolName, string message) 
             : base(message)
         {
-            ToolName = toolName;
+            ToolName = toolName ?? string.Empty;
         }
 
         public ToolExecutionException(string toolName, string message, Exception innerException) 
             : base(message, innerException)
         {
-            ToolName = toolName;
+            ToolName = toolName ?? string.Empty;
         }
 
         public ToolExecutionException(string toolName, string message, string errorCode) 
             : base(message)
         {
-            ToolName = toolName;
+            ToolName = toolName ?? string.Empty;
             ErrorCode = errorCode;
         }
     }

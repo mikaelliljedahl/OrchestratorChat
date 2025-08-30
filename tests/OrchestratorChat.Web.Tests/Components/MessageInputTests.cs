@@ -2,6 +2,7 @@ using Bunit;
 using Xunit;
 using Microsoft.Extensions.DependencyInjection;
 using MudBlazor.Services;
+using Microsoft.AspNetCore.Components;
 using OrchestratorChat.Web.Components;
 
 namespace OrchestratorChat.Web.Tests.Components;
@@ -10,7 +11,7 @@ public class MessageInputTests : TestContext
 {
     public MessageInputTests()
     {
-        Services.AddMudServices();
+        Services.AddMudServices(configuration => { });
     }
 
     [Fact]
@@ -46,7 +47,7 @@ public class MessageInputTests : TestContext
     public void MessageInput_Should_Show_Attachment_Button_When_OnAttach_Present()
     {
         // Arrange
-        var attachCallback = () => Task.CompletedTask;
+        var attachCallback = EventCallback.Factory.Create(this, () => Task.CompletedTask);
 
         // Act
         var component = RenderComponent<MessageInput>(parameters =>
@@ -64,14 +65,16 @@ public class MessageInputTests : TestContext
         var callbackTriggered = false;
         var receivedMessage = string.Empty;
 
+        var sendMessageCallback = EventCallback.Factory.Create<string>(this, (string msg) =>
+        {
+            callbackTriggered = true;
+            receivedMessage = msg;
+            return Task.CompletedTask;
+        });
+
         // Act
         var component = RenderComponent<MessageInput>(parameters =>
-            parameters.Add(p => p.OnSendMessage, (string msg) =>
-            {
-                callbackTriggered = true;
-                receivedMessage = msg;
-                return Task.CompletedTask;
-            }));
+            parameters.Add(p => p.OnSendMessage, sendMessageCallback));
 
         var input = component.Find("input");
         var sendButton = component.Find("button:contains('Send')");

@@ -182,7 +182,7 @@ public class ClaudeAgentTests : IDisposable
         Assert.Equal(ResponseType.Success, response.Type);
         Assert.Contains("Hello from Claude!", response.Content);
         Assert.Equal(MessageRole.Assistant, response.Role);
-        Assert.NotNull(response.TokenUsage);
+        Assert.NotNull(response.Usage);
     }
 
     [Fact]
@@ -212,7 +212,7 @@ public class ClaudeAgentTests : IDisposable
         await agent.ShutdownAsync();
 
         // Assert
-        Assert.Equal(AgentStatus.Stopped, agent.Status);
+        Assert.Equal(AgentStatus.Shutdown, agent.Status);
         
         // Verify process was started (and should be terminated)
         Assert.True(_processHelper.VerifyProcessStarted(TestConstants.TestClaudeExecutable));

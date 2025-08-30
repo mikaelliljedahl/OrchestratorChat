@@ -17,14 +17,14 @@
             </MudText>
         }
         
-        <MudList>
+        <MudList T="object">
             @for (int i = 0; i < Plan.Steps.Count; i++)
             {
                 var step = Plan.Steps[i];
                 var isCurrentStep = Progress?.CompletedSteps == i;
                 var isCompleted = Progress?.CompletedSteps > i;
                 
-                <MudListItem>
+                <MudListItem T="object">
                     <div class="d-flex align-center">
                         <MudIcon Icon="@GetStepIcon(isCompleted, isCurrentStep)" 
                                 Color="@GetStepColor(isCompleted, isCurrentStep)"
@@ -39,7 +39,7 @@
                             </MudText>
                             @if (!string.IsNullOrEmpty(step.AssignedAgentId))
                             {
-                                <MudChip Size="Size.Small" Color="Color.Secondary" Class="mt-1">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Class="mt-1">
                                     @step.AssignedAgentId
                                 </MudChip>
                             }

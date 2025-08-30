@@ -26,6 +26,11 @@ public enum AgentStatus
     Busy,
     
     /// <summary>
+    /// Agent is actively processing tasks
+    /// </summary>
+    Processing,
+    
+    /// <summary>
     /// Agent has encountered an error
     /// </summary>
     Error,
@@ -33,5 +38,10 @@ public enum AgentStatus
     /// <summary>
     /// Agent has been shutdown
     /// </summary>
-    Shutdown
+    Shutdown,
+    
+    /// <summary>
+    /// Agent status is unknown or not available
+    /// </summary>
+    Unknown
 }

@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using OrchestratorChat.Core.Sessions;
@@ -42,10 +41,10 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
             await Task.Delay(100); // Wait for connection message
 
             // Assert
-            connectionReceived.Should().BeTrue();
-            receivedInfo.Should().NotBeNull();
-            receivedInfo!.ConnectionId.Should().NotBeNullOrEmpty();
-            receivedInfo.ConnectedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(30));
+            Assert.True(connectionReceived);
+            Assert.NotNull(receivedInfo);
+            Assert.False(string.IsNullOrEmpty(receivedInfo!.ConnectionId));
+            Assert.True(Math.Abs((receivedInfo.ConnectedAt - DateTime.UtcNow).TotalSeconds) < 30);
         }
 
         [Fact]
@@ -71,7 +70,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
             var request = new CreateSessionRequest
             {
                 Name = "Test Session",
-                Type = "Integration",
+                Type = SessionType.MultiAgent,
                 AgentIds = new List<string> { "agent-1", "agent-2" },
                 WorkingDirectory = "/test"
             };
@@ -80,16 +79,16 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
             var response = await _client.InvokeAsync<SessionCreatedResponse>("CreateSession", request);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Success.Should().BeTrue();
-            response.SessionId.Should().Be(testSession.Id);
-            response.Session.Should().NotBeNull();
+            Assert.NotNull(response);
+            Assert.True(response.Success);
+            Assert.Equal(testSession.Id, response.SessionId);
+            Assert.NotNull(response.Session);
             
             // Wait for the group message
             await Task.Delay(100);
-            sessionCreated.Should().BeTrue();
-            receivedSession.Should().NotBeNull();
-            receivedSession!.Id.Should().Be(testSession.Id);
+            Assert.True(sessionCreated);
+            Assert.NotNull(receivedSession);
+            Assert.Equal(testSession.Id, receivedSession!.Id);
         }
 
         [Fact]
@@ -105,16 +104,16 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
             var request = new CreateSessionRequest
             {
                 Name = "Failing Session",
-                Type = "Integration"
+                Type = SessionType.MultiAgent
             };
 
             // Act
             var response = await _client.InvokeAsync<SessionCreatedResponse>("CreateSession", request);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Success.Should().BeFalse();
-            response.Error.Should().Be("Test exception");
+            Assert.NotNull(response);
+            Assert.False(response.Success);
+            Assert.Equal("Test exception", response.Error);
         }
 
         [Fact]
@@ -165,13 +164,13 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
             // Assert
             await Task.Delay(500); // Wait for async execution
 
-            planCreated.Should().BeTrue();
-            receivedPlan.Should().NotBeNull();
-            receivedPlan!.Id.Should().Be(testPlan.Id);
+            Assert.True(planCreated);
+            Assert.NotNull(receivedPlan);
+            Assert.Equal(testPlan.Id, receivedPlan!.Id);
 
-            orchestrationCompleted.Should().BeTrue();
-            receivedResult.Should().NotBeNull();
-            receivedResult!.PlanId.Should().Be(testResult.PlanId);
+            Assert.True(orchestrationCompleted);
+            Assert.NotNull(receivedResult);
+            Assert.Equal(testResult.PlanId, receivedResult!.PlanId);
         }
 
         [Fact]
@@ -199,9 +198,9 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
 
             // Assert
             await Task.Delay(100);
-            sessionJoined.Should().BeTrue();
-            receivedSession.Should().NotBeNull();
-            receivedSession!.Id.Should().Be(testSession.Id);
+            Assert.True(sessionJoined);
+            Assert.NotNull(receivedSession);
+            Assert.Equal(testSession.Id, receivedSession!.Id);
         }
 
         [Fact]
@@ -228,9 +227,9 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
 
             // Assert
             await Task.Delay(100);
-            errorReceived.Should().BeTrue();
-            receivedError.Should().NotBeNull();
-            receivedError!.Error.Should().Contain("Session nonexistent-session not found");
+            Assert.True(errorReceived);
+            Assert.NotNull(receivedError);
+            Assert.Contains("Session nonexistent-session not found", receivedError!.Error);
         }
 
         [Fact]
@@ -287,9 +286,9 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
 
             // Assert
             await Task.Delay(100);
-            errorReceived.Should().BeTrue();
-            receivedError.Should().NotBeNull();
-            receivedError!.Error.Should().Be("Test orchestration exception");
+            Assert.True(errorReceived);
+            Assert.NotNull(receivedError);
+            Assert.Equal("Test orchestration exception", receivedError!.Error);
         }
 
         public async ValueTask DisposeAsync()

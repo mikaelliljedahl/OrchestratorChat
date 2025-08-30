@@ -5,6 +5,7 @@ using MudBlazor.Services;
 using OrchestratorChat.Web.Components;
 using OrchestratorChat.Web.Tests.TestHelpers;
 using OrchestratorChat.Core.Agents;
+using OrchestratorChat.Core.Tools;
 
 namespace OrchestratorChat.Web.Tests.Components;
 
@@ -12,7 +13,7 @@ public class AgentCardTests : TestContext
 {
     public AgentCardTests()
     {
-        Services.AddMudServices();
+        Services.AddMudServices(configuration => { });
     }
 
     [Fact]
@@ -38,7 +39,12 @@ public class AgentCardTests : TestContext
         var agent = TestDataFactory.CreateAgent("Saturn");
         agent.Capabilities = new AgentCapabilities
         {
-            AvailableTools = new List<string> { "FileRead", "WebSearch", "CodeGen" }
+            AvailableTools = new List<ToolDefinition>
+            {
+                new() { Name = "FileRead", Description = "Read files from disk" },
+                new() { Name = "WebSearch", Description = "Search the web for information" },
+                new() { Name = "CodeGen", Description = "Generate code snippets" }
+            }
         };
 
         // Act
