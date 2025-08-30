@@ -1,0 +1,274 @@
+/* Chat Interface Styles */
+.chat-container {
+    height: calc(100vh - 120px);
+}
+
+.chat-panel {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.messages-container {
+    height: calc(100% - 120px);
+    overflow-y: auto;
+    padding: 1rem;
+    flex: 1;
+}
+
+.message-input-container {
+    border-top: 1px solid var(--mud-palette-divider);
+}
+
+/* Message Bubble Styles */
+.message-bubble {
+    margin-bottom: 1rem;
+    animation: slideIn 0.3s ease-out;
+    display: flex;
+    flex-direction: column;
+}
+
+.user-message {
+    align-items: flex-end;
+    margin-left: auto;
+    max-width: 70%;
+}
+
+.user-message .message-content {
+    background-color: var(--mud-palette-primary);
+    color: white;
+    padding: 0.75rem;
+    border-radius: 12px 12px 4px 12px;
+    margin-left: auto;
+}
+
+.agent-message {
+    align-items: flex-start;
+    margin-right: auto;
+    max-width: 70%;
+}
+
+.agent-message .message-content {
+    background-color: var(--mud-palette-grey-lighten4);
+    padding: 0.75rem;
+    border-radius: 12px 12px 12px 4px;
+}
+
+.message-header {
+    margin-bottom: 0.25rem;
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+.message-footer {
+    margin-top: 0.25rem;
+    font-size: 0.7rem;
+    opacity: 0.6;
+}
+
+.message-attachments {
+    margin-top: 0.5rem;
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
+/* Agent Card Styles */
+.agent-card {
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    height: 100%;
+}
+
+.agent-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Agent Sidebar Styles */
+.selected-agent {
+    background-color: var(--mud-palette-primary-lighten5);
+    border-left: 3px solid var(--mud-palette-primary);
+}
+
+/* Typing Indicator Styles */
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    max-width: 70%;
+}
+
+.typing-content {
+    display: flex;
+    align-items: center;
+    background-color: var(--mud-palette-grey-lighten4);
+    padding: 0.5rem 0.75rem;
+    border-radius: 12px 12px 12px 4px;
+}
+
+.typing-dots {
+    display: flex;
+    gap: 2px;
+}
+
+.typing-dots span {
+    height: 8px;
+    width: 8px;
+    background-color: var(--mud-palette-grey);
+    border-radius: 50%;
+    display: inline-block;
+    animation: typing 1.4s infinite;
+}
+
+.typing-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+/* Markdown Content Styles */
+.markdown-content pre {
+    background-color: var(--mud-palette-grey-lighten5);
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.markdown-content code {
+    background-color: var(--mud-palette-grey-lighten5);
+    padding: 0.125rem 0.25rem;
+    border-radius: 2px;
+    font-family: 'Courier New', monospace;
+}
+
+.markdown-content pre code {
+    background: none;
+    padding: 0;
+}
+
+.markdown-content h1, .markdown-content h2, .markdown-content h3 {
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.markdown-content p {
+    margin-bottom: 0.5rem;
+}
+
+.markdown-content ul, .markdown-content ol {
+    margin-left: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Animation Keyframes */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes typing {
+    0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.4;
+    }
+    30% {
+        transform: translateY(-10px);
+        opacity: 1;
+    }
+}
+
+/* Error UI Styles */
+#blazor-error-ui {
+    background: lightyellow;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .chat-container {
+        height: calc(100vh - 80px);
+    }
+    
+    .user-message,
+    .agent-message {
+        max-width: 90%;
+    }
+    
+    .messages-container {
+        padding: 0.5rem;
+    }
+}
+
+/* Custom MudBlazor Overrides */
+.mud-drawer-open-responsive-md-left {
+    margin-left: 240px;
+}
+
+.mud-appbar-fixed {
+    z-index: 1300;
+}
+
+/* Orchestration Timeline Styles */
+.mud-timeline-item .mud-timeline-opposite {
+    flex-basis: 80px;
+    min-width: 80px;
+}
+
+.timeline-opposite {
+    flex-basis: 80px;
+    min-width: 80px;
+    padding-right: 1rem;
+    text-align: right;
+}
+
+.timeline-content {
+    flex: 1;
+    padding-left: 1rem;
+}
+
+/* Session History Styles */
+.session-item:hover {
+    background-color: var(--mud-palette-action-hover);
+}
+
+/* Utility Classes */
+.text-muted {
+    opacity: 0.6;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.overflow-hidden {
+    overflow: hidden;
+}
+
+.text-truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

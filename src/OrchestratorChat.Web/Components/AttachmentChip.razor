@@ -1,0 +1,29 @@
+@using OrchestratorChat.Core.Messages
+
+<MudChip Size="Size.Small" 
+         Icon="@GetAttachmentIcon()" 
+         Color="Color.Default"
+         Variant="Variant.Outlined"
+         OnClick="@(() => DownloadAttachment())">
+    <MudText Typo="Typo.body2">@(Attachment.FileName ?? "File")</MudText>
+</MudChip>
+
+@code {
+    [Parameter] public Attachment Attachment { get; set; } = new();
+    
+    private string GetAttachmentIcon()
+    {
+        string icon = Icons.Material.Filled.AttachFile;
+        return icon;
+    }
+    
+    private string GetAttachmentName()
+    {
+        return Attachment.FileName ?? "File";
+    }
+    
+    private void DownloadAttachment()
+    {
+        // TODO: Implement attachment download
+    }
+}

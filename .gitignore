@@ -1,0 +1,108 @@
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio cache/options directory
+.vs/
+
+# Visual Studio Code directory
+.vscode/
+
+# Rider directory
+.idea/
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# NuGet Packages
+*.nupkg
+*.snupkg
+# The packages folder can be ignored because of Package Restore
+**/[Pp]ackages/*
+# except build/, which is used as an MSBuild target.
+!**/[Pp]ackages/build/
+# NuGet v3's project.json files produces more ignorable files
+*.nuget.props
+*.nuget.targets
+
+# Build results
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# .NET Core
+*.dll
+*.exe
+*.pdb
+
+# Azure Functions localsettings file
+local.settings.json
+
+# User secrets
+secrets.json
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# Backup files
+*.bak
+
+# OS generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+~$*
+
+# Test Results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# BenchmarkDotNet
+BenchmarkDotNet.Artifacts/
+
+# Published output
+publish/
+PublishProfiles/
+
+# npm (if using any JavaScript/TypeScript)
+node_modules/
+dist/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files (may contain secrets)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Terraform (if applicable)
+*.tfstate
+*.tfstate.*
+.terraform/

@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MudBlazor" Version="6.11.2" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OrchestratorChat.Core\OrchestratorChat.Core.csproj" />
+    <ProjectReference Include="..\OrchestratorChat.Data\OrchestratorChat.Data.csproj" />
+    <ProjectReference Include="..\OrchestratorChat.Configuration\OrchestratorChat.Configuration.csproj" />
+    <ProjectReference Include="..\OrchestratorChat.SignalR\OrchestratorChat.SignalR.csproj" />
+    <ProjectReference Include="..\OrchestratorChat.Agents\OrchestratorChat.Agents.csproj" />
+  </ItemGroup>
+
+</Project>

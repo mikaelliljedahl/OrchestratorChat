@@ -1,0 +1,268 @@
+@page "/chat/{AgentId?}"
+@page "/session/{SessionId?}"
+@using Microsoft.AspNetCore.SignalR.Client
+@using OrchestratorChat.Web.Models
+@using OrchestratorChat.Web.Services
+@using OrchestratorChat.Web.Components
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+@inject IAgentService AgentService
+@inject ISessionManager SessionManager
+@inject NavigationManager Navigation
+
+<PageTitle>Chat - @_sessionName</PageTitle>
+
+<MudGrid Class="chat-container">
+    <MudItem xs="12" md="3">
+        <AgentSidebar Agents="@_agents" 
+                     SelectedAgent="@_selectedAgent"
+                     OnAgentSelected="@SelectAgent" />
+    </MudItem>
+    
+    <MudItem xs="12" md="9">
+        <MudPaper Class="chat-panel">
+            <MudToolBar>
+                <MudText Typo="Typo.h6">@(_selectedAgent?.Name ?? "Select an agent")</MudText>
+                <MudSpacer />
+                <MudIconButton Icon="@Icons.Material.Filled.History" 
+                              OnClick="@ShowHistory" />
+                <MudIconButton Icon="@Icons.Material.Filled.AttachFile" 
+                              OnClick="@AttachFile" />
+                <MudIconButton Icon="@Icons.Material.Filled.Settings" 
+                              OnClick="@ShowAgentSettings" />
+            </MudToolBar>
+            
+            <div class="messages-container" @ref="_messagesContainer">
+                <CascadingValue Value="@_currentSession">
+                    @foreach (var message in _messages)
+                    {
+                        <MessageBubble Message="@message" />
+                    }
+                    
+                    @if (_isTyping)
+                    {
+                        <TypingIndicator AgentName="@(_selectedAgent?.Name ?? "Agent")" />
+                    }
+                </CascadingValue>
+            </div>
+            
+            <MessageInput OnSendMessage="@SendMessage" 
+                         IsEnabled="@(!_isProcessing && _selectedAgent != null)"
+                         OnAttach="@(() => AttachFile())" />
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<SessionHistory @bind-IsOpen="_showHistory" OnSessionSelected="@LoadSession" />
+
+@code {
+    [Parameter] public string? AgentId { get; set; }
+    [Parameter] public string? SessionId { get; set; }
+    
+    private HubConnection? _agentHub;
+    private List<AgentInfo> _agents = new();
+    private AgentInfo? _selectedAgent;
+    private Core.Sessions.Session? _currentSession;
+    private string _sessionName = "Chat";
+    private List<ChatMessage> _messages = new();
+    private bool _isProcessing = false;
+    private bool _isTyping = false;
+    private bool _showHistory = false;
+    private ElementReference _messagesContainer;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await InitializeHub();
+        await LoadSession();
+        await LoadAgents();
+        
+        if (!string.IsNullOrEmpty(AgentId))
+        {
+            _selectedAgent = _agents.FirstOrDefault(a => a.Id == AgentId);
+        }
+    }
+    
+    private async Task InitializeHub()
+    {
+        _agentHub = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/hubs/agent"))
+            .Build();
+            
+        _agentHub.On<AgentResponseDto>("ReceiveAgentResponse", async (response) =>
+        {
+            _isTyping = false;
+            
+            if (response.Response.Type == Core.Messages.ResponseType.Text)
+            {
+                var existingMessage = _messages.FirstOrDefault(m => m.Id == response.Response.MessageId);
+                if (existingMessage != null)
+                {
+                    existingMessage.Content += response.Response.Content;
+                }
+                else
+                {
+                    _messages.Add(new ChatMessage
+                    {
+                        Id = response.Response.MessageId,
+                        Content = response.Response.Content,
+                        Role = Core.Messages.MessageRole.Assistant,
+                        AgentId = response.AgentId,
+                        Timestamp = DateTime.UtcNow
+                    });
+                }
+                
+                await InvokeAsync(StateHasChanged);
+                await ScrollToBottom();
+            }
+        });
+        
+        await _agentHub.StartAsync();
+    }
+    
+    private async Task LoadSession()
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(SessionId))
+            {
+                _currentSession = await SessionManager.GetSessionAsync(SessionId);
+            }
+            else
+            {
+                _currentSession = await SessionManager.GetCurrentSessionAsync();
+            }
+            
+            _sessionName = _currentSession?.Name ?? "Chat";
+            
+            if (_currentSession != null)
+            {
+                await LoadMessages();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading session: {ex.Message}");
+        }
+    }
+    
+    private async Task LoadAgents()
+    {
+        try
+        {
+            _agents = await AgentService.GetConfiguredAgentsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading agents: {ex.Message}");
+        }
+    }
+    
+    private async Task LoadMessages()
+    {
+        if (_currentSession == null) return;
+        
+        try
+        {
+            // Convert from session messages to chat messages
+            _messages = _currentSession.Messages.Select(m => new ChatMessage
+            {
+                Id = m.Id,
+                Content = m.Content,
+                Role = m.Role,
+                AgentId = m.SenderId,
+                Timestamp = m.Timestamp,
+                Attachments = m.Attachments?.ToList()
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading messages: {ex.Message}");
+        }
+    }
+    
+    private void SelectAgent(AgentInfo agent)
+    {
+        _selectedAgent = agent;
+    }
+    
+    private async Task SendMessage(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content) || _selectedAgent == null || _agentHub == null)
+            return;
+            
+        _isProcessing = true;
+        _isTyping = true;
+        
+        // Add user message
+        var userMessage = new ChatMessage
+        {
+            Id = Guid.NewGuid().ToString(),
+            Content = content,
+            Role = Core.Messages.MessageRole.User,
+            Timestamp = DateTime.UtcNow
+        };
+        _messages.Add(userMessage);
+        
+        try
+        {
+            // Send to agent via SignalR
+            var request = new AgentMessageRequest
+            {
+                AgentId = _selectedAgent.Id,
+                SessionId = _currentSession?.Id ?? Guid.NewGuid().ToString(),
+                Content = content
+            };
+            
+            await _agentHub.InvokeAsync("SendAgentMessage", request);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error sending message: {ex.Message}");
+            _isTyping = false;
+        }
+        
+        _isProcessing = false;
+        await ScrollToBottom();
+    }
+    
+    private async Task ScrollToBottom()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("scrollToBottom", _messagesContainer);
+        }
+        catch
+        {
+            // Ignore JS errors
+        }
+    }
+    
+    private void ShowHistory()
+    {
+        _showHistory = true;
+    }
+    
+    private Task AttachFile()
+    {
+        // TODO: Implement file attachment
+        return Task.CompletedTask;
+    }
+    
+    private void ShowAgentSettings()
+    {
+        // TODO: Implement agent settings
+    }
+    
+    private async Task LoadSession(Core.Sessions.Session session)
+    {
+        Navigation.NavigateTo($"/session/{session.Id}");
+    }
+    
+    public async ValueTask DisposeAsync()
+    {
+        if (_agentHub is not null)
+        {
+            await _agentHub.DisposeAsync();
+        }
+    }
+}

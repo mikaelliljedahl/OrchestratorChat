@@ -1,0 +1,93 @@
+@using OrchestratorChat.Web.Models
+
+<MudCard>
+    <MudCardHeader>
+        <MudText Typo="Typo.h6">Execution Timeline</MudText>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (Steps.Any())
+        {
+            <MudTimeline>
+                @foreach (var step in Steps.OrderBy(s => s.Timestamp))
+                {
+                    <MudTimelineItem>
+                        <div class="timeline-opposite">
+                            <MudText Typo="Typo.caption">@step.Timestamp.ToString("HH:mm:ss")</MudText>
+                        </div>
+                        <div class="timeline-content">
+                            <div class="d-flex align-center mb-1">
+                                <MudIcon Icon="@GetStatusIcon(step.Status)" 
+                                        Color="@GetStatusColor(step.Status)"
+                                        Size="Size.Small" 
+                                        Class="mr-2" />
+                                <MudText Typo="Typo.body1">@step.Name</MudText>
+                            </div>
+                            
+                            @if (!string.IsNullOrEmpty(step.Output))
+                            {
+                                <MudText Typo="Typo.body2" Class="text-muted mb-1">
+                                    @step.Output.Substring(0, Math.Min(100, step.Output.Length))@(step.Output.Length > 100 ? "..." : "")
+                                </MudText>
+                            }
+                            
+                            <div class="d-flex align-center">
+                                <MudText Typo="Typo.caption" Class="text-muted">
+                                    Duration: @step.Duration.TotalSeconds.ToString("F1")s
+                                </MudText>
+                                
+                                @if (!string.IsNullOrEmpty(step.AgentId))
+                                {
+                                    <MudChip Size="Size.Small" 
+                                            Color="Color.Default" 
+                                            Class="ml-2">
+                                        @step.AgentId
+                                    </MudChip>
+                                }
+                            </div>
+                            
+                            @if (!string.IsNullOrEmpty(step.ErrorMessage))
+                            {
+                                <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">
+                                    @step.ErrorMessage
+                                </MudAlert>
+                            }
+                        </div>
+                    </MudTimelineItem>
+                }
+            </MudTimeline>
+        }
+        else
+        {
+            <div class="text-center py-4">
+                <MudIcon Icon="@Icons.Material.Filled.Timeline" Size="Size.Large" Class="text-muted mb-2" />
+                <MudText Typo="Typo.body2" Class="text-muted">No execution history</MudText>
+            </div>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter] public List<ExecutedStep> Steps { get; set; } = new();
+    
+    private string GetStatusIcon(string status)
+    {
+        return status.ToLower() switch
+        {
+            "success" => Icons.Material.Filled.CheckCircle,
+            "failed" => Icons.Material.Filled.Error,
+            "running" => Icons.Material.Filled.PlayCircleFilled,
+            _ => Icons.Material.Filled.Circle
+        };
+    }
+    
+    private Color GetStatusColor(string status)
+    {
+        return status.ToLower() switch
+        {
+            "success" => Color.Success,
+            "failed" => Color.Error,
+            "running" => Color.Primary,
+            _ => Color.Default
+        };
+    }
+}

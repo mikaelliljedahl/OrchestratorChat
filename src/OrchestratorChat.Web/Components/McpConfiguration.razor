@@ -1,0 +1,189 @@
+@inject IJSRuntime JSRuntime
+
+<MudCard>
+    <MudCardContent>
+        <MudText Typo="Typo.h6" Class="mb-3">MCP Configuration</MudText>
+        
+        <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true">
+            <MudTabPanel Text="Global Tools">
+                <MudList>
+                    @foreach (var tool in _globalTools)
+                    {
+                        <MudListItem>
+                            <div class="d-flex align-center">
+                                <MudCheckBox @bind-Checked="@tool.Enabled" />
+                                <div class="ml-2 flex-grow-1">
+                                    <MudText Typo="Typo.body1">@tool.Name</MudText>
+                                    <MudText Typo="Typo.caption" Class="text-muted">@tool.Description</MudText>
+                                </div>
+                                <MudIconButton Icon="@Icons.Material.Filled.Settings" 
+                                             Size="Size.Small"
+                                             OnClick="@(() => ConfigureTool(tool))" />
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+                
+                @if (!_globalTools.Any())
+                {
+                    <div class="text-center py-4">
+                        <MudText Typo="Typo.body2" Class="text-muted">No global tools configured</MudText>
+                    </div>
+                }
+            </MudTabPanel>
+            
+            <MudTabPanel Text="Project Tools">
+                <MudTextField @bind-Value="_projectPath" 
+                            Label="Project Path" 
+                            Variant="Variant.Outlined"
+                            Adornment="Adornment.End"
+                            AdornmentIcon="@Icons.Material.Filled.FolderOpen"
+                            OnAdornmentClick="@SelectProjectPath"
+                            Class="mb-3" />
+                            
+                <MudButton Variant="Variant.Filled" 
+                         Color="Color.Primary"
+                         OnClick="@LoadProjectConfig"
+                         Disabled="@string.IsNullOrEmpty(_projectPath)"
+                         Class="mb-3">
+                    Load Project Config
+                </MudButton>
+                
+                @if (_projectTools?.Any() == true)
+                {
+                    <MudList>
+                        @foreach (var tool in _projectTools)
+                        {
+                            <MudListItem>
+                                <div class="d-flex align-center">
+                                    <MudCheckBox @bind-Checked="@tool.Enabled" />
+                                    <div class="ml-2">
+                                        <MudText Typo="Typo.body1">@tool.Name</MudText>
+                                        <MudText Typo="Typo.caption" Class="text-muted">@tool.Command</MudText>
+                                    </div>
+                                </div>
+                            </MudListItem>
+                        }
+                    </MudList>
+                }
+                else if (!string.IsNullOrEmpty(_projectPath))
+                {
+                    <MudText Typo="Typo.body2" Class="text-muted">No project tools found</MudText>
+                }
+            </MudTabPanel>
+            
+            <MudTabPanel Text="Import">
+                <MudText Typo="Typo.body2" Class="mb-3">
+                    Import MCP configuration from Claude Desktop
+                </MudText>
+                <MudButton Variant="Variant.Outlined" 
+                         Color="Color.Secondary"
+                         OnClick="@ImportFromClaudeDesktop"
+                         StartIcon="@Icons.Material.Filled.Download">
+                    Import from Claude Desktop
+                </MudButton>
+                
+                <MudDivider Class="my-4" />
+                
+                <MudText Typo="Typo.body2" Class="mb-3">
+                    Export current configuration
+                </MudText>
+                <MudButton Variant="Variant.Outlined" 
+                         Color="Color.Info"
+                         OnClick="@ExportConfiguration"
+                         StartIcon="@Icons.Material.Filled.FileDownload">
+                    Export Configuration
+                </MudButton>
+            </MudTabPanel>
+        </MudTabs>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<McpTool> _globalTools = new();
+    private List<McpTool> _projectTools = new();
+    private string _projectPath = "";
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadGlobalTools();
+    }
+    
+    private async Task LoadGlobalTools()
+    {
+        // TODO: Load from actual MCP service
+        _globalTools = new List<McpTool>
+        {
+            new McpTool { Name = "File System", Description = "Read and write files", Enabled = true },
+            new McpTool { Name = "Web Search", Description = "Search the web", Enabled = false },
+            new McpTool { Name = "Calculator", Description = "Perform calculations", Enabled = true },
+        };
+    }
+    
+    private async Task LoadProjectConfig()
+    {
+        if (string.IsNullOrEmpty(_projectPath))
+            return;
+            
+        // TODO: Load from actual MCP service
+        _projectTools = new List<McpTool>
+        {
+            new McpTool { Name = "Git", Command = "git", Enabled = true },
+            new McpTool { Name = "NPM", Command = "npm", Enabled = true },
+            new McpTool { Name = "Docker", Command = "docker", Enabled = false },
+        };
+    }
+    
+    private async Task SelectProjectPath()
+    {
+        try
+        {
+            // TODO: Implement file picker
+            await JSRuntime.InvokeVoidAsync("alert", "File picker not implemented yet");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error selecting project path: {ex.Message}");
+        }
+    }
+    
+    private async Task ImportFromClaudeDesktop()
+    {
+        try
+        {
+            // TODO: Implement Claude Desktop import
+            await JSRuntime.InvokeVoidAsync("alert", "Import from Claude Desktop not implemented yet");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error importing from Claude Desktop: {ex.Message}");
+        }
+    }
+    
+    private async Task ExportConfiguration()
+    {
+        try
+        {
+            // TODO: Implement configuration export
+            await JSRuntime.InvokeVoidAsync("alert", "Export configuration not implemented yet");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error exporting configuration: {ex.Message}");
+        }
+    }
+    
+    private void ConfigureTool(McpTool tool)
+    {
+        // TODO: Open tool configuration dialog
+    }
+    
+    public class McpTool
+    {
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Command { get; set; } = "";
+        public bool Enabled { get; set; }
+        public Dictionary<string, object> Settings { get; set; } = new();
+    }
+}

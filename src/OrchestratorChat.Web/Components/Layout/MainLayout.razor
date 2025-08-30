@@ -1,0 +1,56 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@using OrchestratorChat.Web.Services
+@inject ISessionManager SessionManager
+
+<MudThemeProvider Theme="@_theme" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" 
+                       Color="Color.Inherit" 
+                       Edge="Edge.Start" 
+                       OnClick="@DrawerToggle" />
+        <MudText Typo="Typo.h5" Class="ml-3">OrchestratorChat</MudText>
+        <MudSpacer />
+        <SessionIndicator />
+        <MudIconButton Icon="@Icons.Material.Filled.Settings" 
+                       Color="Color.Inherit" 
+                       OnClick="@OpenSettings" />
+    </MudAppBar>
+    
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+        <NavMenu />
+    </MudDrawer>
+    
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.False" Class="pa-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+    private MudTheme _theme = new MudTheme
+    {
+        Palette = new PaletteLight
+        {
+            Primary = Colors.Blue.Darken2,
+            Secondary = Colors.Green.Accent4,
+            AppbarBackground = Colors.Blue.Darken3,
+        }
+    };
+    
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+    
+    void OpenSettings()
+    {
+        Navigation.NavigateTo("/settings");
+    }
+}

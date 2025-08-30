@@ -1,0 +1,54 @@
+@inject IJSRuntime JSRuntime
+
+<div class="markdown-content" @ref="_contentElement">
+    @((MarkupString)_renderedHtml)
+</div>
+
+@code {
+    [Parameter] public string Content { get; set; } = "";
+    
+    private ElementReference _contentElement;
+    private string _renderedHtml = "";
+    private string _lastContent = "";
+    
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Content != _lastContent)
+        {
+            _lastContent = Content;
+            _renderedHtml = RenderMarkdown(Content);
+        }
+    }
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender || Content != _lastContent)
+        {
+            await JSRuntime.InvokeVoidAsync("highlightCode", _contentElement);
+        }
+    }
+    
+    private string RenderMarkdown(string markdown)
+    {
+        if (string.IsNullOrEmpty(markdown))
+            return "";
+            
+        // Simple markdown rendering - in a real implementation you might use Markdig
+        var html = markdown
+            .Replace("\n", "<br/>")
+            .Replace("**", "</strong>").Replace("**", "<strong>") // Bold
+            .Replace("*", "</em>").Replace("*", "<em>") // Italic
+            .Replace("`", "</code>").Replace("`", "<code>"); // Inline code
+            
+        // Handle code blocks
+        if (html.Contains("```"))
+        {
+            html = System.Text.RegularExpressions.Regex.Replace(html, 
+                @"```(\w+)?\n?(.*?)```", 
+                @"<pre><code class=""language-$1"">$2</code></pre>", 
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+        }
+        
+        return html;
+    }
+}

@@ -1,0 +1,178 @@
+@page "/"
+@page "/dashboard"
+@using OrchestratorChat.Web.Models
+@using OrchestratorChat.Web.Services
+@using OrchestratorChat.Web.Components
+@inject IAgentService AgentService
+@inject ISessionManager SessionManager
+@inject NavigationManager Navigation
+
+<PageTitle>Agent Dashboard</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Agent Dashboard</MudText>
+
+<MudGrid>
+    <MudItem xs="12">
+        <MudPaper Class="pa-4">
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="@ShowNewSessionDialog">
+                New Session
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" 
+                       Color="Color.Secondary" 
+                       StartIcon="@Icons.Material.Filled.GroupAdd"
+                       OnClick="@ShowAddAgentDialog"
+                       Class="ml-2">
+                Add Agent
+            </MudButton>
+        </MudPaper>
+    </MudItem>
+    
+    @foreach (var agent in _agents)
+    {
+        <MudItem xs="12" sm="6" md="4" lg="3">
+            <AgentCard Agent="@agent" OnClick="@(() => OpenAgentChat(agent))" />
+        </MudItem>
+    }
+</MudGrid>
+
+<MudDialog @bind-IsVisible="_showNewSessionDialog">
+    <DialogContent>
+        <MudText Typo="Typo.h6" Class="mb-3">Create New Session</MudText>
+        <MudTextField @bind-Value="_newSessionName" 
+                      Label="Session Name" 
+                      Variant="Variant.Outlined"
+                      Class="mb-3" />
+        <MudSelect @bind-Value="_newSessionType" 
+                   Label="Session Type" 
+                   Variant="Variant.Outlined">
+            <MudSelectItem Value="Core.Sessions.SessionType.SingleAgent">Single Agent</MudSelectItem>
+            <MudSelectItem Value="Core.Sessions.SessionType.MultiAgent">Multi Agent</MudSelectItem>
+            <MudSelectItem Value="Core.Sessions.SessionType.Orchestrated">Orchestrated</MudSelectItem>
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showNewSessionDialog = false)">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@CreateSession">Create</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-IsVisible="_showAddAgentDialog">
+    <DialogContent>
+        <MudText Typo="Typo.h6" Class="mb-3">Add New Agent</MudText>
+        <MudTextField @bind-Value="_newAgentName" 
+                      Label="Agent Name" 
+                      Variant="Variant.Outlined"
+                      Class="mb-3" />
+        <MudSelect @bind-Value="_newAgentType" 
+                   Label="Agent Type" 
+                   Variant="Variant.Outlined">
+            <MudSelectItem Value="Core.Agents.AgentType.Claude">Claude</MudSelectItem>
+            <MudSelectItem Value="Core.Agents.AgentType.Saturn">Saturn</MudSelectItem>
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showAddAgentDialog = false)">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@CreateAgent">Create</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<AgentInfo> _agents = new();
+    private bool _showNewSessionDialog = false;
+    private bool _showAddAgentDialog = false;
+    private string _newSessionName = "";
+    private Core.Sessions.SessionType _newSessionType = Core.Sessions.SessionType.SingleAgent;
+    private string _newAgentName = "";
+    private Core.Agents.AgentType _newAgentType = Core.Agents.AgentType.Claude;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAgents();
+    }
+    
+    private async Task LoadAgents()
+    {
+        try
+        {
+            _agents = await AgentService.GetConfiguredAgentsAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            // Handle error - could show snackbar
+            Console.WriteLine($"Error loading agents: {ex.Message}");
+        }
+    }
+    
+    private void OpenAgentChat(AgentInfo agent)
+    {
+        Navigation.NavigateTo($"/chat/{agent.Id}");
+    }
+    
+    private void ShowNewSessionDialog()
+    {
+        _newSessionName = "";
+        _newSessionType = Core.Sessions.SessionType.SingleAgent;
+        _showNewSessionDialog = true;
+    }
+    
+    private void ShowAddAgentDialog()
+    {
+        _newAgentName = "";
+        _newAgentType = Core.Agents.AgentType.Claude;
+        _showAddAgentDialog = true;
+    }
+    
+    private async Task CreateSession()
+    {
+        if (string.IsNullOrWhiteSpace(_newSessionName))
+            return;
+
+        try
+        {
+            var sessionConfig = new Core.Sessions.SessionConfiguration
+            {
+                Name = _newSessionName,
+                Type = _newSessionType,
+                MaxParticipants = _newSessionType == Core.Sessions.SessionType.SingleAgent ? 1 : 10
+            };
+
+            var session = await SessionManager.CreateSessionAsync(sessionConfig);
+            _showNewSessionDialog = false;
+            Navigation.NavigateTo($"/session/{session.Id}");
+        }
+        catch (Exception ex)
+        {
+            // Handle error
+            Console.WriteLine($"Error creating session: {ex.Message}");
+        }
+    }
+
+    private async Task CreateAgent()
+    {
+        if (string.IsNullOrWhiteSpace(_newAgentName))
+            return;
+
+        try
+        {
+            var agentConfig = new Core.Agents.AgentConfiguration
+            {
+                Name = _newAgentName,
+                Type = _newAgentType,
+                WorkingDirectory = Directory.GetCurrentDirectory()
+            };
+
+            await AgentService.CreateAgentAsync(_newAgentType, agentConfig);
+            _showAddAgentDialog = false;
+            await LoadAgents();
+        }
+        catch (Exception ex)
+        {
+            // Handle error
+            Console.WriteLine($"Error creating agent: {ex.Message}");
+        }
+    }
+}

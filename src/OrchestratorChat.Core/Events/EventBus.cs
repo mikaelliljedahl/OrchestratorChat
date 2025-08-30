@@ -1,0 +1,172 @@
+using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
+
+namespace OrchestratorChat.Core.Events;
+
+/// <summary>
+/// Thread-safe event bus implementation for publishing and subscribing to events
+/// </summary>
+public class EventBus : IEventBus
+{
+    private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers = new();
+    private readonly object _lockObject = new();
+    private readonly ILogger<EventBus> _logger;
+
+    /// <summary>
+    /// Initializes a new instance of the EventBus
+    /// </summary>
+    /// <param name="logger">Logger for event bus operations</param>
+    public EventBus(ILogger<EventBus> logger)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    /// <summary>
+    /// Publishes an event to all subscribers asynchronously
+    /// </summary>
+    /// <typeparam name="TEvent">Type of event to publish</typeparam>
+    /// <param name="event">The event to publish</param>
+    /// <returns>Task representing the async operation</returns>
+    public async Task PublishAsync<TEvent>(TEvent @event) where TEvent : IEvent
+    {
+        if (@event == null)
+            throw new ArgumentNullException(nameof(@event));
+
+        var eventType = typeof(TEvent);
+        
+        if (!_handlers.TryGetValue(eventType, out var handlers) || handlers.Count == 0)
+        {
+            return;
+        }
+
+        List<Delegate> handlersCopy;
+        lock (_lockObject)
+        {
+            handlersCopy = new List<Delegate>(handlers);
+        }
+
+        _logger.LogDebug("Publishing event {EventType} with Id {EventId} to {HandlerCount} handlers", 
+            eventType.Name, @event.Id, handlersCopy.Count);
+
+        var tasks = handlersCopy.Select(async handler =>
+        {
+            try
+            {
+                if (handler is Action<TEvent> action)
+                {
+                    await Task.Run(() => action(@event));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing event handler for {EventType} with Id {EventId}", 
+                    eventType.Name, @event.Id);
+            }
+        });
+
+        await Task.WhenAll(tasks);
+    }
+
+    /// <summary>
+    /// Publishes an event to all subscribers synchronously
+    /// </summary>
+    /// <typeparam name="TEvent">Type of event to publish</typeparam>
+    /// <param name="event">The event to publish</param>
+    public void Publish<TEvent>(TEvent @event) where TEvent : IEvent
+    {
+        if (@event == null)
+            throw new ArgumentNullException(nameof(@event));
+
+        var eventType = typeof(TEvent);
+        
+        if (!_handlers.TryGetValue(eventType, out var handlers) || handlers.Count == 0)
+        {
+            return;
+        }
+
+        List<Delegate> handlersCopy;
+        lock (_lockObject)
+        {
+            handlersCopy = new List<Delegate>(handlers);
+        }
+
+        _logger.LogDebug("Publishing event {EventType} with Id {EventId} to {HandlerCount} handlers synchronously", 
+            eventType.Name, @event.Id, handlersCopy.Count);
+
+        foreach (var handler in handlersCopy)
+        {
+            try
+            {
+                if (handler is Action<TEvent> action)
+                {
+                    action(@event);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing event handler for {EventType} with Id {EventId}", 
+                    eventType.Name, @event.Id);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Subscribes to events of a specific type
+    /// </summary>
+    /// <typeparam name="TEvent">Type of event to subscribe to</typeparam>
+    /// <param name="handler">Handler to call when events are received</param>
+    public void Subscribe<TEvent>(Action<TEvent> handler) where TEvent : IEvent
+    {
+        if (handler == null)
+            throw new ArgumentNullException(nameof(handler));
+
+        var eventType = typeof(TEvent);
+        
+        lock (_lockObject)
+        {
+            if (!_handlers.TryGetValue(eventType, out var handlers))
+            {
+                handlers = new List<Delegate>();
+                _handlers[eventType] = handlers;
+            }
+            
+            handlers.Add(handler);
+        }
+
+        _logger.LogDebug("Subscribed handler for event type {EventType}. Total handlers: {HandlerCount}", 
+            eventType.Name, _handlers[eventType].Count);
+    }
+
+    /// <summary>
+    /// Unsubscribes from events of a specific type
+    /// </summary>
+    /// <typeparam name="TEvent">Type of event to unsubscribe from</typeparam>
+    /// <param name="handler">Handler to remove</param>
+    public void Unsubscribe<TEvent>(Action<TEvent> handler) where TEvent : IEvent
+    {
+        if (handler == null)
+            throw new ArgumentNullException(nameof(handler));
+
+        var eventType = typeof(TEvent);
+        
+        lock (_lockObject)
+        {
+            if (_handlers.TryGetValue(eventType, out var handlers))
+            {
+                var removed = handlers.Remove(handler);
+                
+                if (removed)
+                {
+                    _logger.LogDebug("Unsubscribed handler for event type {EventType}. Remaining handlers: {HandlerCount}", 
+                        eventType.Name, handlers.Count);
+                }
+                
+                if (handlers.Count == 0)
+                {
+                    _handlers.TryRemove(eventType, out _);
+                    _logger.LogDebug("Removed empty handler list for event type {EventType}", eventType.Name);
+                }
+            }
+        }
+    }
+}

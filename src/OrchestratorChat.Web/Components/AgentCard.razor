@@ -1,0 +1,54 @@
+@using OrchestratorChat.Web.Models
+@using OrchestratorChat.Core.Agents
+
+<MudCard Class="agent-card" @onclick="@OnClick">
+    <MudCardContent>
+        <div class="d-flex align-center mb-2">
+            <MudAvatar Color="@GetStatusColor()" Size="Size.Small" Class="mr-2">
+                @Agent.Name.Substring(0, 1).ToUpper()
+            </MudAvatar>
+            <div>
+                <MudText Typo="Typo.h6">@Agent.Name</MudText>
+                <MudText Typo="Typo.caption">@Agent.Type</MudText>
+            </div>
+        </div>
+        
+        <MudText Typo="Typo.body2" Class="mb-2">
+            @Agent.Description
+        </MudText>
+        
+        <MudChip Size="Size.Small" Color="@GetStatusColor()">
+            @Agent.Status
+        </MudChip>
+        
+        @if (Agent.Capabilities?.AvailableTools?.Any() == true)
+        {
+            <div class="mt-2">
+                <MudText Typo="Typo.caption">Tools: @Agent.Capabilities.AvailableTools.Count</MudText>
+            </div>
+        }
+        
+        <div class="mt-2">
+            <MudText Typo="Typo.caption" Class="text-muted">
+                Last active: @Agent.LastActive.ToString("MMM dd, HH:mm")
+            </MudText>
+        </div>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter] public AgentInfo Agent { get; set; } = new();
+    [Parameter] public EventCallback OnClick { get; set; }
+    
+    private Color GetStatusColor()
+    {
+        return Agent.Status switch
+        {
+            AgentStatus.Ready => Color.Success,
+            AgentStatus.Busy => Color.Warning,
+            AgentStatus.Error => Color.Error,
+            AgentStatus.Initializing => Color.Info,
+            _ => Color.Default
+        };
+    }
+}

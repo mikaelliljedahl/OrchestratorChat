@@ -1,0 +1,14 @@
+<div class="typing-indicator agent-message">
+    <div class="typing-content">
+        <MudText Typo="Typo.caption" Class="mr-2">@AgentName is typing</MudText>
+        <div class="typing-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string AgentName { get; set; } = "Agent";
+}

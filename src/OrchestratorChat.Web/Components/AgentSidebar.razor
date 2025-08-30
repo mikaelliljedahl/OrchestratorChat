@@ -1,0 +1,59 @@
+@using OrchestratorChat.Web.Models
+
+<MudPaper Class="pa-3" Style="height: 100%;">
+    <MudText Typo="Typo.h6" Class="mb-3">Agents</MudText>
+    
+    <MudList Clickable="true">
+        @foreach (var agent in Agents)
+        {
+            <MudListItem @onclick="@(() => SelectAgent(agent))"
+                         Class="@(SelectedAgent?.Id == agent.Id ? "selected-agent" : "")">
+                <div class="d-flex align-center">
+                    <MudAvatar Size="Size.Small" 
+                              Color="@GetAgentStatusColor(agent)" 
+                              Class="mr-3">
+                        @agent.Name.Substring(0, 1).ToUpper()
+                    </MudAvatar>
+                    <div>
+                        <MudText Typo="Typo.body1">@agent.Name</MudText>
+                        <MudText Typo="Typo.caption" Class="text-muted">@agent.Status</MudText>
+                    </div>
+                </div>
+            </MudListItem>
+        }
+    </MudList>
+    
+    @if (!Agents.Any())
+    {
+        <div class="text-center mt-4">
+            <MudIcon Icon="@Icons.Material.Filled.SmartToy" Size="Size.Large" Class="text-muted mb-2" />
+            <MudText Typo="Typo.body2" Class="text-muted">No agents available</MudText>
+        </div>
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public List<AgentInfo> Agents { get; set; } = new();
+    [Parameter] public AgentInfo? SelectedAgent { get; set; }
+    [Parameter] public EventCallback<AgentInfo> OnAgentSelected { get; set; }
+    
+    private async Task SelectAgent(AgentInfo agent)
+    {
+        if (OnAgentSelected.HasDelegate)
+        {
+            await OnAgentSelected.InvokeAsync(agent);
+        }
+    }
+    
+    private Color GetAgentStatusColor(AgentInfo agent)
+    {
+        return agent.Status switch
+        {
+            Core.Agents.AgentStatus.Ready => Color.Success,
+            Core.Agents.AgentStatus.Busy => Color.Warning,
+            Core.Agents.AgentStatus.Error => Color.Error,
+            Core.Agents.AgentStatus.Initializing => Color.Info,
+            _ => Color.Default
+        };
+    }
+}

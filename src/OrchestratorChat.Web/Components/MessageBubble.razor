@@ -1,0 +1,58 @@
+@using OrchestratorChat.Web.Models
+@using OrchestratorChat.Core.Messages
+@using OrchestratorChat.Core.Sessions
+
+<div class="message-bubble @GetMessageClass()">
+    <div class="message-header">
+        <MudText Typo="Typo.caption">
+            @GetSenderName() • @Message.Timestamp.ToString("HH:mm")
+        </MudText>
+    </div>
+    <div class="message-content">
+        @if (Message.Role == MessageRole.Assistant)
+        {
+            <MarkdownRenderer Content="@Message.Content" />
+        }
+        else
+        {
+            <MudText>@Message.Content</MudText>
+        }
+    </div>
+    @if (Message.Attachments?.Any() == true)
+    {
+        <div class="message-attachments">
+            @foreach (var attachment in Message.Attachments)
+            {
+                <AttachmentChip Attachment="@attachment" />
+            }
+        </div>
+    }
+    
+    @if (Message.TokenUsage != null)
+    {
+        <div class="message-footer">
+            <MudText Typo="Typo.caption" Class="text-muted">
+                Tokens: @Message.TokenUsage.InputTokens in, @Message.TokenUsage.OutputTokens out
+            </MudText>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public ChatMessage Message { get; set; } = new();
+    [CascadingParameter] public Session? CurrentSession { get; set; }
+    
+    private string GetMessageClass()
+    {
+        return Message.Role == MessageRole.User ? "user-message" : "agent-message";
+    }
+    
+    private string GetSenderName()
+    {
+        if (Message.Role == MessageRole.User)
+            return "You";
+            
+        var agentId = CurrentSession?.ParticipantAgentIds?.FirstOrDefault(id => id == Message.AgentId);
+        return agentId ?? "Agent";
+    }
+}

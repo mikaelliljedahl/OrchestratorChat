@@ -1,0 +1,117 @@
+@using OrchestratorChat.Web.Models
+@using OrchestratorChat.Core.Orchestration
+
+<MudCard Class="mt-4">
+    <MudCardHeader>
+        <MudText Typo="Typo.h5">Orchestration Plan</MudText>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudText Typo="Typo.subtitle1" Class="mb-2">Goal: @Plan.Goal</MudText>
+        <MudText Typo="Typo.caption" Class="mb-3">Strategy: @Plan.Strategy</MudText>
+        
+        @if (Progress != null)
+        {
+            <MudProgressLinear Value="@Progress.PercentComplete" Color="Color.Primary" Class="mb-3" />
+            <MudText Typo="Typo.body2" Class="mb-2">
+                @Progress.Status - @Progress.CurrentStep (@Progress.CompletedSteps/@Progress.TotalSteps)
+            </MudText>
+        }
+        
+        <MudList>
+            @for (int i = 0; i < Plan.Steps.Count; i++)
+            {
+                var step = Plan.Steps[i];
+                var isCurrentStep = Progress?.CompletedSteps == i;
+                var isCompleted = Progress?.CompletedSteps > i;
+                
+                <MudListItem>
+                    <div class="d-flex align-center">
+                        <MudIcon Icon="@GetStepIcon(isCompleted, isCurrentStep)" 
+                                Color="@GetStepColor(isCompleted, isCurrentStep)"
+                                Class="mr-3" />
+                        <div class="flex-grow-1">
+                            <MudText Typo="Typo.body1" 
+                                    Class="@(isCurrentStep ? "font-weight-bold" : "")">
+                                @step.Name
+                            </MudText>
+                            <MudText Typo="Typo.body2" Class="text-muted">
+                                @step.Description
+                            </MudText>
+                            @if (!string.IsNullOrEmpty(step.AssignedAgentId))
+                            {
+                                <MudChip Size="Size.Small" Color="Color.Secondary" Class="mt-1">
+                                    @step.AssignedAgentId
+                                </MudChip>
+                            }
+                        </div>
+                        @if (step.ExpectedDuration.HasValue)
+                        {
+                            <MudText Typo="Typo.caption" Class="text-muted">
+                                ~@step.ExpectedDuration.Value.TotalMinutes.ToString("F0")m
+                            </MudText>
+                        }
+                    </div>
+                </MudListItem>
+            }
+        </MudList>
+    </MudCardContent>
+    <MudCardActions>
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary"
+                   OnClick="@ExecutePlan"
+                   Disabled="@(Progress != null && Progress.Status == "Running")"
+                   StartIcon="@Icons.Material.Filled.PlayArrow">
+            @if (Progress?.Status == "Running")
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                <span class="ml-2">Executing...</span>
+            }
+            else
+            {
+                <span>Execute Plan</span>
+            }
+        </MudButton>
+        
+        @if (Progress?.Status == "Running")
+        {
+            <MudButton Variant="Variant.Outlined" 
+                       Color="Color.Warning"
+                       StartIcon="@Icons.Material.Filled.Pause"
+                       Class="ml-2">
+                Pause
+            </MudButton>
+        }
+    </MudCardActions>
+</MudCard>
+
+@code {
+    [Parameter] public OrchestratorChat.Core.Orchestration.OrchestrationPlan Plan { get; set; } = new();
+    [Parameter] public OrchestratorChat.Web.Models.OrchestrationProgress? Progress { get; set; }
+    [Parameter] public EventCallback OnExecute { get; set; }
+    
+    private async Task ExecutePlan()
+    {
+        if (OnExecute.HasDelegate)
+        {
+            await OnExecute.InvokeAsync();
+        }
+    }
+    
+    private string GetStepIcon(bool isCompleted, bool isCurrentStep)
+    {
+        if (isCompleted)
+            return Icons.Material.Filled.CheckCircle;
+        if (isCurrentStep)
+            return Icons.Material.Filled.PlayCircleFilled;
+        return Icons.Material.Outlined.Circle;
+    }
+    
+    private Color GetStepColor(bool isCompleted, bool isCurrentStep)
+    {
+        if (isCompleted)
+            return Color.Success;
+        if (isCurrentStep)
+            return Color.Primary;
+        return Color.Default;
+    }
+}

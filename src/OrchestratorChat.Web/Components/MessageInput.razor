@@ -1,0 +1,124 @@
+@inject IJSRuntime JSRuntime
+
+<MudPaper Class="pa-3 message-input-container">
+    <div class="d-flex align-end gap-2">
+        <MudTextField @bind-Value="_currentMessage" 
+                      @onkeypress="@OnKeyPress"
+                      Placeholder="Type your message..." 
+                      Variant="Variant.Outlined"
+                      Lines="@_lines"
+                      MaxLines="5"
+                      Disabled="@(!IsEnabled)"
+                      Class="flex-grow-1"
+                      @ref="_textField" />
+        
+        @if (OnAttach.HasDelegate)
+        {
+            <MudIconButton Icon="@Icons.Material.Filled.AttachFile" 
+                          OnClick="@AttachFile"
+                          Disabled="@(!IsEnabled)"
+                          Size="Size.Large" />
+        }
+        
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary"
+                   OnClick="@SendMessage"
+                   Disabled="@(!IsEnabled || string.IsNullOrWhiteSpace(_currentMessage))"
+                   Size="Size.Large"
+                   StartIcon="@Icons.Material.Filled.Send">
+            Send
+        </MudButton>
+    </div>
+    
+    @if (_attachments.Any())
+    {
+        <div class="mt-2">
+            <MudText Typo="Typo.caption" Class="mb-1">Attachments:</MudText>
+            <div class="d-flex gap-1 flex-wrap">
+                @foreach (var attachment in _attachments)
+                {
+                    <MudChip Size="Size.Small" 
+                             OnClose="@(() => RemoveAttachment(attachment))"
+                             CloseIcon="@Icons.Material.Filled.Close">
+                        @attachment
+                    </MudChip>
+                }
+            </div>
+        </div>
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public EventCallback<string> OnSendMessage { get; set; }
+    [Parameter] public EventCallback OnAttach { get; set; }
+    [Parameter] public bool IsEnabled { get; set; } = true;
+    
+    private string _currentMessage = "";
+    private int _lines = 1;
+    private List<string> _attachments = new();
+    private MudTextField<string> _textField = null!;
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _textField.FocusAsync();
+        }
+    }
+    
+    private async Task OnKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            if (e.ShiftKey)
+            {
+                // Allow new line with Shift+Enter
+                _lines = Math.Min(_lines + 1, 5);
+                return;
+            }
+            
+            // Send message with Enter
+            await SendMessage();
+        }
+    }
+    
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_currentMessage) || !IsEnabled)
+            return;
+            
+        var message = _currentMessage;
+        _currentMessage = "";
+        _lines = 1;
+        _attachments.Clear();
+        
+        if (OnSendMessage.HasDelegate)
+        {
+            await OnSendMessage.InvokeAsync(message);
+        }
+        
+        await _textField.FocusAsync();
+    }
+    
+    private async Task AttachFile()
+    {
+        if (OnAttach.HasDelegate)
+        {
+            await OnAttach.InvokeAsync();
+        }
+    }
+    
+    private void RemoveAttachment(string attachment)
+    {
+        _attachments.Remove(attachment);
+    }
+    
+    public void AddAttachment(string filePath)
+    {
+        if (!_attachments.Contains(filePath))
+        {
+            _attachments.Add(filePath);
+            StateHasChanged();
+        }
+    }
+}
