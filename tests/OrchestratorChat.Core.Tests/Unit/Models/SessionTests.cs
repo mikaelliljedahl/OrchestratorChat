@@ -1,4 +1,3 @@
-using FluentAssertions;
 using OrchestratorChat.Core.Messages;
 using OrchestratorChat.Core.Sessions;
 using OrchestratorChat.Core.Tests.Fixtures;
@@ -19,11 +18,11 @@ public class SessionTests
         var session = new Session();
 
         // Assert
-        session.Id.Should().NotBeEmpty();
-        session.ParticipantAgentIds.Should().BeEmpty();
-        session.Messages.Should().BeEmpty();
-        session.Context.Should().BeEmpty();
-        session.Status.Should().Be(SessionStatus.Active); // Default to Active
+        Assert.NotEqual(Guid.Empty.ToString(), session.Id);
+        Assert.Empty(session.ParticipantAgentIds);
+        Assert.Empty(session.Messages);
+        Assert.Empty(session.Context);
+        Assert.Equal(SessionStatus.Active, session.Status); // Default to Active
     }
 
     [Fact]
@@ -46,14 +45,14 @@ public class SessionTests
             .Build();
 
         // Assert
-        session.Id.Should().Be(sessionId);
-        session.Name.Should().Be("Test Session");
-        session.Type.Should().Be(SessionType.MultiAgent);
-        session.Status.Should().Be(SessionStatus.Active);
-        session.ParticipantAgentIds.Should().Contain(agentId);
-        session.Messages.Should().Contain(message);
-        session.Context.Should().ContainKey("testKey");
-        session.Context["testKey"].Should().Be("testValue");
+        Assert.Equal(sessionId, session.Id);
+        Assert.Equal("Test Session", session.Name);
+        Assert.Equal(SessionType.MultiAgent, session.Type);
+        Assert.Equal(SessionStatus.Active, session.Status);
+        Assert.Contains(agentId, session.ParticipantAgentIds);
+        Assert.Contains(message, session.Messages);
+        Assert.True(session.Context.ContainsKey("testKey"));
+        Assert.Equal("testValue", session.Context["testKey"]);
     }
 
     [Fact]
@@ -68,8 +67,8 @@ public class SessionTests
             .Build();
 
         // Assert
-        session.ParticipantAgentIds.Should().HaveCount(3);
-        session.ParticipantAgentIds.Should().Contain(agentIds);
+        Assert.Equal(3, session.ParticipantAgentIds.Count);
+        Assert.All(agentIds, agentId => Assert.Contains(agentId, session.ParticipantAgentIds));
     }
 
     [Fact]
@@ -87,9 +86,9 @@ public class SessionTests
             .Build();
 
         // Assert
-        session.Messages.Should().HaveCount(2);
-        session.Messages.Should().Contain(message1);
-        session.Messages.Should().Contain(message2);
+        Assert.Equal(2, session.Messages.Count);
+        Assert.Contains(message1, session.Messages);
+        Assert.Contains(message2, session.Messages);
     }
 
     [Theory]
@@ -104,7 +103,7 @@ public class SessionTests
             .Build();
 
         // Assert
-        session.Type.Should().Be(sessionType);
+        Assert.Equal(sessionType, session.Type);
     }
 
     [Theory]
@@ -120,6 +119,6 @@ public class SessionTests
             .Build();
 
         // Assert
-        session.Status.Should().Be(status);
+        Assert.Equal(status, session.Status);
     }
 }

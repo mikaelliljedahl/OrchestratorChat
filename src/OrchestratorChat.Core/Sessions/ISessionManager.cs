@@ -35,6 +35,13 @@ public interface ISessionManager
     Task<List<Session>> GetRecentSessions(int count);
     
     /// <summary>
+    /// Get recent sessions asynchronously
+    /// </summary>
+    /// <param name="count">Number of recent sessions to retrieve</param>
+    /// <returns>List of recent sessions</returns>
+    Task<List<Session>> GetRecentSessionsAsync(int count);
+    
+    /// <summary>
     /// Get all currently active sessions
     /// </summary>
     /// <returns>List of active sessions</returns>

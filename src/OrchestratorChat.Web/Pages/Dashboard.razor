@@ -133,14 +133,13 @@
 
         try
         {
-            var sessionConfig = new Core.Sessions.SessionConfiguration
+            var sessionRequest = new Core.Sessions.CreateSessionRequest
             {
                 Name = _newSessionName,
-                Type = _newSessionType,
-                MaxParticipants = _newSessionType == Core.Sessions.SessionType.SingleAgent ? 1 : 10
+                Type = _newSessionType
             };
 
-            var session = await SessionManager.CreateSessionAsync(sessionConfig);
+            var session = await SessionManager.CreateSessionAsync(sessionRequest);
             _showNewSessionDialog = false;
             Navigation.NavigateTo($"/session/{session.Id}");
         }

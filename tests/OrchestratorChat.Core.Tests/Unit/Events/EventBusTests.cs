@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using OrchestratorChat.Core.Events;
@@ -81,7 +80,7 @@ public class EventBusTests
         // Assert
         var testEvent = new TestEvent();
         _eventBus.Publish(testEvent);
-        handlerCalled.Should().BeTrue();
+        Assert.True(handlerCalled);
     }
 
     [Fact]
@@ -105,9 +104,9 @@ public class EventBusTests
         var testEvent = new TestEvent();
         _eventBus.Publish(testEvent);
         
-        handler1Called.Should().BeTrue();
-        handler2Called.Should().BeTrue();
-        handler3Called.Should().BeTrue();
+        Assert.True(handler1Called);
+        Assert.True(handler2Called);
+        Assert.True(handler3Called);
     }
 
     [Fact]
@@ -126,7 +125,7 @@ public class EventBusTests
         _eventBus.Publish(testEvent);
         
         // Handler should be called twice since it was registered twice
-        callCount.Should().Be(2);
+        Assert.Equal(2, callCount);
     }
 
     [Fact]
@@ -137,7 +136,7 @@ public class EventBusTests
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => _eventBus.Subscribe<TestEvent>(nullHandler));
-        exception.ParamName.Should().Be("handler");
+        Assert.Equal("handler", exception.ParamName);
     }
 
     [Fact]
@@ -158,8 +157,8 @@ public class EventBusTests
         var testEvent = new TestEvent();
         _eventBus.Publish(testEvent);
         
-        testEventHandlerCalled.Should().BeTrue();
-        anotherEventHandlerCalled.Should().BeFalse();
+        Assert.True(testEventHandlerCalled);
+        Assert.False(anotherEventHandlerCalled);
 
         // Reset and test the other way
         testEventHandlerCalled = false;
@@ -168,8 +167,8 @@ public class EventBusTests
         var anotherEvent = new AnotherTestEvent();
         _eventBus.Publish(anotherEvent);
         
-        testEventHandlerCalled.Should().BeFalse();
-        anotherEventHandlerCalled.Should().BeTrue();
+        Assert.False(testEventHandlerCalled);
+        Assert.True(anotherEventHandlerCalled);
     }
 
     #endregion
@@ -191,7 +190,7 @@ public class EventBusTests
         // Assert
         var testEvent = new TestEvent();
         _eventBus.Publish(testEvent);
-        handlerCalled.Should().BeFalse();
+        Assert.False(handlerCalled);
     }
 
     [Fact]
@@ -227,9 +226,9 @@ public class EventBusTests
         var testEvent = new TestEvent();
         _eventBus.Publish(testEvent);
         
-        handler1Called.Should().BeTrue();
-        handler2Called.Should().BeFalse();
-        handler3Called.Should().BeTrue();
+        Assert.True(handler1Called);
+        Assert.False(handler2Called);
+        Assert.True(handler3Called);
     }
 
     [Fact]
@@ -247,7 +246,7 @@ public class EventBusTests
         // Assert - Verify cleanup by checking that publishing doesn't cause issues
         var testEvent = new TestEvent();
         _eventBus.Publish(testEvent);
-        handlerCalled.Should().BeFalse();
+        Assert.False(handlerCalled);
 
         // Note: Verifying logging with NSubstitute is complex and not essential for unit tests
         // The important thing is that the handler doesn't get called and no exceptions are thrown
@@ -271,8 +270,8 @@ public class EventBusTests
         await _eventBus.PublishAsync(testEvent);
 
         // Assert
-        receivedEvent.Should().NotBeNull();
-        receivedEvent!.Data.Should().Be("async test");
+        Assert.NotNull(receivedEvent);
+        Assert.Equal("async test", receivedEvent!.Data);
     }
 
     [Fact]
@@ -295,8 +294,8 @@ public class EventBusTests
         await _eventBus.PublishAsync(testEvent);
 
         // Assert
-        receivedEvents.Should().HaveCount(3);
-        receivedEvents.Should().OnlyContain(e => e.Data == "multi test");
+        Assert.Equal(3, receivedEvents.Count);
+        Assert.All(receivedEvents, e => Assert.Equal("multi test", e.Data));
     }
 
     [Fact]
@@ -317,7 +316,7 @@ public class EventBusTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(() => _eventBus.PublishAsync(nullEvent));
-        exception.ParamName.Should().Be("event");
+        Assert.Equal("event", exception.ParamName);
     }
 
     [Fact]
@@ -344,10 +343,10 @@ public class EventBusTests
         var endTime = DateTime.UtcNow;
 
         // Assert
-        handlerExecuted.Should().BeTrue();
-        completionTime.Should().BeAfter(startTime);
-        completionTime.Should().BeBefore(endTime);
-        (endTime - startTime).TotalMilliseconds.Should().BeGreaterOrEqualTo(delayMs - 50); // Allow some tolerance
+        Assert.True(handlerExecuted);
+        Assert.True(completionTime > startTime);
+        Assert.True(completionTime < endTime);
+        Assert.True((endTime - startTime).TotalMilliseconds >= delayMs - 50); // Allow some tolerance
     }
 
     #endregion
@@ -375,8 +374,8 @@ public class EventBusTests
         await _eventBus.PublishAsync(testEvent);
 
         // Assert
-        handler1Called.Should().BeTrue();
-        handler3Called.Should().BeTrue();
+        Assert.True(handler1Called);
+        Assert.True(handler3Called);
 
         // Note: Error logging verification is complex with NSubstitute 
         // The important thing is that other handlers still execute despite the exception
@@ -429,9 +428,9 @@ public class EventBusTests
         var endTime = DateTime.UtcNow;
 
         // Assert
-        quickHandlerCalled.Should().BeTrue();
+        Assert.True(quickHandlerCalled);
         // The slow handler will continue running but won't block other operations
-        (endTime - startTime).TotalSeconds.Should().BeLessThan(10); // Should not wait for slow handler
+        Assert.True((endTime - startTime).TotalSeconds < 10); // Should not wait for slow handler
     }
 
     [Fact]
@@ -457,7 +456,7 @@ public class EventBusTests
         _eventBus.Publish(testEvent2);
 
         // Assert
-        goodHandlerCalled.Should().BeTrue();
+        Assert.True(goodHandlerCalled);
     }
 
     #endregion
@@ -489,7 +488,7 @@ public class EventBusTests
         var testEvent = new TestEvent("concurrent test");
         _eventBus.Publish(testEvent);
         
-        handlerCount.Should().Be(10);
+        Assert.Equal(10, handlerCount);
     }
 
     [Fact]
@@ -527,7 +526,7 @@ public class EventBusTests
         var testEvent = new TestEvent("unsubscribe test");
         _eventBus.Publish(testEvent);
         
-        handlerCount.Should().Be(0);
+        Assert.Equal(0, handlerCount);
     }
 
     [Fact]
@@ -557,8 +556,8 @@ public class EventBusTests
         await Task.WhenAll(tasks);
 
         // Assert
-        receivedEvents.Should().HaveCount(10);
-        receivedEvents.Select(e => e.Data).Should().Contain(data => data.StartsWith("concurrent event"));
+        Assert.Equal(10, receivedEvents.Count);
+        Assert.All(receivedEvents, e => Assert.StartsWith("concurrent event", e.Data));
     }
 
     [Fact]
@@ -596,8 +595,8 @@ public class EventBusTests
         await Task.WhenAll(publishTask, subscriptionTask);
 
         // Assert - Should have received events without corruption
-        receivedEvents.Should().NotBeEmpty();
-        receivedEvents.Should().OnlyContain(e => e.Data.StartsWith("event"));
+        Assert.NotEmpty(receivedEvents);
+        Assert.All(receivedEvents, e => Assert.StartsWith("event", e.Data));
     }
 
     #endregion
@@ -612,7 +611,7 @@ public class EventBusTests
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new EventBus(nullLogger));
-        exception.ParamName.Should().Be("logger");
+        Assert.Equal("logger", exception.ParamName);
     }
 
     #endregion

@@ -34,4 +34,13 @@ public class OrchestrationRequest
     /// Maximum time allowed for the entire orchestration
     /// </summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromMinutes(30);
+    
+    /// <summary>
+    /// Maximum time allowed for the entire orchestration in minutes
+    /// </summary>
+    public double TimeoutMinutes
+    {
+        get => Timeout.TotalMinutes;
+        set => Timeout = TimeSpan.FromMinutes(value);
+    }
 }

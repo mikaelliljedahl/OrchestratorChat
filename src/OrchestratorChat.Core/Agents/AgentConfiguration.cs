@@ -11,6 +11,11 @@ public class AgentConfiguration
     public string? Name { get; set; }
     
     /// <summary>
+    /// Type of the agent
+    /// </summary>
+    public AgentType Type { get; set; }
+    
+    /// <summary>
     /// Working directory for the agent
     /// </summary>
     public string? WorkingDirectory { get; set; }

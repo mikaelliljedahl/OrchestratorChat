@@ -33,7 +33,7 @@ builder.Services.AddSingleton<OrchestratorChat.Core.Configuration.IConfiguration
 
 // Add core services
 builder.Services.AddScoped<IEventBus, EventBus>();
-builder.Services.AddScoped<OrchestratorChat.Core.Sessions.ISessionRepository, SessionRepository>();
+builder.Services.AddScoped<OrchestratorChat.Data.Repositories.ISessionRepository, SessionRepository>();
 builder.Services.AddScoped<ISessionManager, SessionManager>();
 builder.Services.AddScoped<IOrchestrator, Orchestrator>();
 

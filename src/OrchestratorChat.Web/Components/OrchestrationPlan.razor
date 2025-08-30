@@ -44,10 +44,10 @@
                                 </MudChip>
                             }
                         </div>
-                        @if (step.ExpectedDuration.HasValue)
+                        @if (step.ExpectedDuration > TimeSpan.Zero)
                         {
                             <MudText Typo="Typo.caption" Class="text-muted">
-                                ~@step.ExpectedDuration.Value.TotalMinutes.ToString("F0")m
+                                ~@step.ExpectedDuration.TotalMinutes.ToString("F0")m
                             </MudText>
                         }
                     </div>

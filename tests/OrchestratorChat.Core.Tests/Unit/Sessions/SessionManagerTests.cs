@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using OrchestratorChat.Core.Events;
@@ -60,17 +59,17 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.CreateSessionAsync(request);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Name.Should().Be(request.Name);
-        result.Type.Should().Be(request.Type);
-        result.Status.Should().Be(SessionStatus.Active);
-        result.ParticipantAgentIds.Should().BeEquivalentTo(request.AgentIds);
-        result.WorkingDirectory.Should().Be(request.WorkingDirectory);
-        result.Id.Should().NotBeEmpty();
-        result.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-        result.LastActivityAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-        result.Messages.Should().BeEmpty();
-        result.Context.Should().BeEmpty();
+        Assert.NotNull(result);
+        Assert.Equal(request.Name, result.Name);
+        Assert.Equal(request.Type, result.Type);
+        Assert.Equal(SessionStatus.Active, result.Status);
+        Assert.Equal(request.AgentIds, result.ParticipantAgentIds);
+        Assert.Equal(request.WorkingDirectory, result.WorkingDirectory);
+        Assert.NotEqual(Guid.Empty.ToString(), result.Id);
+        Assert.True(Math.Abs((DateTime.UtcNow - result.CreatedAt).TotalSeconds) < 1);
+        Assert.True(Math.Abs((DateTime.UtcNow - result.LastActivityAt).TotalSeconds) < 1);
+        Assert.Empty(result.Messages);
+        Assert.Empty(result.Context);
 
         // Verify repository was called
         _mockRepository.Received(1).CreateSessionAsync(Arg.Any<Session>());
@@ -97,8 +96,8 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.CreateSessionAsync(request);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Name.Should().Be(request.Name);
+        Assert.NotNull(result);
+        Assert.Equal(request.Name, result.Name);
         
         // Should handle gracefully by creating a new session with same name
         _mockRepository.Received(1).CreateSessionAsync(Arg.Any<Session>());
@@ -109,9 +108,8 @@ public class SessionManagerTests : IDisposable
     public async Task CreateSessionAsync_WithNullRequest_ThrowsArgumentNullException()
     {
         // Act & Assert
-        await FluentActions.Invoking(() => _sessionManager.CreateSessionAsync(null!))
-            .Should().ThrowAsync<ArgumentNullException>()
-            .WithMessage("*request*");
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => _sessionManager.CreateSessionAsync(null!));
+        Assert.Contains("request", ex.Message);
 
         // Verify no repository calls were made
         _mockRepository.DidNotReceive().CreateSessionAsync(Arg.Any<Session>());
@@ -136,8 +134,8 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.CreateSessionAsync(request);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Name.Should().Be("");
+        Assert.NotNull(result);
+        Assert.Equal("", result.Name);
         
         _mockRepository.Received(1).CreateSessionAsync(Arg.Any<Session>());
     }
@@ -160,8 +158,8 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.CreateSessionAsync(request);
 
         // Assert
-        result.Should().NotBeNull();
-        result.ParticipantAgentIds.Should().BeEquivalentTo(request.AgentIds);
+        Assert.NotNull(result);
+        Assert.Equal(request.AgentIds, result.ParticipantAgentIds);
         
         // SessionManager doesn't validate agent IDs - it accepts what's provided
         _mockRepository.Received(1).CreateSessionAsync(Arg.Any<Session>());
@@ -185,10 +183,10 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.GetSessionAsync(sessionId);
 
         // Assert
-        result.Should().NotBeNull();
-        result!.Id.Should().Be(sessionId);
-        result.Name.Should().Be(expectedSession.Name);
-        result.Id.Should().Be(sessionId);
+        Assert.NotNull(result);
+        Assert.Equal(sessionId, result!.Id);
+        Assert.Equal(expectedSession.Name, result.Name);
+        Assert.Equal(sessionId, result.Id);
         
         _mockRepository.Received(1).GetSessionByIdAsync(sessionId);
     }
@@ -206,7 +204,7 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.GetSessionAsync(sessionId);
 
         // Assert
-        result.Should().BeNull();
+        Assert.Null(result);
         
         _mockRepository.Received(1).GetSessionByIdAsync(sessionId);
     }
@@ -218,7 +216,7 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.GetSessionAsync(null!);
 
         // Assert
-        result.Should().BeNull();
+        Assert.Null(result);
         
         // Should not call repository with null ID
         _mockRepository.DidNotReceive().GetSessionByIdAsync(Arg.Any<string>());
@@ -249,9 +247,9 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.GetCurrentSessionAsync();
 
         // Assert
-        result.Should().NotBeNull();
-        result!.Id.Should().Be(createdSession.Id);
-        result.Name.Should().Be(createdSession.Name);
+        Assert.NotNull(result);
+        Assert.Equal(createdSession.Id, result!.Id);
+        Assert.Equal(createdSession.Name, result.Name);
         
         _mockRepository.Received(1).GetSessionByIdAsync(Arg.Any<string>());
     }
@@ -263,7 +261,7 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.GetCurrentSessionAsync();
 
         // Assert
-        result.Should().BeNull();
+        Assert.Null(result);
         
         // Should not call repository when no current session
         _mockRepository.DidNotReceive().GetSessionByIdAsync(Arg.Any<string>());
@@ -300,9 +298,9 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.GetRecentSessions(5);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Should().HaveCount(3);
-        result.Should().BeEquivalentTo(sessions);
+        Assert.NotNull(result);
+        Assert.Equal(3, result.Count);
+        Assert.Equal(sessions, result);
         
         _mockRepository.Received(1).GetRecentSessionsAsync(5);
     }
@@ -324,9 +322,9 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.GetRecentSessions(10);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Should().HaveCount(2);
-        result.Should().BeEquivalentTo(sessions);
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Count);
+        Assert.Equal(sessions, result);
         
         _mockRepository.Received(1).GetRecentSessionsAsync(10);
     }
@@ -338,8 +336,8 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.GetRecentSessions(0);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Should().BeEmpty();
+        Assert.NotNull(result);
+        Assert.Empty(result);
         
         // Should not call repository for zero count
         _mockRepository.DidNotReceive().GetRecentSessionsAsync(Arg.Any<int>());
@@ -352,8 +350,8 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.GetRecentSessions(-5);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Should().BeEmpty();
+        Assert.NotNull(result);
+        Assert.Empty(result);
         
         // Should not call repository for negative count
         _mockRepository.DidNotReceive().GetRecentSessionsAsync(Arg.Any<int>());
@@ -377,8 +375,8 @@ public class SessionManagerTests : IDisposable
         await _sessionManager.AddMessageAsync(sessionId, message);
 
         // Assert
-        message.SessionId.Should().Be(sessionId);
-        message.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        Assert.Equal(sessionId, message.SessionId);
+        Assert.True(Math.Abs((DateTime.UtcNow - message.Timestamp).TotalSeconds) < 1);
         
         _mockRepository.Received(1).AddMessageAsync(sessionId, message);
         await _mockEventBus.Received(1).PublishAsync(Arg.Any<MessageAddedEvent>());
@@ -410,9 +408,8 @@ public class SessionManagerTests : IDisposable
         var sessionId = "test-session";
 
         // Act & Assert
-        await FluentActions.Invoking(() => _sessionManager.AddMessageAsync(sessionId, null!))
-            .Should().ThrowAsync<ArgumentNullException>()
-            .WithMessage("*message*");
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => _sessionManager.AddMessageAsync(sessionId, null!));
+        Assert.Contains("message", ex.Message);
 
         _mockRepository.DidNotReceive().AddMessageAsync(Arg.Any<string>(), Arg.Any<AgentMessage>());
         await _mockEventBus.DidNotReceive().PublishAsync(Arg.Any<MessageAddedEvent>());
@@ -425,9 +422,8 @@ public class SessionManagerTests : IDisposable
         var message = TestDataBuilder.DefaultUserMessage("session", "Test message");
 
         // Act & Assert
-        await FluentActions.Invoking(() => _sessionManager.AddMessageAsync(null!, message))
-            .Should().ThrowAsync<ArgumentNullException>()
-            .WithMessage("*sessionId*");
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => _sessionManager.AddMessageAsync(null!, message));
+        Assert.Contains("sessionId", ex.Message);
 
         _mockRepository.DidNotReceive().AddMessageAsync(Arg.Any<string>(), Arg.Any<AgentMessage>());
         await _mockEventBus.DidNotReceive().PublishAsync(Arg.Any<MessageAddedEvent>());
@@ -440,9 +436,8 @@ public class SessionManagerTests : IDisposable
         var message = TestDataBuilder.DefaultUserMessage("session", "Test message");
 
         // Act & Assert
-        await FluentActions.Invoking(() => _sessionManager.AddMessageAsync("", message))
-            .Should().ThrowAsync<ArgumentNullException>()
-            .WithMessage("*sessionId*");
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => _sessionManager.AddMessageAsync("", message));
+        Assert.Contains("sessionId", ex.Message);
 
         _mockRepository.DidNotReceive().AddMessageAsync(Arg.Any<string>(), Arg.Any<AgentMessage>());
         await _mockEventBus.DidNotReceive().PublishAsync(Arg.Any<MessageAddedEvent>());
@@ -471,9 +466,9 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.EndSessionAsync(sessionId);
 
         // Assert
-        result.Should().BeTrue();
-        activeSession.Status.Should().Be(SessionStatus.Completed);
-        activeSession.LastActivityAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        Assert.True(result);
+        Assert.Equal(SessionStatus.Completed, activeSession.Status);
+        Assert.True(Math.Abs((DateTime.UtcNow - activeSession.LastActivityAt).TotalSeconds) < 1);
         
         _mockRepository.Received(1).GetSessionByIdAsync(sessionId);
         _mockRepository.Received(1).UpdateSessionAsync(activeSession);
@@ -499,8 +494,8 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.EndSessionAsync(sessionId);
 
         // Assert
-        result.Should().BeTrue();
-        completedSession.Status.Should().Be(SessionStatus.Completed); // Still completed
+        Assert.True(result);
+        Assert.Equal(SessionStatus.Completed, completedSession.Status); // Still completed
         
         _mockRepository.Received(1).GetSessionByIdAsync(sessionId);
         _mockRepository.Received(1).UpdateSessionAsync(completedSession);
@@ -520,7 +515,7 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.EndSessionAsync(sessionId);
 
         // Assert
-        result.Should().BeFalse();
+        Assert.False(result);
         
         _mockRepository.Received(1).GetSessionByIdAsync(sessionId);
         _mockRepository.DidNotReceive().UpdateSessionAsync(Arg.Any<Session>());
@@ -577,10 +572,10 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.CreateSnapshotAsync(sessionId);
 
         // Assert
-        result.Should().NotBeNull();
-        result.SessionId.Should().Be(sessionId);
-        result.SessionState.Id.Should().Be(session.Id);
-        result.SessionState.Name.Should().Be(session.Name);
+        Assert.NotNull(result);
+        Assert.Equal(sessionId, result.SessionId);
+        Assert.Equal(session.Id, result.SessionState.Id);
+        Assert.Equal(session.Name, result.SessionState.Name);
         
         _mockRepository.Received(1).GetSessionByIdAsync(sessionId);
         _mockRepository.Received(1).CreateSnapshotAsync(sessionId, Arg.Any<SessionSnapshot>());
@@ -591,11 +586,11 @@ public class SessionManagerTests : IDisposable
     {
         // Act & Assert - Null
         var result1 = await _sessionManager.EndSessionAsync(null!);
-        result1.Should().BeFalse();
+        Assert.False(result1);
 
         // Act & Assert - Empty
         var result2 = await _sessionManager.EndSessionAsync("");
-        result2.Should().BeFalse();
+        Assert.False(result2);
 
         _mockRepository.DidNotReceive().GetSessionByIdAsync(Arg.Any<string>());
     }
@@ -617,9 +612,9 @@ public class SessionManagerTests : IDisposable
         var result = await _sessionManager.GetActiveSessionsAsync();
 
         // Assert
-        result.Should().NotBeNull();
-        result.Should().HaveCount(2);
-        result.Should().BeEquivalentTo(activeSessions);
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Count);
+        Assert.Equal(activeSessions, result);
         
         _mockRepository.Received(1).GetActiveSessionsAsync();
     }

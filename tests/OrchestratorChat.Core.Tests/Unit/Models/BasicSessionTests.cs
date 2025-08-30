@@ -1,4 +1,3 @@
-using FluentAssertions;
 using OrchestratorChat.Core.Messages;
 using OrchestratorChat.Core.Sessions;
 using OrchestratorChat.Core.Tests.Fixtures;
@@ -18,10 +17,10 @@ public class BasicSessionTests
         var session = new Session();
 
         // Assert
-        session.Id.Should().NotBeEmpty();
-        session.ParticipantAgentIds.Should().BeEmpty();
-        session.Messages.Should().BeEmpty();
-        session.Context.Should().BeEmpty();
+        Assert.NotEqual(Guid.Empty.ToString(), session.Id);
+        Assert.Empty(session.ParticipantAgentIds);
+        Assert.Empty(session.Messages);
+        Assert.Empty(session.Context);
     }
 
     [Fact]
@@ -42,13 +41,13 @@ public class BasicSessionTests
             .Build();
 
         // Assert
-        session.Id.Should().Be(sessionId);
-        session.Name.Should().Be("Test Session");
-        session.Type.Should().Be(SessionType.MultiAgent);
-        session.Status.Should().Be(SessionStatus.Active);
-        session.ParticipantAgentIds.Should().Contain(agentId);
-        session.Context.Should().ContainKey("testKey");
-        session.Context["testKey"].Should().Be("testValue");
+        Assert.Equal(sessionId, session.Id);
+        Assert.Equal("Test Session", session.Name);
+        Assert.Equal(SessionType.MultiAgent, session.Type);
+        Assert.Equal(SessionStatus.Active, session.Status);
+        Assert.Contains(agentId, session.ParticipantAgentIds);
+        Assert.True(session.Context.ContainsKey("testKey"));
+        Assert.Equal("testValue", session.Context["testKey"]);
     }
 
     [Fact]
@@ -58,10 +57,10 @@ public class BasicSessionTests
         var message = new AgentMessage();
 
         // Assert
-        message.Id.Should().NotBeEmpty();
-        message.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-        message.Attachments.Should().BeEmpty();
-        message.Metadata.Should().BeEmpty();
+        Assert.NotEqual(Guid.Empty.ToString(), message.Id);
+        Assert.True(Math.Abs((DateTime.UtcNow - message.Timestamp).TotalSeconds) < 1);
+        Assert.Empty(message.Attachments);
+        Assert.Empty(message.Metadata);
     }
 
     [Fact]
@@ -75,15 +74,15 @@ public class BasicSessionTests
         var assistantMessage = TestDataBuilder.DefaultAssistantMessage(sessionId, "agent1", "Hi there");
 
         // Assert
-        userMessage.Content.Should().Be("Hello");
-        userMessage.Role.Should().Be(MessageRole.User);
-        userMessage.SessionId.Should().Be(sessionId);
-        userMessage.AgentId.Should().Be("user");
+        Assert.Equal("Hello", userMessage.Content);
+        Assert.Equal(MessageRole.User, userMessage.Role);
+        Assert.Equal(sessionId, userMessage.SessionId);
+        Assert.Equal("user", userMessage.AgentId);
 
-        assistantMessage.Content.Should().Be("Hi there");
-        assistantMessage.Role.Should().Be(MessageRole.Assistant);
-        assistantMessage.SessionId.Should().Be(sessionId);
-        assistantMessage.AgentId.Should().Be("agent1");
+        Assert.Equal("Hi there", assistantMessage.Content);
+        Assert.Equal(MessageRole.Assistant, assistantMessage.Role);
+        Assert.Equal(sessionId, assistantMessage.SessionId);
+        Assert.Equal("agent1", assistantMessage.AgentId);
     }
 
     [Theory]
@@ -98,7 +97,7 @@ public class BasicSessionTests
             .Build();
 
         // Assert
-        session.Type.Should().Be(sessionType);
+        Assert.Equal(sessionType, session.Type);
     }
 
     [Theory]
@@ -113,6 +112,6 @@ public class BasicSessionTests
             .Build();
 
         // Assert
-        message.Role.Should().Be(role);
+        Assert.Equal(role, message.Role);
     }
 }

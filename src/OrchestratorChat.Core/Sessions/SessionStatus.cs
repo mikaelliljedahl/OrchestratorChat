@@ -23,5 +23,10 @@ public enum SessionStatus
     /// <summary>
     /// Session has failed or encountered an error
     /// </summary>
-    Failed
+    Failed,
+    
+    /// <summary>
+    /// Session was cancelled by the user
+    /// </summary>
+    Cancelled
 }

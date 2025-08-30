@@ -38,9 +38,23 @@ public class Session
     public DateTime LastActivityAt { get; set; }
     
     /// <summary>
+    /// Alias for LastActivityAt for compatibility
+    /// </summary>
+    public DateTime LastActivity
+    {
+        get => LastActivityAt;
+        set => LastActivityAt = value;
+    }
+    
+    /// <summary>
     /// List of agent IDs participating in this session
     /// </summary>
     public List<string> ParticipantAgentIds { get; set; } = new();
+    
+    /// <summary>
+    /// List of agent info objects participating in this session
+    /// </summary>
+    public List<OrchestratorChat.Core.Agents.AgentInfo> ParticipantAgents { get; set; } = new();
     
     /// <summary>
     /// List of messages in this session

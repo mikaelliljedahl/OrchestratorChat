@@ -11,6 +11,11 @@ public class OrchestrationStep
     public int Order { get; set; }
     
     /// <summary>
+    /// Name of the step
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+    
+    /// <summary>
     /// ID of the agent that should execute this step
     /// </summary>
     public string AgentId { get; set; }

@@ -11,6 +11,11 @@ public class StepResult
     public int StepOrder { get; set; }
     
     /// <summary>
+    /// Name of the step that was executed
+    /// </summary>
+    public string StepName { get; set; } = string.Empty;
+    
+    /// <summary>
     /// ID of the agent that executed the step
     /// </summary>
     public string AgentId { get; set; }
@@ -34,6 +39,20 @@ public class StepResult
     /// Time taken to execute the step
     /// </summary>
     public TimeSpan ExecutionTime { get; set; }
+    
+    /// <summary>
+    /// Duration taken to execute the step (alias for ExecutionTime)
+    /// </summary>
+    public TimeSpan Duration
+    {
+        get => ExecutionTime;
+        set => ExecutionTime = value;
+    }
+    
+    /// <summary>
+    /// Start time when the step execution began
+    /// </summary>
+    public DateTime StartTime { get; set; }
     
     /// <summary>
     /// Additional data produced by the step for use in subsequent steps

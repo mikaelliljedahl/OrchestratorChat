@@ -1,4 +1,5 @@
 using Microsoft.Extensions.FileSystemGlobbing;
+using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 using OrchestratorChat.Saturn.Models;
 
 namespace OrchestratorChat.Saturn.Tools.Implementations;
@@ -160,7 +161,8 @@ public class GlobTool : ToolBase
             }
 
             // Execute the matching
-            var result = matcher.Execute(new DirectoryInfoWrapper(rootDirectory));
+            var directoryInfo = new DirectoryInfo(rootDirectory);
+            var result = matcher.Execute(new DirectoryInfoWrapper(directoryInfo));
             var matchedFiles = result.Files.Take(maxResults).Select(f => f.Path).ToList();
 
             // Sort results for consistent output

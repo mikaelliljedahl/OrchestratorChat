@@ -53,7 +53,7 @@
     </MudItem>
 </MudGrid>
 
-<SessionHistory @bind-IsOpen="_showHistory" OnSessionSelected="@LoadSession" />
+<SessionHistory @bind-IsOpen="_showHistory" OnSessionSelected="@((Core.Sessions.Session session) => LoadSession(session))" />
 
 @code {
     [Parameter] public string? AgentId { get; set; }

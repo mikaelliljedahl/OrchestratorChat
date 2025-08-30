@@ -115,6 +115,16 @@ public class SessionManager : ISessionManager
     }
 
     /// <summary>
+    /// Gets recent sessions asynchronously
+    /// </summary>
+    /// <param name="count">Number of recent sessions to retrieve</param>
+    /// <returns>List of recent sessions</returns>
+    public async Task<List<Session>> GetRecentSessionsAsync(int count)
+    {
+        return await GetRecentSessions(count);
+    }
+
+    /// <summary>
     /// Gets all currently active sessions
     /// </summary>
     /// <returns>List of active sessions</returns>

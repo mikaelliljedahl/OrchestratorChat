@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using OrchestratorChat.Core.Agents;
@@ -64,30 +63,31 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.CreatePlanAsync(request);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Id.Should().NotBeEmpty();
-        result.Name.Should().Contain("Complete simple sequential task");
-        result.Goal.Should().Be(request.Goal);
-        result.Strategy.Should().Be(OrchestrationStrategy.Sequential);
-        result.Steps.Should().HaveCount(2);
+        Assert.NotNull(result);
+        Assert.NotEqual(Guid.Empty.ToString(), result.Id);
+        Assert.Contains("Complete simple sequential task", result.Name);
+        Assert.Equal(request.Goal, result.Goal);
+        Assert.Equal(OrchestrationStrategy.Sequential, result.Strategy);
+        Assert.Equal(2, result.Steps.Count);
         
         // First step should have no dependencies
         var step1 = result.Steps.First(s => s.Order == 1);
-        step1.Should().NotBeNull();
-        step1.AssignedAgentId.Should().Be("agent1");
-        step1.DependsOn.Should().BeEmpty();
-        step1.CanRunInParallel.Should().BeFalse();
+        Assert.NotNull(step1);
+        Assert.Equal("agent1", step1.AssignedAgentId);
+        Assert.Empty(step1.DependsOn);
+        Assert.False(step1.CanRunInParallel);
 
         // Second step should depend on first
         var step2 = result.Steps.First(s => s.Order == 2);
-        step2.Should().NotBeNull();
-        step2.AssignedAgentId.Should().Be("agent2");
-        step2.DependsOn.Should().ContainSingle("1");
-        step2.CanRunInParallel.Should().BeFalse();
+        Assert.NotNull(step2);
+        Assert.Equal("agent2", step2.AssignedAgentId);
+        Assert.Single(step2.DependsOn);
+        Assert.Contains("1", step2.DependsOn);
+        Assert.False(step2.CanRunInParallel);
 
-        result.RequiredAgents.Should().BeEquivalentTo(["agent1", "agent2"]);
-        result.SharedContext.Should().ContainKey("originalRequest");
-        result.SharedContext.Should().ContainKey("createdAt");
+        Assert.Equal(new[] {"agent1", "agent2"}, result.RequiredAgents);
+        Assert.True(result.SharedContext.ContainsKey("originalRequest"));
+        Assert.True(result.SharedContext.ContainsKey("createdAt"));
     }
 
     [Fact]
@@ -106,18 +106,18 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.CreatePlanAsync(request);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Strategy.Should().Be(OrchestrationStrategy.Parallel);
-        result.Steps.Should().HaveCount(3);
+        Assert.NotNull(result);
+        Assert.Equal(OrchestrationStrategy.Parallel, result.Strategy);
+        Assert.Equal(3, result.Steps.Count);
 
         // All parallel steps should have no dependencies and can run in parallel
         foreach (var step in result.Steps)
         {
-            step.DependsOn.Should().BeEmpty();
-            step.CanRunInParallel.Should().BeTrue();
+            Assert.Empty(step.DependsOn);
+            Assert.True(step.CanRunInParallel);
         }
 
-        result.RequiredAgents.Should().BeEquivalentTo(["agent1", "agent2", "agent3"]);
+        Assert.Equal(new[] {"agent1", "agent2", "agent3"}, result.RequiredAgents);
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public class OrchestratorTests : IDisposable
 
         // Act & Assert
         var result = await _orchestrator.ValidatePlanAsync(plan);
-        result.Should().BeFalse("plan has circular dependencies");
+        Assert.False(result); // plan has circular dependencies
     }
 
     [Fact]
@@ -164,9 +164,9 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.CreatePlanAsync(request);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Steps.Should().BeEmpty("no steps were requested");
-        result.RequiredAgents.Should().BeEmpty("no steps means no agents required");
+        Assert.NotNull(result);
+        Assert.Empty(result.Steps); // no steps were requested
+        Assert.Empty(result.RequiredAgents); // no steps means no agents required
     }
 
     [Fact]
@@ -182,9 +182,8 @@ public class OrchestratorTests : IDisposable
         };
 
         // Act & Assert
-        await FluentActions.Invoking(() => _orchestrator.CreatePlanAsync(request))
-            .Should().ThrowAsync<ArgumentException>()
-            .WithMessage("At least one agent must be available*");
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _orchestrator.CreatePlanAsync(request));
+        Assert.Contains("At least one agent must be available", ex.Message);
     }
 
     #endregion
@@ -216,18 +215,18 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ExecutePlanAsync(plan);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Success.Should().BeTrue();
-        result.StepResults.Should().HaveCount(2);
+        Assert.NotNull(result);
+        Assert.True(result.Success);
+        Assert.Equal(2, result.StepResults.Count);
         
         // Verify execution order
         var step1Result = result.StepResults.First(r => r.StepOrder == 1);
         var step2Result = result.StepResults.First(r => r.StepOrder == 2);
         
-        step1Result.Success.Should().BeTrue();
-        step1Result.AgentId.Should().Be("agent1");
-        step2Result.Success.Should().BeTrue();
-        step2Result.AgentId.Should().Be("agent2");
+        Assert.True(step1Result.Success);
+        Assert.Equal("agent1", step1Result.AgentId);
+        Assert.True(step2Result.Success);
+        Assert.Equal("agent2", step2Result.AgentId);
 
         // Verify events were published
         await _mockEventBus.Received(1).PublishAsync(Arg.Any<OrchestrationStartedEvent>());
@@ -270,19 +269,19 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ExecutePlanAsync(plan);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Success.Should().BeFalse();
-        result.StepResults.Should().HaveCount(2); // Only first two steps executed
+        Assert.NotNull(result);
+        Assert.False(result.Success);
+        Assert.Equal(2, result.StepResults.Count); // Only first two steps executed
 
         var step1Result = result.StepResults.First(r => r.StepOrder == 1);
         var step2Result = result.StepResults.First(r => r.StepOrder == 2);
 
-        step1Result.Success.Should().BeTrue();
-        step2Result.Success.Should().BeFalse();
-        step2Result.Error.Should().Contain("not found");
+        Assert.True(step1Result.Success);
+        Assert.False(step2Result.Success);
+        Assert.Contains("not found", step2Result.Error);
 
         // Third step should not have been executed
-        result.StepResults.Should().NotContain(r => r.StepOrder == 3);
+        Assert.DoesNotContain(result.StepResults, r => r.StepOrder == 3);
     }
 
     [Fact]
@@ -314,13 +313,13 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ExecutePlanAsync(plan);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Success.Should().BeFalse();
-        result.StepResults.Should().HaveCount(2);
+        Assert.NotNull(result);
+        Assert.False(result.Success);
+        Assert.Equal(2, result.StepResults.Count);
         
         var failedStep = result.StepResults.First(r => r.StepOrder == 2);
-        failedStep.Success.Should().BeFalse();
-        failedStep.Error.Should().NotBeEmpty();
+        Assert.False(failedStep.Success);
+        Assert.NotEmpty(failedStep.Error);
     }
 
     #endregion
@@ -360,19 +359,19 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ExecutePlanAsync(plan);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Success.Should().BeTrue();
-        result.StepResults.Should().HaveCount(3);
+        Assert.NotNull(result);
+        Assert.True(result.Success);
+        Assert.Equal(3, result.StepResults.Count);
 
         // All steps should have been executed successfully
         foreach (var stepResult in result.StepResults)
         {
-            stepResult.Success.Should().BeTrue();
+            Assert.True(stepResult.Success);
         }
 
         // Verify all agents were used
         var agentIds = result.StepResults.Select(r => r.AgentId).ToList();
-        agentIds.Should().BeEquivalentTo(["agent1", "agent2", "agent3"]);
+        Assert.Equal(new[] {"agent1", "agent2", "agent3"}, agentIds);
     }
 
     [Fact]
@@ -408,14 +407,14 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ExecutePlanAsync(plan);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Success.Should().BeTrue();
-        result.StepResults.Should().HaveCount(3);
+        Assert.NotNull(result);
+        Assert.True(result.Success);
+        Assert.Equal(3, result.StepResults.Count);
 
         // Sequential step should complete first, then parallel steps
         var sequentialResult = result.StepResults.First(r => r.StepOrder == 1);
-        sequentialResult.Success.Should().BeTrue();
-        sequentialResult.AgentId.Should().Be("agent1");
+        Assert.True(sequentialResult.Success);
+        Assert.Equal("agent1", sequentialResult.AgentId);
     }
 
     [Fact]
@@ -454,20 +453,20 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ExecutePlanAsync(plan);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Success.Should().BeFalse(); // Overall fails due to one failure
-        result.StepResults.Should().HaveCount(3);
+        Assert.NotNull(result);
+        Assert.False(result.Success); // Overall fails due to one failure
+        Assert.Equal(3, result.StepResults.Count);
 
         // Check individual results
         var successfulSteps = result.StepResults.Where(r => r.Success).ToList();
         var failedSteps = result.StepResults.Where(r => !r.Success).ToList();
 
-        successfulSteps.Should().HaveCount(2);
-        failedSteps.Should().HaveCount(1);
+        Assert.Equal(2, successfulSteps.Count);
+        Assert.Single(failedSteps);
 
         var failedStep = failedSteps.First();
-        failedStep.AgentId.Should().Be("nonexistent-agent");
-        failedStep.Error.Should().Contain("not found");
+        Assert.Equal("nonexistent-agent", failedStep.AgentId);
+        Assert.Contains("not found", failedStep.Error);
     }
 
     [Fact]
@@ -496,15 +495,15 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ExecutePlanAsync(plan);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Success.Should().BeTrue();
-        result.StepResults.Should().HaveCount(2);
+        Assert.NotNull(result);
+        Assert.True(result.Success);
+        Assert.Equal(2, result.StepResults.Count);
 
         // In the current implementation, there's no explicit concurrency limit,
         // but all parallel steps are executed via Task.WhenAll
         foreach (var stepResult in result.StepResults)
         {
-            stepResult.Success.Should().BeTrue();
+            Assert.True(stepResult.Success);
         }
     }
 
@@ -539,24 +538,24 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ExecutePlanAsync(plan, progress);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Success.Should().BeTrue();
+        Assert.NotNull(result);
+        Assert.True(result.Success);
 
-        progressReports.Should().HaveCount(2);
+        Assert.Equal(2, progressReports.Count);
 
         var firstReport = progressReports[0];
-        firstReport.CurrentStep.Should().Be(1);
-        firstReport.TotalSteps.Should().Be(2);
-        firstReport.CurrentAgent.Should().Be("agent1");
-        firstReport.CurrentTask.Should().Be("First task");
-        firstReport.PercentComplete.Should().Be(0); // 0% when starting first step
+        Assert.Equal(1, firstReport.CurrentStep);
+        Assert.Equal(2, firstReport.TotalSteps);
+        Assert.Equal("agent1", firstReport.CurrentAgent);
+        Assert.Equal("First task", firstReport.CurrentTask);
+        Assert.Equal(0, firstReport.PercentComplete); // 0% when starting first step
 
         var secondReport = progressReports[1];
-        secondReport.CurrentStep.Should().Be(2);
-        secondReport.TotalSteps.Should().Be(2);
-        secondReport.CurrentAgent.Should().Be("agent2");
-        secondReport.CurrentTask.Should().Be("Second task");
-        secondReport.PercentComplete.Should().Be(50); // 50% when starting second step
+        Assert.Equal(2, secondReport.CurrentStep);
+        Assert.Equal(2, secondReport.TotalSteps);
+        Assert.Equal("agent2", secondReport.CurrentAgent);
+        Assert.Equal("Second task", secondReport.CurrentTask);
+        Assert.Equal(50, secondReport.PercentComplete); // 50% when starting second step
     }
 
     [Fact]
@@ -577,13 +576,13 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ExecutePlanAsync(plan, null);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Success.Should().BeTrue();
-        result.StepResults.Should().HaveCount(1);
+        Assert.NotNull(result);
+        Assert.True(result.Success);
+        Assert.Single(result.StepResults);
 
         var stepResult = result.StepResults.First();
-        stepResult.Success.Should().BeTrue();
-        stepResult.AgentId.Should().Be("agent1");
+        Assert.True(stepResult.Success);
+        Assert.Equal("agent1", stepResult.AgentId);
     }
 
     #endregion
@@ -616,9 +615,9 @@ public class OrchestratorTests : IDisposable
 
         // Act & Assert
         var result = await cancelledTask;
-        result.Should().NotBeNull();
-        result.Success.Should().BeFalse();
-        result.FinalOutput.Should().Contain("cancelled");
+        Assert.NotNull(result);
+        Assert.False(result.Success);
+        Assert.Contains("cancelled", result.FinalOutput);
     }
 
     [Fact]
@@ -634,7 +633,7 @@ public class OrchestratorTests : IDisposable
         // The method doesn't return a value, but we can verify it doesn't throw
         // and logs the appropriate message (which we can't easily verify in this test setup)
         // This test mainly ensures the method handles non-existent IDs gracefully
-        true.Should().BeTrue("Method completed without throwing exception");
+        Assert.True(true); // Method completed without throwing exception
     }
 
     [Fact]
@@ -653,14 +652,14 @@ public class OrchestratorTests : IDisposable
 
         // Execute and complete the plan first
         var result = await _orchestrator.ExecutePlanAsync(plan);
-        result.Success.Should().BeTrue();
+        Assert.True(result.Success);
 
         // Act - Try to cancel already completed execution
         await _orchestrator.CancelExecutionAsync("completed-execution-id");
 
         // Assert
         // The method should handle this gracefully (no-op for non-existent ID)
-        true.Should().BeTrue("Method completed without throwing exception");
+        Assert.True(true); // Method completed without throwing exception
     }
 
     [Fact]
@@ -684,9 +683,9 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ExecutePlanAsync(plan, null, cts.Token);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Success.Should().BeFalse();
-        result.FinalOutput.Should().Contain("cancelled");
+        Assert.NotNull(result);
+        Assert.False(result.Success);
+        Assert.Contains("cancelled", result.FinalOutput);
     }
 
     #endregion
@@ -702,7 +701,7 @@ public class OrchestratorTests : IDisposable
         var status = await _orchestrator.GetExecutionStatusAsync("test-execution-id");
 
         // Assert
-        status.Should().BeNull("execution ID does not exist");
+        Assert.Null(status); // execution ID does not exist
     }
 
     [Fact]
@@ -715,7 +714,7 @@ public class OrchestratorTests : IDisposable
         var status = await _orchestrator.GetExecutionStatusAsync(completedExecutionId);
 
         // Assert
-        status.Should().BeNull("execution is not tracked after completion");
+        Assert.Null(status); // execution is not tracked after completion
     }
 
     [Fact]
@@ -728,7 +727,7 @@ public class OrchestratorTests : IDisposable
         var status = await _orchestrator.GetExecutionStatusAsync(nonExistentId);
 
         // Assert
-        status.Should().BeNull();
+        Assert.Null(status);
     }
 
     #endregion
@@ -755,7 +754,7 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ValidatePlanAsync(validPlan);
 
         // Assert
-        result.Should().BeTrue();
+        Assert.True(result);
     }
 
     [Fact]
@@ -765,7 +764,7 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ValidatePlanAsync(null!);
 
         // Assert
-        result.Should().BeFalse();
+        Assert.False(result);
     }
 
     [Fact]
@@ -782,7 +781,7 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ValidatePlanAsync(invalidPlan);
 
         // Assert
-        result.Should().BeFalse();
+        Assert.False(result);
     }
 
     [Fact]
@@ -798,7 +797,7 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ValidatePlanAsync(invalidPlan);
 
         // Assert
-        result.Should().BeFalse();
+        Assert.False(result);
     }
 
     [Fact]
@@ -814,7 +813,7 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ValidatePlanAsync(invalidPlan);
 
         // Assert
-        result.Should().BeFalse();
+        Assert.False(result);
     }
 
     [Fact]
@@ -837,7 +836,7 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ValidatePlanAsync(invalidPlan);
 
         // Assert
-        result.Should().BeFalse();
+        Assert.False(result);
     }
 
     [Fact]
@@ -857,7 +856,7 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ValidatePlanAsync(invalidPlan);
 
         // Assert
-        result.Should().BeFalse();
+        Assert.False(result);
     }
 
     #endregion
@@ -868,36 +867,32 @@ public class OrchestratorTests : IDisposable
     public void Constructor_NullAgentFactory_ThrowsArgumentNullException()
     {
         // Act & Assert
-        FluentActions.Invoking(() => new Orchestrator(null!, _mockEventBus, _mockLogger))
-            .Should().ThrowAsync<ArgumentNullException>()
-            .WithMessage("*agentFactory*");
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(null!, _mockEventBus, _mockLogger));
+        Assert.Contains("agentFactory", ex.Message);
     }
 
     [Fact]
     public void Constructor_NullEventBus_ThrowsArgumentNullException()
     {
         // Act & Assert
-        FluentActions.Invoking(() => new Orchestrator(_mockAgentFactory, null!, _mockLogger))
-            .Should().ThrowAsync<ArgumentNullException>()
-            .WithMessage("*eventBus*");
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, null!, _mockLogger));
+        Assert.Contains("eventBus", ex.Message);
     }
 
     [Fact]
     public void Constructor_NullLogger_ThrowsArgumentNullException()
     {
         // Act & Assert
-        FluentActions.Invoking(() => new Orchestrator(_mockAgentFactory, _mockEventBus, null!))
-            .Should().ThrowAsync<ArgumentNullException>()
-            .WithMessage("*logger*");
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockEventBus, null!));
+        Assert.Contains("logger", ex.Message);
     }
 
     [Fact]
     public async Task CreatePlanAsync_NullRequest_ThrowsArgumentNullException()
     {
         // Act & Assert
-        await FluentActions.Invoking(() => _orchestrator.CreatePlanAsync(null!))
-            .Should().ThrowAsync<ArgumentNullException>()
-            .WithMessage("*request*");
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => _orchestrator.CreatePlanAsync(null!));
+        Assert.Contains("request", ex.Message);
     }
 
     [Fact]
@@ -912,18 +907,16 @@ public class OrchestratorTests : IDisposable
         };
 
         // Act & Assert
-        await FluentActions.Invoking(() => _orchestrator.CreatePlanAsync(request))
-            .Should().ThrowAsync<ArgumentException>()
-            .WithMessage("Goal cannot be empty*");
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _orchestrator.CreatePlanAsync(request));
+        Assert.Contains("Goal cannot be empty", ex.Message);
     }
 
     [Fact]
     public async Task ExecutePlanAsync_NullPlan_ThrowsArgumentNullException()
     {
         // Act & Assert
-        await FluentActions.Invoking(() => _orchestrator.ExecutePlanAsync(null!))
-            .Should().ThrowAsync<ArgumentNullException>()
-            .WithMessage("*plan*");
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => _orchestrator.ExecutePlanAsync(null!));
+        Assert.Contains("plan", ex.Message);
     }
 
     #endregion
@@ -946,21 +939,21 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.CreatePlanAsync(request);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Strategy.Should().Be(OrchestrationStrategy.Adaptive);
-        result.Steps.Should().HaveCount(3);
+        Assert.NotNull(result);
+        Assert.Equal(OrchestrationStrategy.Adaptive, result.Strategy);
+        Assert.Equal(3, result.Steps.Count);
 
         // First step should be analysis step
         var analysisStep = result.Steps.First(s => s.Order == 1);
-        analysisStep.Task.Should().Contain("Analyze goal");
-        analysisStep.DependsOn.Should().BeEmpty();
-        analysisStep.CanRunInParallel.Should().BeFalse();
+        Assert.Contains("Analyze goal", analysisStep.Task);
+        Assert.Empty(analysisStep.DependsOn);
+        Assert.False(analysisStep.CanRunInParallel);
 
         // Follow-up steps should depend on analysis
         var followupSteps = result.Steps.Where(s => s.Order > 1);
         foreach (var step in followupSteps)
         {
-            step.DependsOn.Should().Contain("1");
+            Assert.Contains("1", step.DependsOn);
         }
     }
 
@@ -990,17 +983,17 @@ public class OrchestratorTests : IDisposable
         var result = await _orchestrator.ExecutePlanAsync(plan);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Success.Should().BeTrue();
-        result.StepResults.Should().HaveCount(2);
+        Assert.NotNull(result);
+        Assert.True(result.Success);
+        Assert.Equal(2, result.StepResults.Count);
 
         var analysisResult = result.StepResults.First(r => r.StepOrder == 1);
-        analysisResult.Success.Should().BeTrue();
-        analysisResult.AgentId.Should().Be("agent1");
+        Assert.True(analysisResult.Success);
+        Assert.Equal("agent1", analysisResult.AgentId);
 
         var executionResult = result.StepResults.First(r => r.StepOrder == 2);
-        executionResult.Success.Should().BeTrue();
-        executionResult.AgentId.Should().Be("agent2");
+        Assert.True(executionResult.Success);
+        Assert.Equal("agent2", executionResult.AgentId);
     }
 
     #endregion

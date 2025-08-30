@@ -36,6 +36,11 @@ public class SessionConfiguration
     public int MaxMessages { get; set; } = 1000;
     
     /// <summary>
+    /// Maximum number of participants allowed in this session
+    /// </summary>
+    public int MaxParticipants { get; set; } = 10;
+    
+    /// <summary>
     /// Initial context data for the session
     /// </summary>
     public Dictionary<string, object> InitialContext { get; set; } = new();
