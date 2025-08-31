@@ -56,7 +56,9 @@ builder.Services.AddScoped<ISessionManager, SessionManager>();
 builder.Services.AddScoped<IOrchestrator, Orchestrator>();
 
 // Add Saturn services
+builder.Services.AddScoped<OrchestratorChat.Saturn.Providers.ProviderFactory>();
 builder.Services.AddScoped<OrchestratorChat.Saturn.Core.ISaturnCore, OrchestratorChat.Saturn.Core.SaturnCore>();
+builder.Services.AddScoped<OrchestratorChat.Saturn.Providers.Anthropic.ITokenStore, OrchestratorChat.Saturn.Providers.Anthropic.TokenStore>();
 
 // Add agent services
 builder.Services.AddScoped<IAgentFactory, AgentFactory>();

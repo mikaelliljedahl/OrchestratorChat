@@ -29,6 +29,7 @@
     <ProjectReference Include="..\..\src\OrchestratorChat.Core\OrchestratorChat.Core.csproj" />
     <ProjectReference Include="..\..\src\OrchestratorChat.SignalR\OrchestratorChat.SignalR.csproj" />
     <ProjectReference Include="..\..\src\OrchestratorChat.Data\OrchestratorChat.Data.csproj" />
+    <ProjectReference Include="..\..\src\OrchestratorChat.Saturn\OrchestratorChat.Saturn.csproj" />
   </ItemGroup>
 
   <ItemGroup>

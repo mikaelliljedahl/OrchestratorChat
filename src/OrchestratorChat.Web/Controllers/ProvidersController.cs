@@ -197,15 +197,15 @@ public class ProvidersController : ControllerBase
             _memoryCache.Set($"pkce_{state}", pkcePair.Verifier, cacheOptions);
             _memoryCache.Set($"oauth_state_{state}", true, cacheOptions);
             
-            // Build OAuth authorization URL with our callback
+            // Build OAuth authorization URL with Anthropic's official callback
             const string CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
             const string AUTH_URL = "https://claude.ai/oauth/authorize";
-            var redirectUri = $"{Request.Scheme}://{Request.Host}/oauth/anthropic/callback";
+            const string REDIRECT_URI = "https://console.anthropic.com/oauth/code/callback";
             const string SCOPES = "org:create_api_key user:profile user:inference";
             
             var queryParams = HttpUtility.ParseQueryString(string.Empty);
             queryParams["client_id"] = CLIENT_ID;
-            queryParams["redirect_uri"] = redirectUri;
+            queryParams["redirect_uri"] = REDIRECT_URI;
             queryParams["response_type"] = "code";
             queryParams["scope"] = SCOPES;
             queryParams["state"] = state;
@@ -315,8 +315,8 @@ public class ProvidersController : ControllerBase
             }
             
             // Exchange authorization code for tokens
-            var redirectUri = $"{Request.Scheme}://{Request.Host}/oauth/anthropic/callback";
-            var tokens = await ExchangeCodeForTokensAsync(code, pkceVerifier, redirectUri);
+            const string REDIRECT_URI = "https://console.anthropic.com/oauth/code/callback";
+            var tokens = await ExchangeCodeForTokensAsync(code, pkceVerifier, REDIRECT_URI, state);
             
             if (tokens == null)
             {
@@ -338,7 +338,7 @@ public class ProvidersController : ControllerBase
             }
             
             // Store tokens using TokenStore
-            var tokenStore = new TokenStore();
+            var tokenStore = HttpContext.RequestServices.GetRequiredService<OrchestratorChat.Saturn.Providers.Anthropic.ITokenStore>();
             await tokenStore.SaveTokensAsync(tokens);
             
             // Clean up cache entries
@@ -382,6 +382,103 @@ public class ProvidersController : ControllerBase
 </html>", "text/html");
         }
     }
+
+    /// <summary>
+    /// Submits an authorization code manually after user copies it from Anthropic
+    /// </summary>
+    [HttpPost("anthropic/submit-code")]
+    public async Task<IActionResult> SubmitAnthropicCode([FromBody] SubmitCodeRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(request?.Code))
+            {
+                return BadRequest(new { error = "Authorization code is required" });
+            }
+
+            if (string.IsNullOrEmpty(request?.State))
+            {
+                return BadRequest(new { error = "State parameter is required" });
+            }
+            
+            // Trim whitespace from the code in case it was copied with spaces
+            var codeInput = request.Code.Trim();
+            
+            // Parse code and state if combined with # (like SaturnFork does)
+            string code = codeInput;
+            string? receivedState = null;
+            
+            if (codeInput.Contains("#"))
+            {
+                var parts = codeInput.Split('#', 2);
+                code = parts[0];
+                if (parts.Length > 1)
+                {
+                    receivedState = parts[1];
+                    // Override the state from the request with the one from the code
+                    if (!string.IsNullOrEmpty(receivedState))
+                    {
+                        request.State = receivedState;
+                    }
+                }
+            }
+            
+            _logger.LogInformation("Received code for submission - Length: {Length}, First chars: {First}", 
+                code.Length, code.Length > 10 ? code.Substring(0, 10) + "..." : code);
+
+            // Validate state token
+            if (!_memoryCache.TryGetValue<bool>($"oauth_state_{request.State}", out _))
+            {
+                _logger.LogWarning("Invalid or expired state token: {State}", request.State);
+                return BadRequest(new { error = "Invalid or expired state token" });
+            }
+
+            // Get PKCE verifier from cache
+            if (!_memoryCache.TryGetValue<string>($"pkce_{request.State}", out var pkceVerifier))
+            {
+                _logger.LogError("PKCE verifier not found for state: {State}", request.State);
+                return BadRequest(new { error = "OAuth session expired" });
+            }
+            
+            _logger.LogInformation("PKCE verifier found - Length: {Length}", pkceVerifier?.Length ?? 0);
+
+            // Exchange authorization code for tokens
+            const string REDIRECT_URI = "https://console.anthropic.com/oauth/code/callback";
+            var tokens = await ExchangeCodeForTokensAsync(code, pkceVerifier, REDIRECT_URI, request.State);
+            
+            if (tokens == null)
+            {
+                _logger.LogError("Token exchange returned null");
+                return BadRequest(new { error = "Failed to exchange authorization code for tokens" });
+            }
+
+            _logger.LogInformation("Token exchange successful, attempting to store tokens");
+            
+            try
+            {
+                // Store tokens
+                var tokenStore = HttpContext.RequestServices.GetRequiredService<OrchestratorChat.Saturn.Providers.Anthropic.ITokenStore>();
+                await tokenStore.SaveTokensAsync(tokens);
+                _logger.LogInformation("Tokens stored successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to store tokens");
+                return StatusCode(500, new { error = $"Failed to store tokens: {ex.Message}" });
+            }
+
+            // Clean up cache
+            _memoryCache.Remove($"oauth_state_{request.State}");
+            _memoryCache.Remove($"pkce_{request.State}");
+
+            return Ok(new { success = true, message = "OAuth authentication completed successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to submit Anthropic code");
+            return StatusCode(500, new { error = "Failed to complete OAuth flow" });
+        }
+    }
     
     
     /// <summary>
@@ -410,10 +507,11 @@ public class ProvidersController : ControllerBase
         }
     }
     
+    
     /// <summary>
     /// Exchanges authorization code for tokens
     /// </summary>
-    private async Task<StoredTokens?> ExchangeCodeForTokensAsync(string authorizationCode, string codeVerifier, string redirectUri)
+    private async Task<StoredTokens?> ExchangeCodeForTokensAsync(string authorizationCode, string codeVerifier, string redirectUri, string? state = null)
     {
         try
         {
@@ -422,16 +520,19 @@ public class ProvidersController : ControllerBase
             const string CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
             const string TOKEN_URL = "https://console.anthropic.com/v1/oauth/token";
             
-            var requestBody = new Dictionary<string, string>
+            // Use anonymous object like SaturnFork does
+            var requestBody = new
             {
-                ["grant_type"] = "authorization_code",
-                ["client_id"] = CLIENT_ID,
-                ["code"] = authorizationCode,
-                ["redirect_uri"] = redirectUri,
-                ["code_verifier"] = codeVerifier
+                grant_type = "authorization_code",
+                code = authorizationCode,
+                state = state ?? string.Empty,
+                client_id = CLIENT_ID,
+                redirect_uri = redirectUri,
+                code_verifier = codeVerifier
             };
             
             var json = System.Text.Json.JsonSerializer.Serialize(requestBody);
+            _logger.LogInformation("Token exchange request: {Json}", json);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             
             var response = await httpClient.PostAsync(TOKEN_URL, content);
@@ -439,16 +540,20 @@ public class ProvidersController : ControllerBase
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("Token exchange failed: {StatusCode} - {ErrorContent}", response.StatusCode, errorContent);
+                _logger.LogError("Token exchange failed: {StatusCode} - {ErrorContent}", response.StatusCode, errorContent);
+                _logger.LogError("Request details - Code length: {CodeLength}, State: {State}, RedirectUri: {RedirectUri}", 
+                    authorizationCode?.Length ?? 0, state ?? "null", redirectUri);
                 return null;
             }
             
             var responseContent = await response.Content.ReadAsStringAsync();
+            _logger.LogInformation("Token exchange response: {Response}", responseContent);
+            
             var tokenResponse = System.Text.Json.JsonSerializer.Deserialize<TokenResponse>(responseContent);
             
             if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
             {
-                _logger.LogWarning("Invalid token response received");
+                _logger.LogWarning("Invalid token response received - AccessToken is null or empty");
                 return null;
             }
             
@@ -474,10 +579,19 @@ public class ProvidersController : ControllerBase
     /// </summary>
     private class TokenResponse
     {
+        [System.Text.Json.Serialization.JsonPropertyName("access_token")]
         public string? AccessToken { get; set; }
+        
+        [System.Text.Json.Serialization.JsonPropertyName("refresh_token")]
         public string? RefreshToken { get; set; }
+        
+        [System.Text.Json.Serialization.JsonPropertyName("token_type")]
         public string? TokenType { get; set; }
+        
+        [System.Text.Json.Serialization.JsonPropertyName("expires_in")]
         public int? ExpiresIn { get; set; }
+        
+        [System.Text.Json.Serialization.JsonPropertyName("scope")]
         public string? Scope { get; set; }
     }
 }

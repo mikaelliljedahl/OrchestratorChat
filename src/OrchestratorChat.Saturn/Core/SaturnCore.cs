@@ -14,13 +14,15 @@ namespace OrchestratorChat.Saturn.Core;
 public class SaturnCore : ISaturnCore
 {
     private readonly IServiceProvider _serviceProvider;
+    private readonly ProviderFactory _providerFactory;
     private readonly ToolRegistry _toolRegistry;
     private readonly Dictionary<string, ILLMProvider> _providers;
     private readonly AgentManager _agentManager;
 
-    public SaturnCore(IServiceProvider serviceProvider)
+    public SaturnCore(IServiceProvider serviceProvider, ProviderFactory providerFactory)
     {
         _serviceProvider = serviceProvider;
+        _providerFactory = providerFactory;
         _toolRegistry = new ToolRegistry();
         _providers = new Dictionary<string, ILLMProvider>();
         _agentManager = new AgentManager();

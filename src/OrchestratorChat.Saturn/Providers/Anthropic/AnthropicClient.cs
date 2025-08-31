@@ -137,8 +137,6 @@ public class AnthropicClient : IDisposable
             new() { Id = "claude-opus-4-1-20250805", Name = "Claude Opus 4.1", Provider = "Anthropic" },
             new() { Id = "claude-opus-4", Name = "Claude Opus 4", Provider = "Anthropic" },
             new() { Id = "claude-sonnet-4-20250514", Name = "Claude Sonnet 4", Provider = "Anthropic" },
-            new() { Id = "claude-3.7-sonnet", Name = "Claude 3.7 Sonnet", Provider = "Anthropic" },
-            new() { Id = "claude-3.5-haiku", Name = "Claude 3.5 Haiku", Provider = "Anthropic" }
         };
 
         return Task.FromResult(models);

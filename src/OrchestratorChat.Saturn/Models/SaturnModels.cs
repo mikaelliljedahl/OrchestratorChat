@@ -16,6 +16,7 @@ public class SaturnAgentConfiguration
     public bool RequireApproval { get; set; } = true;
     public ProviderType ProviderType { get; set; } = ProviderType.OpenRouter;
     public Dictionary<string, object> ProviderSettings { get; set; } = new();
+    public string WorkingDirectory { get; set; } = Environment.CurrentDirectory;
 }
 
 /// <summary>

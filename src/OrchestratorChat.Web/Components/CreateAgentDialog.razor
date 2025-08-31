@@ -3,6 +3,7 @@
 @using Microsoft.JSInterop
 @inject HttpClient HttpClient
 @inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
 
 <MudDialog Visible="@IsVisible" VisibleChanged="@OnVisibilityChanged">
     <TitleContent>
@@ -47,14 +48,14 @@
                     @if (_selectedType == AgentType.Claude)
                     {
                         <MudSelectItem Value="@("claude-sonnet-4-20250514")">Claude Sonnet 4</MudSelectItem>
-                        <MudSelectItem Value="@("claude-3-5-sonnet-20241022")">Claude 3.5 Sonnet</MudSelectItem>
+                        <MudSelectItem Value="@("claude-3-5-sonnet-20241022")">Claude 4.1 Opus</MudSelectItem>
                     }
                     else if (_selectedType == AgentType.Saturn)
                     {
                         <MudSelectItem Value="@("claude-sonnet-4-20250514")">Claude Sonnet 4</MudSelectItem>
-                        <MudSelectItem Value="@("claude-3-5-sonnet-20241022")">Claude 3.5 Sonnet</MudSelectItem>
-                        <MudSelectItem Value="@("gpt-4o")">GPT-4o</MudSelectItem>
-                        <MudSelectItem Value="@("gpt-4o-mini")">GPT-4o Mini</MudSelectItem>
+                        <MudSelectItem Value="@("claude-3-5-sonnet-20241022")">Claude 4.1 Opus</MudSelectItem>
+                        <MudSelectItem Value="@("gpt-5")">GPT-5</MudSelectItem>
+                        <MudSelectItem Value="@("gpt-5-mini")">GPT-5 Mini</MudSelectItem>
                     }
                 </MudSelect>
             </MudItem>
@@ -99,9 +100,33 @@
                                 </MudAlert>
                                 
                                 <div class="d-flex gap-2 mb-2">
-                                    <a href="@GetAnthropicOAuthUrl()" target="_blank" class="mud-button mud-button-filled mud-button-filled-primary" style="text-decoration: none;">
-                                        Connect to Anthropic (Opens in new window)
-                                    </a>
+                                    @if (string.IsNullOrEmpty(_authorizationUrl))
+                                    {
+                                        <MudButton Color="Color.Primary" 
+                                                  Variant="Variant.Filled" 
+                                                  OnClick="GetAnthropicOAuthUrl"
+                                                  Disabled="@_oauthInProgress">
+                                            @if (_oauthInProgress)
+                                            {
+                                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                                <MudText>Loading...</MudText>
+                                            }
+                                            else
+                                            {
+                                                <MudText>Connect to Anthropic</MudText>
+                                            }
+                                        </MudButton>
+                                    }
+                                    else
+                                    {
+                                        <MudButton Color="Color.Primary" 
+                                                  Variant="Variant.Filled"
+                                                  Href="@_authorizationUrl"
+                                                  Target="_blank"
+                                                  OnClick="@(() => _showCodeInput = true)">
+                                            <MudText>Connect to Anthropic</MudText>
+                                        </MudButton>
+                                    }
                                     
                                     <MudButton Color="Color.Secondary" 
                                               Variant="Variant.Outlined" 
@@ -111,13 +136,40 @@
                                     </MudButton>
                                 </div>
                                 
-                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
-                                    This will open Anthropic OAuth in a new window. After completing OAuth, you can refresh or check connection status.
-                                </MudText>
-                                
-                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-1">
-                                    Note: You can create the agent without connecting. It will require OAuth setup before first use.
-                                </MudText>
+                                @if (_showCodeInput)
+                                {
+                                    <MudPaper Class="pa-3 mt-3" Elevation="0" Outlined="true">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-2">Step 2: Enter Authorization Code</MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                                            After authorizing in Anthropic, copy the authorization code and paste it here:
+                                        </MudText>
+                                        <MudTextField @bind-Value="_authorizationCode" 
+                                                      Label="Authorization Code" 
+                                                      Variant="Variant.Outlined"
+                                                      Placeholder="Paste the code from Anthropic here"
+                                                      Class="mb-2" />
+                                        <MudButton Color="Color.Primary" 
+                                                  Variant="Variant.Filled"
+                                                  OnClick="@SubmitAuthorizationCode"
+                                                  Disabled="@(string.IsNullOrWhiteSpace(_authorizationCode) || _oauthInProgress)">
+                                            @if (_oauthInProgress)
+                                            {
+                                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                                <MudText>Submitting...</MudText>
+                                            }
+                                            else
+                                            {
+                                                <MudText>Submit Code</MudText>
+                                            }
+                                        </MudButton>
+                                    </MudPaper>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                                        Note: You can create the agent without connecting. It will require OAuth setup before first use.
+                                    </MudText>
+                                }
                             }
                         </MudPaper>
                     </MudItem>
@@ -222,6 +274,10 @@
     // Anthropic OAuth state
     private AnthropicOAuthStatus? _anthropicOAuthStatus = new AnthropicOAuthStatus { Connected = false, ExpiresAt = null, Scopes = Array.Empty<string>() };
     private bool _oauthInProgress = false;
+    private string? _authorizationUrl = null;
+    private string? _oauthState = null;
+    private string _authorizationCode = string.Empty;
+    private bool _showCodeInput = false;
     
     private async Task Cancel()
     {
@@ -248,6 +304,16 @@
         // Reset OAuth state
         _anthropicOAuthStatus = new AnthropicOAuthStatus { Connected = false, ExpiresAt = null, Scopes = Array.Empty<string>() };
         _oauthInProgress = false;
+        _authorizationUrl = null;
+        _oauthState = null;
+        _authorizationCode = string.Empty;
+        _showCodeInput = false;
+        
+        // Load OAuth status when form opens
+        if (IsVisible)
+        {
+            _ = CheckAnthropicOAuthStatus();
+        }
     }
     
     private async Task CreateAgent()
@@ -324,16 +390,19 @@
         StateHasChanged();
     }
     
-    protected override Task OnParametersSetAsync()
+    protected override async Task OnParametersSetAsync()
     {
-        return Task.CompletedTask;
+        if (IsVisible && _selectedType == AgentType.Saturn && _selectedProvider == "Anthropic")
+        {
+            await CheckAnthropicOAuthStatus();
+        }
     }
     
     private async Task CheckAnthropicOAuthStatus()
     {
         try
         {
-            var response = await HttpClient.GetAsync("http://localhost:5000/api/providers/anthropic/status");
+            var response = await HttpClient.GetAsync($"{Navigation.BaseUri}api/providers/anthropic/status");
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
@@ -368,19 +437,132 @@
         }
     }
     
-    private string GetAnthropicOAuthUrl()
+    private async Task GetAnthropicOAuthUrl()
     {
-        // Generate OAuth URL directly without HTTP call
-        const string CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
-        const string AUTH_URL = "https://claude.ai/oauth/authorize";
-        const string REDIRECT_URI = "https://console.anthropic.com/oauth/code/callback";
-        const string SCOPES = "org:create_api_key user:profile user:inference";
+        try
+        {
+            _oauthInProgress = true;
+            StateHasChanged();
+            
+            // Get the authorization URL from the server
+            var response = await HttpClient.PostAsync($"{Navigation.BaseUri}api/providers/anthropic/start", null);
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                var startResponse = System.Text.Json.JsonSerializer.Deserialize<AnthropicOAuthStartResponse>(json, new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                
+                if (!string.IsNullOrEmpty(startResponse?.AuthUrl))
+                {
+                    _authorizationUrl = startResponse.AuthUrl;
+                    _oauthState = startResponse.State;
+                }
+                else
+                {
+                    Console.WriteLine("No authorization URL received");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Failed to start OAuth: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error starting OAuth: {ex.Message}");
+        }
+        finally
+        {
+            if (!_oauthInProgress) // Only reset if we're not polling
+            {
+                _oauthInProgress = false;
+                StateHasChanged();
+            }
+        }
+    }
+    
+    private async Task SubmitAuthorizationCode()
+    {
+        try
+        {
+            _oauthInProgress = true;
+            StateHasChanged();
+            
+            // Submit the authorization code to the server
+            var requestBody = new 
+            {
+                code = _authorizationCode,
+                state = _oauthState
+            };
+            
+            var content = new StringContent(
+                System.Text.Json.JsonSerializer.Serialize(requestBody),
+                System.Text.Encoding.UTF8,
+                "application/json");
+            
+            var response = await HttpClient.PostAsync($"{Navigation.BaseUri}api/providers/anthropic/submit-code", content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                // Clear the code input
+                _authorizationCode = string.Empty;
+                _showCodeInput = false;
+                
+                // Check status to confirm connection
+                await CheckAnthropicOAuthStatus();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Failed to submit code: {errorContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error submitting code: {ex.Message}");
+        }
+        finally
+        {
+            _oauthInProgress = false;
+            StateHasChanged();
+        }
+    }
+    
+    private async Task PollForOAuthCompletion()
+    {
+        const int maxAttempts = 60; // Poll for up to 5 minutes (5 second intervals)
+        const int intervalMs = 5000;
         
-        // Generate PKCE challenge (simplified for direct link)
-        var state = Guid.NewGuid().ToString("N");
-        var codeChallenge = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(state)).TrimEnd('=');
+        for (int attempt = 0; attempt < maxAttempts && _oauthInProgress; attempt++)
+        {
+            await Task.Delay(intervalMs);
+            
+            if (!_oauthInProgress) break;
+            
+            try
+            {
+                await CheckAnthropicOAuthStatus();
+                
+                if (_anthropicOAuthStatus?.Connected == true)
+                {
+                    _oauthInProgress = false;
+                    StateHasChanged();
+                    break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error polling OAuth status: {ex.Message}");
+            }
+        }
         
-        return $"{AUTH_URL}?client_id={CLIENT_ID}&response_type=code&redirect_uri={Uri.EscapeDataString(REDIRECT_URI)}&scope={Uri.EscapeDataString(SCOPES)}&state={state}&code_challenge={codeChallenge}&code_challenge_method=plain";
+        if (_oauthInProgress)
+        {
+            _oauthInProgress = false;
+            StateHasChanged();
+        }
     }
     
     
@@ -388,7 +570,7 @@
     {
         try
         {
-            var response = await HttpClient.PostAsync("/api/providers/anthropic/logout", null);
+            var response = await HttpClient.PostAsync($"{Navigation.BaseUri}api/providers/anthropic/logout", null);
             if (response.IsSuccessStatusCode)
             {
                 await CheckAnthropicOAuthStatus();
@@ -398,6 +580,13 @@
         {
             Console.WriteLine($"Error disconnecting OAuth: {ex.Message}");
         }
+    }
+    
+    
+    public class AnthropicOAuthStartResponse
+    {
+        public string AuthUrl { get; set; } = string.Empty;
+        public string State { get; set; } = string.Empty;
     }
     
 }

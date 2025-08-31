@@ -5,7 +5,43 @@ using System.Text.Json;
 
 namespace OrchestratorChat.Saturn.Providers.Anthropic;
 
-public class TokenStore
+/// <summary>
+/// Interface for token storage operations to enable dependency injection and testing
+/// </summary>
+public interface ITokenStore
+{
+    /// <summary>
+    /// Saves OAuth tokens securely
+    /// </summary>
+    /// <param name="tokens">The tokens to save</param>
+    Task SaveTokensAsync(StoredTokens tokens);
+    
+    /// <summary>
+    /// Stores OAuth tokens with individual parameters
+    /// </summary>
+    /// <param name="accessToken">The access token</param>
+    /// <param name="refreshToken">The refresh token</param>
+    /// <param name="expiresIn">Token expiration time in seconds</param>
+    Task StoreTokensAsync(string accessToken, string refreshToken, int expiresIn);
+    
+    /// <summary>
+    /// Loads OAuth tokens if they exist
+    /// </summary>
+    /// <returns>The stored tokens or null if none exist</returns>
+    Task<StoredTokens?> LoadTokensAsync();
+    
+    /// <summary>
+    /// Clears all stored OAuth tokens
+    /// </summary>
+    Task ClearTokensAsync();
+    
+    /// <summary>
+    /// Gets whether the current tokens need to be refreshed
+    /// </summary>
+    bool NeedsRefresh { get; }
+}
+
+public class TokenStore : ITokenStore
 {
     private readonly string _tokenPath;
     private readonly string _keyPath;
@@ -50,6 +86,21 @@ public class TokenStore
         
         await File.WriteAllTextAsync(_tokenPath, encryptedData);
         _cachedTokens = tokens;
+    }
+    
+    public async Task StoreTokensAsync(string accessToken, string refreshToken, int expiresIn)
+    {
+        var tokens = new StoredTokens
+        {
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            ExpiresAt = DateTime.UtcNow.AddSeconds(expiresIn),
+            CreatedAt = DateTime.UtcNow,
+            TokenType = "Bearer",
+            Scope = new[] { "user:profile", "user:inference" }
+        };
+        
+        await SaveTokensAsync(tokens);
     }
     
     public async Task<StoredTokens?> LoadTokensAsync()

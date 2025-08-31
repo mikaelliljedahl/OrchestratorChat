@@ -26,6 +26,7 @@ using SaturnToolParameter = OrchestratorChat.Saturn.Models.ToolParameter;
 using SaturnILLMProvider = OrchestratorChat.Saturn.Providers.ILLMProvider;
 using SaturnProviderType = OrchestratorChat.Saturn.Models.ProviderType;
 using CoreTokenUsage = OrchestratorChat.Core.Messages.TokenUsage;
+using OrchestratorChat.Saturn.Providers;
 
 namespace OrchestratorChat.Agents.Saturn;
 
@@ -77,7 +78,8 @@ public class SaturnAgent : IAgent
                 MaxTokens = int.Parse(configuration.CustomSettings.GetValueOrDefault("MaxTokens", "4096")?.ToString() ?? "4096"),
                 SystemPrompt = configuration.CustomSettings.GetValueOrDefault("SystemPrompt", "")?.ToString() ?? "",
                 EnableTools = bool.Parse(configuration.CustomSettings.GetValueOrDefault("EnableTools", "true")?.ToString() ?? "true"),
-                RequireApproval = bool.Parse(configuration.CustomSettings.GetValueOrDefault("RequireApproval", "true")?.ToString() ?? "true")
+                RequireApproval = bool.Parse(configuration.CustomSettings.GetValueOrDefault("RequireApproval", "true")?.ToString() ?? "true"),
+                WorkingDirectory = !string.IsNullOrWhiteSpace(configuration.WorkingDirectory) ? configuration.WorkingDirectory : Environment.CurrentDirectory
             };
             
             _internalAgent = await _saturnCore.CreateAgentAsync(_llmProvider, saturnConfig);
@@ -120,6 +122,7 @@ public class SaturnAgent : IAgent
             "Anthropic" => SaturnProviderType.Anthropic,
             _ => SaturnProviderType.OpenRouter
         };
+        
         
         return await _saturnCore.CreateProviderAsync(saturnProviderType, config.CustomSettings);
     }

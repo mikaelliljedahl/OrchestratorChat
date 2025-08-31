@@ -14,6 +14,7 @@ public class ProviderVerificationService : IProviderVerificationService
     private readonly OrchestratorChat.Core.Configuration.IConfigurationProvider _configurationProvider;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<ProviderVerificationService> _logger;
+    private readonly ITokenStore _tokenStore;
     
     private const string OpenRouterApiKeyConfigKey = "OpenRouter:ApiKey";
     private const string AnthropicApiKeyConfigKey = "Anthropic:ApiKey";
@@ -22,11 +23,13 @@ public class ProviderVerificationService : IProviderVerificationService
     public ProviderVerificationService(
         OrchestratorChat.Core.Configuration.IConfigurationProvider configurationProvider,
         IHttpClientFactory httpClientFactory,
-        ILogger<ProviderVerificationService> logger)
+        ILogger<ProviderVerificationService> logger,
+        ITokenStore tokenStore)
     {
         _configurationProvider = configurationProvider;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
+        _tokenStore = tokenStore;
     }
     
     public async Task<ProviderStatusResponse> GetProviderStatusAsync()
@@ -224,8 +227,7 @@ public class ProviderVerificationService : IProviderVerificationService
     {
         try
         {
-            var tokenStore = new TokenStore();
-            var tokens = await tokenStore.LoadTokensAsync();
+            var tokens = await _tokenStore.LoadTokensAsync();
             
             if (tokens == null)
             {
