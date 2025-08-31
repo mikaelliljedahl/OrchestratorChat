@@ -11,13 +11,15 @@
     private string _renderedHtml = "";
     private string _lastContent = "";
     
-    protected override async Task OnParametersSetAsync()
+    protected override Task OnParametersSetAsync()
     {
         if (Content != _lastContent)
         {
             _lastContent = Content;
             _renderedHtml = RenderMarkdown(Content);
         }
+        
+        return Task.CompletedTask;
     }
     
     protected override async Task OnAfterRenderAsync(bool firstRender)

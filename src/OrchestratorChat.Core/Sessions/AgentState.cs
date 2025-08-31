@@ -10,7 +10,7 @@ public class AgentState
     /// <summary>
     /// ID of the agent
     /// </summary>
-    public string AgentId { get; set; }
+    public string AgentId { get; set; } = string.Empty;
     
     /// <summary>
     /// Status of the agent at this state
@@ -20,12 +20,12 @@ public class AgentState
     /// <summary>
     /// Configuration of the agent at this state
     /// </summary>
-    public AgentConfiguration Configuration { get; set; }
+    public AgentConfiguration Configuration { get; set; } = new();
     
     /// <summary>
     /// Working directory of the agent at this state
     /// </summary>
-    public string WorkingDirectory { get; set; }
+    public string WorkingDirectory { get; set; } = string.Empty;
     
     /// <summary>
     /// Additional state data for the agent

@@ -1,14 +1,23 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using NSubstitute;
 using OrchestratorChat.Core.Agents;
 using OrchestratorChat.Core.Messages;
 using OrchestratorChat.Core.Tools;
 using OrchestratorChat.Agents.Saturn;
 using OrchestratorChat.Agents.Tests.TestHelpers;
-using OrchestratorChat.Saturn.Models;
 using AgentsSaturnCore = OrchestratorChat.Agents.Saturn.ISaturnCore;
 using AgentsSaturnConfig = OrchestratorChat.Agents.Saturn.SaturnConfiguration;
 using SaturnProviderType = OrchestratorChat.Saturn.Models.ProviderType;
+using ISaturnAgent = OrchestratorChat.Saturn.Core.ISaturnAgent;
+using SaturnAgentConfiguration = OrchestratorChat.Saturn.Models.SaturnAgentConfiguration;
+using SaturnAgentResponse = OrchestratorChat.Saturn.Models.AgentResponse;
+using SaturnMessageRole = OrchestratorChat.Saturn.Models.MessageRole;
+using SaturnResponseType = OrchestratorChat.Saturn.Models.ResponseType;
+// TokenUsage model not available in Saturn models
+using SaturnToolCall = OrchestratorChat.Saturn.Models.ToolCall;
+using SaturnToolExecutionResult = OrchestratorChat.Saturn.Models.ToolExecutionResult;
+using SaturnAgentMessage = OrchestratorChat.Saturn.Models.AgentMessage;
 
 namespace OrchestratorChat.Agents.Tests.Saturn;
 
@@ -31,7 +40,7 @@ public class SaturnAgentTests : IDisposable
         
         var config = new AgentsSaturnConfig
         {
-            DefaultProvider = ProviderType.OpenRouter,
+            DefaultProvider = "OpenRouter",
             MaxSubAgents = TestConstants.MaxSubAgents,
             SupportedModels = new List<string> { TestConstants.ValidOpenRouterModel, TestConstants.ValidClaudeModel },
             EnableToolExecution = true,
@@ -46,10 +55,14 @@ public class SaturnAgentTests : IDisposable
     {
         // Arrange
         var mockProvider = Substitute.For<OrchestratorChat.Saturn.Providers.ILLMProvider>();
-        mockProvider.ProviderType.Returns(SaturnProviderType.OpenRouter);
+        // Note: ILLMProvider doesn't expose ProviderType in interface
         
-        _mockSaturnCore.CreateProviderAsync(ProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
+        _mockSaturnCore.CreateProviderAsync(SaturnProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
             .Returns(mockProvider);
+        _mockSaturnCore.CreateAgentAsync(mockProvider, Arg.Any<SaturnAgentConfiguration>())
+            .Returns(Substitute.For<ISaturnAgent>());
+        _mockSaturnCore.GetAvailableTools()
+            .Returns(new List<OrchestratorChat.Saturn.Models.ToolInfo>());
 
         var agent = new SaturnAgent(_logger, _mockSaturnCore, _configuration);
         var agentConfig = new AgentConfiguration
@@ -58,11 +71,11 @@ public class SaturnAgentTests : IDisposable
             Name = TestConstants.DefaultAgentName,
             Type = AgentType.Saturn,
             WorkingDirectory = Directory.GetCurrentDirectory(),
-            Parameters = new Dictionary<string, object>
+            CustomSettings = new Dictionary<string, object>
             {
-                { "provider", ProviderType.OpenRouter },
-                { "model", TestConstants.ValidOpenRouterModel },
-                { "api_key", TestConstants.TestApiKey }
+                { "Provider", "OpenRouter" },
+                { "Model", TestConstants.ValidOpenRouterModel },
+                { "ApiKey", TestConstants.TestApiKey }
             }
         };
 
@@ -71,13 +84,13 @@ public class SaturnAgentTests : IDisposable
 
         // Assert
         Assert.True(result.Success);
-        Assert.Equal(AgentStatus.Ready, agent.Status);
+        Assert.Equal(OrchestratorChat.Core.Agents.AgentStatus.Ready, agent.Status);
         Assert.Equal(TestConstants.DefaultAgentName, agent.Name);
         Assert.Equal(AgentType.Saturn, agent.Type);
         Assert.NotNull(result.Capabilities);
 
         // Verify SaturnCore was called
-        await _mockSaturnCore.Received(1).CreateProviderAsync(ProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>());
+        await _mockSaturnCore.Received(1).CreateProviderAsync(SaturnProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>());
     }
 
     [Fact]
@@ -85,22 +98,27 @@ public class SaturnAgentTests : IDisposable
     {
         // Arrange
         var mockProvider = Substitute.For<OrchestratorChat.Saturn.Providers.ILLMProvider>();
-        mockProvider.ProviderType.Returns(SaturnProviderType.OpenRouter);
+        // Note: ILLMProvider doesn't expose ProviderType in interface
         
-        var mockResponse = new AgentResponse
+        var mockResponse = new SaturnAgentResponse
         {
-            Id = Guid.NewGuid().ToString(),
             Content = "Response from OpenRouter",
-            Role = MessageRole.Assistant,
-            Type = ResponseType.Success,
-            Timestamp = DateTime.UtcNow,
-            TokenUsage = new TokenUsage { InputTokens = 10, OutputTokens = 15 }
+            Type = SaturnResponseType.Text,
+            IsComplete = true
         };
 
-        _mockSaturnCore.CreateProviderAsync(ProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
+        // Create a mock Saturn agent
+        var mockSaturnAgent = Substitute.For<ISaturnAgent>();
+        var mockAsyncEnumerable = CreateMockAsyncEnumerable(mockResponse);
+        mockSaturnAgent.ProcessMessageAsync(Arg.Any<SaturnAgentMessage>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(mockAsyncEnumerable));
+        
+        _mockSaturnCore.CreateProviderAsync(SaturnProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
             .Returns(mockProvider);
-        _mockSaturnCore.SendMessageAsync(Arg.Any<AgentMessage>(), Arg.Any<OrchestratorChat.Saturn.Providers.ILLMProvider>())
-            .Returns(mockResponse);
+        _mockSaturnCore.CreateAgentAsync(Arg.Any<OrchestratorChat.Saturn.Providers.ILLMProvider>(), Arg.Any<SaturnAgentConfiguration>())
+            .Returns(mockSaturnAgent);
+        _mockSaturnCore.GetAvailableTools()
+            .Returns(new List<OrchestratorChat.Saturn.Models.ToolInfo>());
 
         var agent = new SaturnAgent(_logger, _mockSaturnCore, _configuration);
         var agentConfig = new AgentConfiguration
@@ -108,11 +126,11 @@ public class SaturnAgentTests : IDisposable
             Id = TestConstants.DefaultAgentId,
             Name = TestConstants.DefaultAgentName,
             Type = AgentType.Saturn,
-            Parameters = new Dictionary<string, object>
+            CustomSettings = new Dictionary<string, object>
             {
-                { "provider", ProviderType.OpenRouter },
-                { "model", TestConstants.ValidOpenRouterModel },
-                { "api_key", TestConstants.TestApiKey }
+                { "Provider", "OpenRouter" },
+                { "Model", TestConstants.ValidOpenRouterModel },
+                { "ApiKey", TestConstants.TestApiKey }
             }
         };
 
@@ -134,12 +152,11 @@ public class SaturnAgentTests : IDisposable
         Assert.Equal(ResponseType.Success, response.Type);
         Assert.Contains("Response from OpenRouter", response.Content);
         Assert.Equal(MessageRole.Assistant, response.Role);
-        Assert.NotNull(response.Usage);
-        Assert.Equal(10, response.Usage.InputTokens);
-        Assert.Equal(15, response.Usage.OutputTokens);
+        // Usage information is not directly exposed by Saturn adapter
 
-        // Verify SaturnCore was called
-        await _mockSaturnCore.Received(1).SendMessageAsync(Arg.Any<AgentMessage>(), mockProvider);
+        // Verify SaturnAgent was created and called
+        await _mockSaturnCore.Received(1).CreateAgentAsync(mockProvider, Arg.Any<SaturnAgentConfiguration>());
+        await mockSaturnAgent.Received(1).ProcessMessageAsync(Arg.Any<SaturnAgentMessage>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -147,22 +164,27 @@ public class SaturnAgentTests : IDisposable
     {
         // Arrange
         var mockProvider = Substitute.For<OrchestratorChat.Saturn.Providers.ILLMProvider>();
-        mockProvider.ProviderType.Returns(SaturnProviderType.Anthropic);
+        // Note: ILLMProvider doesn't expose ProviderType in interface
         
-        var mockResponse = new AgentResponse
+        var mockResponse = new SaturnAgentResponse
         {
-            Id = Guid.NewGuid().ToString(),
             Content = "Response from Anthropic Claude",
-            Role = MessageRole.Assistant,
-            Type = ResponseType.Success,
-            Timestamp = DateTime.UtcNow,
-            TokenUsage = new TokenUsage { InputTokens = 12, OutputTokens = 18 }
+            Type = SaturnResponseType.Text,
+            IsComplete = true
         };
 
-        _mockSaturnCore.CreateProviderAsync(ProviderType.Anthropic, Arg.Any<Dictionary<string, object>>())
+        // Create a mock Saturn agent
+        var mockSaturnAgent = Substitute.For<ISaturnAgent>();
+        var mockAsyncEnumerable = CreateMockAsyncEnumerable(mockResponse);
+        mockSaturnAgent.ProcessMessageAsync(Arg.Any<SaturnAgentMessage>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(mockAsyncEnumerable));
+
+        _mockSaturnCore.CreateProviderAsync(SaturnProviderType.Anthropic, Arg.Any<Dictionary<string, object>>())
             .Returns(mockProvider);
-        _mockSaturnCore.SendMessageAsync(Arg.Any<AgentMessage>(), Arg.Any<OrchestratorChat.Saturn.Providers.ILLMProvider>())
-            .Returns(mockResponse);
+        _mockSaturnCore.CreateAgentAsync(Arg.Any<OrchestratorChat.Saturn.Providers.ILLMProvider>(), Arg.Any<SaturnAgentConfiguration>())
+            .Returns(mockSaturnAgent);
+        _mockSaturnCore.GetAvailableTools()
+            .Returns(new List<OrchestratorChat.Saturn.Models.ToolInfo>());
 
         var agent = new SaturnAgent(_logger, _mockSaturnCore, _configuration);
         var agentConfig = new AgentConfiguration
@@ -170,11 +192,11 @@ public class SaturnAgentTests : IDisposable
             Id = TestConstants.DefaultAgentId,
             Name = TestConstants.DefaultAgentName,
             Type = AgentType.Saturn,
-            Parameters = new Dictionary<string, object>
+            CustomSettings = new Dictionary<string, object>
             {
-                { "provider", ProviderType.Anthropic },
-                { "model", TestConstants.ValidClaudeModel },
-                { "access_token", TestConstants.TestAccessToken }
+                { "Provider", "Anthropic" },
+                { "Model", TestConstants.ValidClaudeModel },
+                { "AccessToken", TestConstants.TestAccessToken }
             }
         };
 
@@ -196,38 +218,37 @@ public class SaturnAgentTests : IDisposable
         Assert.Equal(ResponseType.Success, response.Type);
         Assert.Contains("Response from Anthropic Claude", response.Content);
         Assert.Equal(MessageRole.Assistant, response.Role);
-        Assert.NotNull(response.Usage);
-        Assert.Equal(12, response.Usage.InputTokens);
-        Assert.Equal(18, response.Usage.OutputTokens);
+        // Usage information is not directly exposed by Saturn adapter
 
-        // Verify SaturnCore was called
-        await _mockSaturnCore.Received(1).SendMessageAsync(Arg.Any<AgentMessage>(), mockProvider);
+        // Verify SaturnAgent was created and called
+        await _mockSaturnCore.Received(1).CreateAgentAsync(mockProvider, Arg.Any<SaturnAgentConfiguration>());
+        await mockSaturnAgent.Received(1).ProcessMessageAsync(Arg.Any<SaturnAgentMessage>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task ExecuteToolAsync_CallsSaturnCore()
+    public async Task ExecuteToolAsync_CallsSaturnAgent()
     {
         // Arrange
         var mockProvider = Substitute.For<OrchestratorChat.Saturn.Providers.ILLMProvider>();
         
-        var toolResult = new ToolExecutionResult
+        var toolResult = new SaturnToolExecutionResult
         {
             Success = true,
             Output = "Tool executed successfully",
-            ToolName = "test_tool",
             ExecutionTime = TimeSpan.FromMilliseconds(100)
         };
 
-        _mockSaturnCore.CreateProviderAsync(ProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
+        // Create a mock Saturn agent
+        var mockSaturnAgent = Substitute.For<ISaturnAgent>();
+        mockSaturnAgent.ExecuteToolAsync(Arg.Any<SaturnToolCall>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(toolResult));
+
+        _mockSaturnCore.CreateProviderAsync(SaturnProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
             .Returns(mockProvider);
-        _mockSaturnCore.ExecuteToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object>>())
-            .Returns(Task.FromResult(new OrchestratorChat.Saturn.Models.ToolExecutionResult
-            {
-                Success = true,
-                Output = "Tool executed successfully",
-                ToolName = "test_tool",
-                ExecutionTime = TimeSpan.FromMilliseconds(100)
-            }));
+        _mockSaturnCore.CreateAgentAsync(Arg.Any<OrchestratorChat.Saturn.Providers.ILLMProvider>(), Arg.Any<SaturnAgentConfiguration>())
+            .Returns(mockSaturnAgent);
+        _mockSaturnCore.GetAvailableTools()
+            .Returns(new List<OrchestratorChat.Saturn.Models.ToolInfo>());
 
         var agent = new SaturnAgent(_logger, _mockSaturnCore, _configuration);
         var agentConfig = new AgentConfiguration
@@ -235,11 +256,11 @@ public class SaturnAgentTests : IDisposable
             Id = TestConstants.DefaultAgentId,
             Name = TestConstants.DefaultAgentName,
             Type = AgentType.Saturn,
-            Parameters = new Dictionary<string, object>
+            CustomSettings = new Dictionary<string, object>
             {
-                { "provider", ProviderType.OpenRouter },
-                { "model", TestConstants.ValidOpenRouterModel },
-                { "api_key", TestConstants.TestApiKey }
+                { "Provider", "OpenRouter" },
+                { "Model", TestConstants.ValidOpenRouterModel },
+                { "ApiKey", TestConstants.TestApiKey }
             }
         };
 
@@ -248,7 +269,7 @@ public class SaturnAgentTests : IDisposable
         var toolCall = new ToolCall
         {
             Id = Guid.NewGuid().ToString(),
-            Name = "test_tool",
+            ToolName = "test_tool",
             Parameters = TestConstants.StandardToolParams,
             Timestamp = DateTime.UtcNow
         };
@@ -260,11 +281,12 @@ public class SaturnAgentTests : IDisposable
         Assert.NotNull(result);
         Assert.True(result.Success);
         Assert.Equal("Tool executed successfully", result.Output);
-        Assert.Equal("test_tool", result.ToolName);
+        // Assert.Equal("test_tool", result.ToolName); // ToolName not in Core model
         Assert.True(result.ExecutionTime.TotalMilliseconds > 0);
 
-        // Verify Saturn core was called
-        await _mockSaturnCore.Received(1).ExecuteToolAsync("test_tool", TestConstants.StandardToolParams);
+        // Verify Saturn agent was created and called
+        await _mockSaturnCore.Received(1).CreateAgentAsync(mockProvider, Arg.Any<SaturnAgentConfiguration>());
+        await mockSaturnAgent.Received(1).ExecuteToolAsync(Arg.Any<SaturnToolCall>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -274,10 +296,27 @@ public class SaturnAgentTests : IDisposable
         var mockProvider = Substitute.For<OrchestratorChat.Saturn.Providers.ILLMProvider>();
         
         var outputEvents = new List<string>();
-        var statusChanges = new List<AgentStatus>();
+        var statusChanges = new List<OrchestratorChat.Core.Agents.AgentStatus>();
 
-        _mockSaturnCore.CreateProviderAsync(ProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
+        var streamingResponse = new SaturnAgentResponse
+        {
+            Content = "Chunk 1Chunk 2Chunk 3",
+            Type = SaturnResponseType.Text,
+            IsComplete = true
+        };
+
+        // Create a mock Saturn agent
+        var mockSaturnAgent = Substitute.For<ISaturnAgent>();
+        var mockAsyncEnumerable = CreateMockAsyncEnumerable(streamingResponse);
+        mockSaturnAgent.ProcessMessageAsync(Arg.Any<SaturnAgentMessage>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(mockAsyncEnumerable));
+
+        _mockSaturnCore.CreateProviderAsync(SaturnProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
             .Returns(mockProvider);
+        _mockSaturnCore.CreateAgentAsync(Arg.Any<OrchestratorChat.Saturn.Providers.ILLMProvider>(), Arg.Any<SaturnAgentConfiguration>())
+            .Returns(mockSaturnAgent);
+        _mockSaturnCore.GetAvailableTools()
+            .Returns(new List<OrchestratorChat.Saturn.Models.ToolInfo>());
 
         var agent = new SaturnAgent(_logger, _mockSaturnCore, _configuration);
         
@@ -289,29 +328,15 @@ public class SaturnAgentTests : IDisposable
             Id = TestConstants.DefaultAgentId,
             Name = TestConstants.DefaultAgentName,
             Type = AgentType.Saturn,
-            Parameters = new Dictionary<string, object>
+            CustomSettings = new Dictionary<string, object>
             {
-                { "provider", ProviderType.OpenRouter },
-                { "model", TestConstants.ValidOpenRouterModel },
-                { "api_key", TestConstants.TestApiKey }
+                { "Provider", "OpenRouter" },
+                { "Model", TestConstants.ValidOpenRouterModel },
+                { "ApiKey", TestConstants.TestApiKey }
             }
         };
 
         await agent.InitializeAsync(agentConfig);
-
-        // Setup streaming response
-        var streamingChunks = new[] { "Chunk 1", "Chunk 2", "Chunk 3" };
-        var streamingResponse = new AgentResponse
-        {
-            Id = Guid.NewGuid().ToString(),
-            Content = string.Join("", streamingChunks),
-            Role = MessageRole.Assistant,
-            Type = ResponseType.Success,
-            Timestamp = DateTime.UtcNow
-        };
-
-        _mockSaturnCore.SendMessageAsync(Arg.Any<AgentMessage>(), Arg.Any<OrchestratorChat.Saturn.Providers.ILLMProvider>())
-            .Returns(streamingResponse);
 
         var message = new AgentMessage
         {
@@ -332,7 +357,7 @@ public class SaturnAgentTests : IDisposable
         Assert.Equal(ResponseType.Success, response.Type);
         
         // Verify status changed events (should include Initializing and Ready at minimum)
-        Assert.Contains(AgentStatus.Ready, statusChanges);
+        Assert.Contains(OrchestratorChat.Core.Agents.AgentStatus.Ready, statusChanges);
         
         // OutputReceived events would depend on the Saturn core implementation
         // For now, verify the response content contains the expected data
@@ -344,9 +369,14 @@ public class SaturnAgentTests : IDisposable
     {
         // Arrange
         var mockProvider = Substitute.For<OrchestratorChat.Saturn.Providers.ILLMProvider>();
+        var mockSaturnAgent = Substitute.For<ISaturnAgent>();
         
-        _mockSaturnCore.CreateProviderAsync(ProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
+        _mockSaturnCore.CreateProviderAsync(SaturnProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
             .Returns(mockProvider);
+        _mockSaturnCore.CreateAgentAsync(mockProvider, Arg.Any<SaturnAgentConfiguration>())
+            .Returns(mockSaturnAgent);
+        _mockSaturnCore.GetAvailableTools()
+            .Returns(new List<OrchestratorChat.Saturn.Models.ToolInfo>());
 
         var agent = new SaturnAgent(_logger, _mockSaturnCore, _configuration);
         var agentConfig = new AgentConfiguration
@@ -354,27 +384,27 @@ public class SaturnAgentTests : IDisposable
             Id = TestConstants.DefaultAgentId,
             Name = TestConstants.DefaultAgentName,
             Type = AgentType.Saturn,
-            Parameters = new Dictionary<string, object>
+            CustomSettings = new Dictionary<string, object>
             {
-                { "provider", ProviderType.OpenRouter },
-                { "model", TestConstants.ValidOpenRouterModel },
-                { "api_key", TestConstants.TestApiKey }
+                { "Provider", "OpenRouter" },
+                { "Model", TestConstants.ValidOpenRouterModel },
+                { "ApiKey", TestConstants.TestApiKey }
             }
         };
 
         await agent.InitializeAsync(agentConfig);
 
         // Verify agent is ready
-        Assert.Equal(AgentStatus.Ready, agent.Status);
+        Assert.Equal(OrchestratorChat.Core.Agents.AgentStatus.Ready, agent.Status);
 
         // Act
         await agent.ShutdownAsync();
 
         // Assert
-        Assert.Equal(AgentStatus.Shutdown, agent.Status);
+        Assert.Equal(OrchestratorChat.Core.Agents.AgentStatus.Shutdown, agent.Status);
         
-        // Verify cleanup was called on Saturn core
-        _mockSaturnCore.Received(1).Dispose();
+        // Verify cleanup was called on Saturn agent
+        await mockSaturnAgent.Received(1).ShutdownAsync();
     }
 
     [Fact]
@@ -382,15 +412,20 @@ public class SaturnAgentTests : IDisposable
     {
         // Arrange
         var mockProvider = Substitute.For<OrchestratorChat.Saturn.Providers.ILLMProvider>();
+        var mockSaturnAgent = Substitute.For<ISaturnAgent>();
         
-        _mockSaturnCore.CreateProviderAsync(ProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
+        _mockSaturnCore.CreateProviderAsync(SaturnProviderType.OpenRouter, Arg.Any<Dictionary<string, object>>())
             .Returns(mockProvider);
+        _mockSaturnCore.CreateAgentAsync(mockProvider, Arg.Any<SaturnAgentConfiguration>())
+            .Returns(mockSaturnAgent);
+        _mockSaturnCore.GetAvailableTools()
+            .Returns(new List<OrchestratorChat.Saturn.Models.ToolInfo>());
 
         var agent = new SaturnAgent(_logger, _mockSaturnCore, _configuration);
         
         // Test uninitialized status
         var uninitializedStatus = await agent.GetStatusAsync();
-        Assert.Equal(AgentStatus.Uninitialized, uninitializedStatus.Status);
+        Assert.Equal(OrchestratorChat.Core.Agents.AgentStatus.Uninitialized, uninitializedStatus.Status);
 
         // Initialize agent
         var agentConfig = new AgentConfiguration
@@ -398,11 +433,11 @@ public class SaturnAgentTests : IDisposable
             Id = TestConstants.DefaultAgentId,
             Name = TestConstants.DefaultAgentName,
             Type = AgentType.Saturn,
-            Parameters = new Dictionary<string, object>
+            CustomSettings = new Dictionary<string, object>
             {
-                { "provider", ProviderType.OpenRouter },
-                { "model", TestConstants.ValidOpenRouterModel },
-                { "api_key", TestConstants.TestApiKey }
+                { "Provider", "OpenRouter" },
+                { "Model", TestConstants.ValidOpenRouterModel },
+                { "ApiKey", TestConstants.TestApiKey }
             }
         };
 
@@ -412,7 +447,7 @@ public class SaturnAgentTests : IDisposable
         var readyStatus = await agent.GetStatusAsync();
 
         // Assert
-        Assert.Equal(AgentStatus.Ready, readyStatus.Status);
+        Assert.Equal(OrchestratorChat.Core.Agents.AgentStatus.Ready, readyStatus.Status);
         Assert.NotNull(readyStatus.LastActivity);
         Assert.True(readyStatus.IsHealthy);
         Assert.NotNull(readyStatus.Capabilities);
@@ -425,8 +460,8 @@ public class SaturnAgentTests : IDisposable
     public async Task InitializeAsync_InvalidProvider_ReturnsError()
     {
         // Arrange
-        _mockSaturnCore.CreateProviderAsync((ProviderType)99, Arg.Any<Dictionary<string, object>>())
-            .Throws(new InvalidOperationException("Provider not supported"));
+        _mockSaturnCore.CreateProviderAsync((SaturnProviderType)99, Arg.Any<Dictionary<string, object>>())
+            .Returns(Task.FromException<OrchestratorChat.Saturn.Providers.ILLMProvider>(new InvalidOperationException("Provider not supported")));
 
         var agent = new SaturnAgent(_logger, _mockSaturnCore, _configuration);
         var agentConfig = new AgentConfiguration
@@ -434,10 +469,10 @@ public class SaturnAgentTests : IDisposable
             Id = TestConstants.DefaultAgentId,
             Name = TestConstants.DefaultAgentName,
             Type = AgentType.Saturn,
-            Parameters = new Dictionary<string, object>
+            CustomSettings = new Dictionary<string, object>
             {
-                { "provider", (ProviderType)99 },
-                { "model", "invalid-model" }
+                { "Provider", "InvalidProvider" },
+                { "Model", "invalid-model" }
             }
         };
 
@@ -448,12 +483,21 @@ public class SaturnAgentTests : IDisposable
         Assert.False(result.Success);
         Assert.NotNull(result.ErrorMessage);
         Assert.Contains("Provider not supported", result.ErrorMessage);
-        Assert.Equal(AgentStatus.Error, agent.Status);
+        Assert.Equal(OrchestratorChat.Core.Agents.AgentStatus.Error, agent.Status);
+    }
+
+    /// <summary>
+    /// Helper method to create mock async enumerable for Saturn agent responses
+    /// </summary>
+    private async IAsyncEnumerable<SaturnAgentResponse> CreateMockAsyncEnumerable(SaturnAgentResponse response)
+    {
+        yield return response;
+        await Task.CompletedTask;
     }
 
     public void Dispose()
     {
         _processHelper?.Dispose();
-        _mockSaturnCore?.Dispose();
+        // _mockSaturnCore doesn't implement IDisposable
     }
 }

@@ -8,17 +8,17 @@ public class ToolDefinition
     /// <summary>
     /// Unique name of the tool
     /// </summary>
-    public string Name { get; set; }
+    public string Name { get; set; } = string.Empty;
     
     /// <summary>
     /// Human-readable description of what the tool does
     /// </summary>
-    public string Description { get; set; }
+    public string Description { get; set; } = string.Empty;
     
     /// <summary>
     /// Schema defining the tool's parameters
     /// </summary>
-    public ToolSchema Schema { get; set; }
+    public ToolSchema Schema { get; set; } = new();
     
     /// <summary>
     /// Whether this tool requires user approval before execution

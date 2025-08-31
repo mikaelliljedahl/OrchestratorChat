@@ -149,10 +149,18 @@ public class ClaudeProcessManagementTests : IDisposable
         var shutdownTask = agent.ShutdownAsync();
         
         // Should complete shutdown within reasonable time
-        var completed = await shutdownTask.WaitAsync(TimeSpan.FromSeconds(5));
+        try
+        {
+            await shutdownTask.WaitAsync(TimeSpan.FromSeconds(5));
+            // If we reach here, shutdown completed within timeout
+            Assert.True(true);
+        }
+        catch (TimeoutException)
+        {
+            Assert.True(false, "Shutdown did not complete within 5 seconds");
+        }
         
         // Assert
-        Assert.True(completed);
         Assert.Equal(AgentStatus.Shutdown, agent.Status);
     }
 

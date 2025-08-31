@@ -24,7 +24,7 @@ public class WebSearchHandler : IToolHandler
     public string ToolName => "web_search";
 
     /// <inheritdoc />
-    public async Task<ToolExecutionResult> ExecuteAsync(
+    public Task<ToolExecutionResult> ExecuteAsync(
         Dictionary<string, object> parameters,
         IExecutionContext context,
         CancellationToken cancellationToken = default)
@@ -74,7 +74,7 @@ public class WebSearchHandler : IToolHandler
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             });
 
-            return new ToolExecutionResult
+            return Task.FromResult(new ToolExecutionResult
             {
                 Success = true,
                 Output = jsonOutput,
@@ -87,7 +87,7 @@ public class WebSearchHandler : IToolHandler
                     ["max_results"] = maxResults,
                     ["search_provider"] = "placeholder"
                 }
-            };
+            });
         }
         catch (Exception ex)
         {

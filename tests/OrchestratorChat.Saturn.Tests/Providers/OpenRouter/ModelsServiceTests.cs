@@ -21,12 +21,15 @@ public class ModelsServiceTests : IDisposable
     public ModelsServiceTests()
     {
         _mockHandler = new MockHttpMessageHandler();
-        var httpClient = new HttpClient(_mockHandler);
-        
         var options = new OpenRouterOptions
         {
             ApiKey = TestConstants.TestApiKey,
             BaseUrl = TestConstants.TestOpenRouterBaseUrl
+        };
+        
+        var httpClient = new HttpClient(_mockHandler)
+        {
+            BaseAddress = new Uri(options.BaseUrl)
         };
         
         var httpLogger = new LoggerFactory().CreateLogger<HttpClientAdapter>();

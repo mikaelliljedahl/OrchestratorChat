@@ -15,7 +15,7 @@ public class Session
     /// <summary>
     /// Display name for the session
     /// </summary>
-    public string Name { get; set; }
+    public string Name { get; set; } = string.Empty;
     
     /// <summary>
     /// Type of session
@@ -69,10 +69,10 @@ public class Session
     /// <summary>
     /// Working directory for this session
     /// </summary>
-    public string WorkingDirectory { get; set; }
+    public string WorkingDirectory { get; set; } = string.Empty;
     
     /// <summary>
     /// Project ID if this session is associated with a specific project
     /// </summary>
-    public string ProjectId { get; set; }
+    public string ProjectId { get; set; } = string.Empty;
 }

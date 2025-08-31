@@ -20,12 +20,12 @@ public class AgentStatusChangedEvent : IEvent
     /// <summary>
     /// Source that generated the event
     /// </summary>
-    public string Source { get; set; }
+    public string Source { get; set; } = string.Empty;
     
     /// <summary>
     /// ID of the agent whose status changed
     /// </summary>
-    public string AgentId { get; set; }
+    public string AgentId { get; set; } = string.Empty;
     
     /// <summary>
     /// Previous status of the agent
@@ -40,5 +40,5 @@ public class AgentStatusChangedEvent : IEvent
     /// <summary>
     /// Reason for the status change
     /// </summary>
-    public string Reason { get; set; }
+    public string Reason { get; set; } = string.Empty;
 }

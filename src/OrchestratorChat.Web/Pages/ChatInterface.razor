@@ -157,9 +157,9 @@
         }
     }
     
-    private async Task LoadMessages()
+    private Task LoadMessages()
     {
-        if (_currentSession == null) return;
+        if (_currentSession == null) return Task.CompletedTask;
         
         try
         {
@@ -178,6 +178,8 @@
         {
             Console.WriteLine($"Error loading messages: {ex.Message}");
         }
+        
+        return Task.CompletedTask;
     }
     
     private void SelectAgent(AgentInfo agent)
@@ -253,9 +255,10 @@
         // TODO: Implement agent settings
     }
     
-    private async Task LoadSession(Core.Sessions.Session session)
+    private Task LoadSession(Core.Sessions.Session session)
     {
         Navigation.NavigateTo($"/session/{session.Id}");
+        return Task.CompletedTask;
     }
     
     public async ValueTask DisposeAsync()

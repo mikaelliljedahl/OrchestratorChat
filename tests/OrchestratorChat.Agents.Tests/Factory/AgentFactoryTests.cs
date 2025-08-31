@@ -25,7 +25,7 @@ public class AgentFactoryTests : IDisposable
         _services = new ServiceCollection();
         
         // Register logging
-        _services.AddLogging(builder => builder.AddConsole());
+        _services.AddLogging();
         
         // Register mock agents
         _services.AddTransient<ClaudeAgent>(provider =>
@@ -44,15 +44,14 @@ public class AgentFactoryTests : IDisposable
         _services.AddTransient<SaturnAgent>(provider =>
         {
             var logger = provider.GetRequiredService<ILogger<SaturnAgent>>();
-            var mockSaturnCore = Substitute.For<Saturn.Core.ISaturnCore>();
-            var mockToolExecutor = Substitute.For<OrchestratorChat.Core.Tools.IToolExecutor>();
-            var config = Microsoft.Extensions.Options.Options.Create(new SaturnConfiguration
+            var mockSaturnCore = Substitute.For<OrchestratorChat.Agents.Saturn.ISaturnCore>();
+            var config = Microsoft.Extensions.Options.Options.Create(new Agents.Saturn.SaturnConfiguration
             {
-                DefaultProvider = ProviderType.OpenRouter,
+                DefaultProvider = ProviderType.OpenRouter.ToString(),
                 MaxSubAgents = TestConstants.MaxSubAgents,
                 SupportedModels = new List<string> { TestConstants.ValidOpenRouterModel }
             });
-            return new SaturnAgent(logger, mockSaturnCore, mockToolExecutor, config);
+            return new SaturnAgent(logger, mockSaturnCore, config);
         });
 
         _serviceProvider = _services.BuildServiceProvider();
@@ -112,7 +111,7 @@ public class AgentFactoryTests : IDisposable
             WorkingDirectory = Directory.GetCurrentDirectory(),
             Parameters = new Dictionary<string, object>
             {
-                { "provider", ProviderType.OpenRouter },
+                { "provider", ProviderType.OpenRouter.ToString() },
                 { "model", TestConstants.ValidOpenRouterModel },
                 { "api_key", TestConstants.TestApiKey }
             }
@@ -181,7 +180,7 @@ public class AgentFactoryTests : IDisposable
     }
 
     [Fact]
-    public void GetConfiguredAgents_ReturnsAllAgents()
+    public async Task GetConfiguredAgents_ReturnsAllAgents()
     {
         // Arrange
         var factory = new AgentFactory(_serviceProvider, _logger);
@@ -202,11 +201,11 @@ public class AgentFactoryTests : IDisposable
         factory.RegisterAgent("saturn-001", saturnAgent);
 
         // Act
-        var configuredAgents = factory.GetConfiguredAgents();
+        var configuredAgents = await factory.GetConfiguredAgents();
 
         // Assert
         Assert.NotNull(configuredAgents);
-        Assert.Equal(2, configuredAgents.Count());
+        Assert.Equal(2, configuredAgents.Count);
         
         var agentIds = configuredAgents.Select(a => a.Id).ToList();
         Assert.Contains("claude-001", agentIds);
@@ -226,7 +225,7 @@ public class AgentFactoryTests : IDisposable
         mockAgent.Id.Returns(TestConstants.DefaultAgentId);
         mockAgent.Name.Returns(TestConstants.DefaultAgentName);
         mockAgent.Type.Returns(AgentType.Claude);
-        mockAgent.Status.Returns(AgentStatus.Ready);
+        mockAgent.Status.Returns(Core.Agents.AgentStatus.Ready);
 
         factory.RegisterAgent(TestConstants.DefaultAgentId, mockAgent);
 
@@ -238,7 +237,7 @@ public class AgentFactoryTests : IDisposable
         Assert.Equal(TestConstants.DefaultAgentId, retrievedAgent.Id);
         Assert.Equal(TestConstants.DefaultAgentName, retrievedAgent.Name);
         Assert.Equal(AgentType.Claude, retrievedAgent.Type);
-        Assert.Equal(AgentStatus.Ready, retrievedAgent.Status);
+        Assert.Equal(Core.Agents.AgentStatus.Ready, retrievedAgent.Status);
     }
 
     [Fact]
@@ -316,13 +315,13 @@ public class AgentFactoryTests : IDisposable
     }
 
     [Fact]
-    public void GetConfiguredAgents_EmptyRegistry_ReturnsEmpty()
+    public async Task GetConfiguredAgents_EmptyRegistry_ReturnsEmpty()
     {
         // Arrange
         var factory = new AgentFactory(_serviceProvider, _logger);
 
         // Act
-        var configuredAgents = factory.GetConfiguredAgents();
+        var configuredAgents = await factory.GetConfiguredAgents();
 
         // Assert
         Assert.NotNull(configuredAgents);
@@ -353,7 +352,7 @@ public class AgentFactoryTests : IDisposable
             Type = AgentType.Saturn,
             Parameters = new Dictionary<string, object>
             {
-                { "provider", ProviderType.OpenRouter },
+                { "provider", ProviderType.OpenRouter.ToString() },
                 { "model", TestConstants.ValidOpenRouterModel }
             }
         };
@@ -379,7 +378,7 @@ public class AgentFactoryTests : IDisposable
 
         // Assert - Even though creation failed, we can verify registry behavior
         // by checking that no agents were registered due to initialization failures
-        var configuredAgents = factory.GetConfiguredAgents();
+        var configuredAgents = await factory.GetConfiguredAgents();
         Assert.NotNull(configuredAgents);
         // Agents should not be registered if initialization fails
     }

@@ -8,7 +8,7 @@ public class AgentStatusChangedEventArgs : EventArgs
     /// <summary>
     /// ID of the agent whose status changed
     /// </summary>
-    public string AgentId { get; set; }
+    public string AgentId { get; set; } = string.Empty;
     
     /// <summary>
     /// Previous status of the agent
@@ -23,7 +23,7 @@ public class AgentStatusChangedEventArgs : EventArgs
     /// <summary>
     /// Reason for the status change
     /// </summary>
-    public string Reason { get; set; }
+    public string Reason { get; set; } = string.Empty;
     
     /// <summary>
     /// Timestamp when the status change occurred

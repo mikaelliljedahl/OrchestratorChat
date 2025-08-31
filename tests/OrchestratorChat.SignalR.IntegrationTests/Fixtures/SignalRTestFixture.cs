@@ -24,7 +24,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Fixtures
         
         public Mock<IOrchestrator> MockOrchestrator { get; }
         public Mock<ISessionManager> MockSessionManager { get; }
-        public Mock<IAgentFactory> MockAgentFactory { get; }
+        public MockAgentFactory MockAgentFactory { get; }
         public Mock<IEventBus> MockEventBus { get; }
         
         public SignalRTestFixture()
@@ -104,6 +104,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Fixtures
             MockOrchestrator.Reset();
             MockSessionManager.Reset();
             MockAgentFactory.Reset();
+            MockAgentFactory.Clear();
             MockEventBus.Reset();
         }
         

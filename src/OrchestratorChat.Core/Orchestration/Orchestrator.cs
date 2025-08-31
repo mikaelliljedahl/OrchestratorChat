@@ -168,10 +168,10 @@ public class Orchestrator : IOrchestrator
     /// </summary>
     /// <param name="plan">The plan to validate</param>
     /// <returns>True if the plan is valid and can be executed, false otherwise</returns>
-    public async Task<bool> ValidatePlanAsync(OrchestrationPlan plan)
+    public Task<bool> ValidatePlanAsync(OrchestrationPlan plan)
     {
         if (plan == null)
-            return false;
+            return Task.FromResult(false);
 
         try
         {
@@ -181,7 +181,7 @@ public class Orchestrator : IOrchestrator
                 plan.Steps.Count == 0)
             {
                 
-                return false;
+                return Task.FromResult(false);
             }
 
             // Check step dependencies
@@ -193,7 +193,7 @@ public class Orchestrator : IOrchestrator
                     if (!int.TryParse(dependency, out var depOrder) || !stepOrders.Contains(depOrder))
                     {
                         // Plan validation failed: Invalid dependency
-                        return false;
+                        return Task.FromResult(false);
                     }
                 }
             }
@@ -202,23 +202,23 @@ public class Orchestrator : IOrchestrator
             if (HasCircularDependencies(plan.Steps))
             {
                 
-                return false;
+                return Task.FromResult(false);
             }
 
             // Check required agents
             if (plan.RequiredAgents.Count == 0)
             {
                 
-                return false;
+                return Task.FromResult(false);
             }
 
             
-            return true;
+            return Task.FromResult(true);
         }
         catch (Exception ex)
         {
             
-            return false;
+            return Task.FromResult(false);
         }
     }
 

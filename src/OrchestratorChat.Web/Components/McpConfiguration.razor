@@ -109,7 +109,7 @@
         await LoadGlobalTools();
     }
     
-    private async Task LoadGlobalTools()
+    private Task LoadGlobalTools()
     {
         // TODO: Load from actual MCP service
         _globalTools = new List<McpTool>
@@ -118,12 +118,14 @@
             new McpTool { Name = "Web Search", Description = "Search the web", Enabled = false },
             new McpTool { Name = "Calculator", Description = "Perform calculations", Enabled = true },
         };
+        
+        return Task.CompletedTask;
     }
     
-    private async Task LoadProjectConfig()
+    private Task LoadProjectConfig()
     {
         if (string.IsNullOrEmpty(_projectPath))
-            return;
+            return Task.CompletedTask;
             
         // TODO: Load from actual MCP service
         _projectTools = new List<McpTool>
@@ -132,6 +134,8 @@
             new McpTool { Name = "NPM", Command = "npm", Enabled = true },
             new McpTool { Name = "Docker", Command = "docker", Enabled = false },
         };
+        
+        return Task.CompletedTask;
     }
     
     private async Task SelectProjectPath()

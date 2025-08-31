@@ -20,15 +20,15 @@ public class MessageReceivedEvent : IEvent
     /// <summary>
     /// Source that generated the event
     /// </summary>
-    public string Source { get; set; }
+    public string Source { get; set; } = string.Empty;
     
     /// <summary>
     /// The message that was received
     /// </summary>
-    public AgentMessage Message { get; set; }
+    public AgentMessage Message { get; set; } = new();
     
     /// <summary>
     /// ID of the session the message belongs to
     /// </summary>
-    public string SessionId { get; set; }
+    public string SessionId { get; set; } = string.Empty;
 }

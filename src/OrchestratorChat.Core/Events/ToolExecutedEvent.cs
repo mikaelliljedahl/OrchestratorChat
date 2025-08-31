@@ -20,15 +20,15 @@ public class ToolExecutedEvent : IEvent
     /// <summary>
     /// Source that generated the event
     /// </summary>
-    public string Source { get; set; }
+    public string Source { get; set; } = string.Empty;
     
     /// <summary>
     /// The tool call that was executed
     /// </summary>
-    public ToolCall Call { get; set; }
+    public ToolCall Call { get; set; } = new();
     
     /// <summary>
     /// Result of the tool execution
     /// </summary>
-    public ToolExecutionResult Result { get; set; }
+    public ToolExecutionResult Result { get; set; } = new();
 }

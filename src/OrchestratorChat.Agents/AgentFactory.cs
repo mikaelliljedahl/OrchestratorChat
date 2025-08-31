@@ -55,7 +55,7 @@ public class AgentFactory : IAgentFactory
             .ToList();
     }
 
-    public async Task<List<AgentInfo>> GetConfiguredAgents()
+    public Task<List<AgentInfo>> GetConfiguredAgents()
     {
         var agentInfos = new List<AgentInfo>();
         
@@ -78,13 +78,13 @@ public class AgentFactory : IAgentFactory
             agentInfos.Add(agentInfo);
         }
         
-        return await Task.FromResult(agentInfos);
+        return Task.FromResult(agentInfos);
     }
 
-    public async Task<IAgent?> GetAgentAsync(string agentId)
+    public Task<IAgent?> GetAgentAsync(string agentId)
     {
         _agentRegistry.TryGetValue(agentId, out var agent);
-        return await Task.FromResult(agent);
+        return Task.FromResult(agent);
     }
 
     public void RegisterAgent(string agentId, IAgent agent)
@@ -98,7 +98,7 @@ public class AgentFactory : IAgentFactory
         _logger.LogInformation("Registered agent {AgentId} of type {AgentType}", agentId, agent.GetType().Name);
     }
 
-    public async Task<IEnumerable<AgentType>> GetAvailableAgentTypesAsync(CancellationToken cancellationToken = default)
+    public Task<IEnumerable<AgentType>> GetAvailableAgentTypesAsync(CancellationToken cancellationToken = default)
     {
         // Return available agent types that can be created
         var availableTypes = new List<AgentType>
@@ -108,7 +108,7 @@ public class AgentFactory : IAgentFactory
             AgentType.GPT4
         };
         
-        return await Task.FromResult(availableTypes);
+        return Task.FromResult<IEnumerable<AgentType>>(availableTypes);
     }
 
     public async Task DisposeAgentAsync(string agentId, CancellationToken cancellationToken = default)

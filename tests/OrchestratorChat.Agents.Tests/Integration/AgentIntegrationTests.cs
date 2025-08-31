@@ -144,9 +144,9 @@ public class AgentIntegrationTests : IDisposable
     public void Integration_ToolResult_CanHandleDifferentScenarios()
     {
         // Arrange & Act: Create different tool results
-        var successResult = new ToolResult(true, "Operation completed successfully", null);
-        var failureResult = new ToolResult(false, null, "Operation failed due to invalid input");
-        var partialResult = new ToolResult(true, "Partial success", "Warning: Some items skipped");
+        var successResult = new ToolResult { Success = true, Content = "Operation completed successfully", Error = null };
+        var failureResult = new ToolResult { Success = false, Content = null, Error = "Operation failed due to invalid input" };
+        var partialResult = new ToolResult { Success = true, Content = "Partial success", Error = "Warning: Some items skipped" };
 
         // Assert: Verify tool results work correctly
         Assert.True(successResult.Success);

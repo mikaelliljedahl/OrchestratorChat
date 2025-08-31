@@ -28,11 +28,11 @@
         </div>
     }
     
-    @if (Message.Usage != null)
+    @if (Message.TokenUsage != null)
     {
         <div class="message-footer">
             <MudText Typo="Typo.caption" Class="text-muted">
-                Tokens: @Message.Usage.InputTokens in, @Message.Usage.OutputTokens out
+                Tokens: @Message.TokenUsage.InputTokens in, @Message.TokenUsage.OutputTokens out
             </MudText>
         </div>
     }

@@ -43,7 +43,7 @@ public class AgentConfiguration
     /// <summary>
     /// System prompt for the agent
     /// </summary>
-    public string SystemPrompt { get; set; }
+    public string SystemPrompt { get; set; } = string.Empty;
     
     /// <summary>
     /// Custom settings specific to the agent type

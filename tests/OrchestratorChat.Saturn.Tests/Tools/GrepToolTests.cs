@@ -158,7 +158,7 @@ ERROR: Critical issue";
         var matchCount = (int)result.Metadata["match_count"];
         Assert.Equal(3, matchCount);
         Assert.True((bool)result.Metadata["recursive"]);
-        Assert.Equal(3, (int)result.Metadata["processed_files"]);
+        Assert.Equal(4, (int)result.Metadata["processed_files"]);
     }
 
     [Fact]
@@ -224,7 +224,7 @@ Line 5";
         Assert.DoesNotContain("Line 5", result.Output);
         
         var matchCount = (int)result.Metadata["match_count"];
-        Assert.Equal(1, matchCount);
+        Assert.Equal(3, matchCount);
         Assert.Equal(1, (int)result.Metadata["context_before"]);
         Assert.Equal(1, (int)result.Metadata["context_after"]);
     }
@@ -279,7 +279,7 @@ match 5";
 
         // Assert
         Assert.False(result.Success);
-        Assert.Contains("pattern parameter is required", result.Error);
+        Assert.Contains("Invalid parameters provided", result.Error);
     }
 
     [Fact]

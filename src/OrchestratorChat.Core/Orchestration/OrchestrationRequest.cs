@@ -8,7 +8,7 @@ public class OrchestrationRequest
     /// <summary>
     /// The goal or task to accomplish through orchestration
     /// </summary>
-    public string Goal { get; set; }
+    public string Goal { get; set; } = string.Empty;
     
     /// <summary>
     /// List of agent IDs available for orchestration

@@ -12,16 +12,16 @@ public class OrchestratorDbContext : DbContext
     {
     }
     
-    public DbSet<SessionEntity> Sessions { get; set; }
-    public DbSet<MessageEntity> Messages { get; set; }
-    public DbSet<AgentEntity> Agents { get; set; }
-    public DbSet<AgentConfigurationEntity> AgentConfigurations { get; set; }
-    public DbSet<SessionAgentEntity> SessionAgents { get; set; }
-    public DbSet<AttachmentEntity> Attachments { get; set; }
-    public DbSet<ToolCallEntity> ToolCalls { get; set; }
-    public DbSet<SessionSnapshotEntity> SessionSnapshots { get; set; }
-    public DbSet<OrchestrationPlanEntity> OrchestrationPlans { get; set; }
-    public DbSet<OrchestrationStepEntity> OrchestrationSteps { get; set; }
+    public DbSet<SessionEntity> Sessions { get; set; } = null!;
+    public DbSet<MessageEntity> Messages { get; set; } = null!;
+    public DbSet<AgentEntity> Agents { get; set; } = null!;
+    public DbSet<AgentConfigurationEntity> AgentConfigurations { get; set; } = null!;
+    public DbSet<SessionAgentEntity> SessionAgents { get; set; } = null!;
+    public DbSet<AttachmentEntity> Attachments { get; set; } = null!;
+    public DbSet<ToolCallEntity> ToolCalls { get; set; } = null!;
+    public DbSet<SessionSnapshotEntity> SessionSnapshots { get; set; } = null!;
+    public DbSet<OrchestrationPlanEntity> OrchestrationPlans { get; set; } = null!;
+    public DbSet<OrchestrationStepEntity> OrchestrationSteps { get; set; } = null!;
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

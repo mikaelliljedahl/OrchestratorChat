@@ -98,17 +98,17 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
             var method = "AgentCustomMethod";
             var data = new { message = "test data" };
 
-            var mockClientProxy = new Mock<IClientProxy>();
+            var mockAgentClient = new Mock<IAgentClient>();
             var mockAgentClients = new Mock<IHubCallerClients<IAgentClient>>();
 
             _mockAgentHubContext.SetupGet(x => x.Clients).Returns(mockAgentClients.Object);
-            mockAgentClients.Setup(x => x.Group("session-test-session")).Returns(mockClientProxy.Object);
+            mockAgentClients.Setup(x => x.Group("session-test-session")).Returns(mockAgentClient.Object);
 
             // Act
             await _messageRouter.BroadcastToSessionAsync(sessionId, method, data);
 
             // Assert
-            mockClientProxy.Verify(
+            mockAgentClient.As<IClientProxy>().Verify(
                 x => x.SendAsync(method, data, default),
                 Times.Once);
         }
@@ -121,17 +121,17 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
             var method = "OrchestrationCustomMethod";
             var data = new { message = "test data" };
 
-            var mockClientProxy = new Mock<IClientProxy>();
+            var mockOrchestratorClient = new Mock<IOrchestratorClient>();
             var mockOrchestratorClients = new Mock<IHubCallerClients<IOrchestratorClient>>();
 
             _mockOrchestratorHubContext.SetupGet(x => x.Clients).Returns(mockOrchestratorClients.Object);
-            mockOrchestratorClients.Setup(x => x.Group("session-test-session")).Returns(mockClientProxy.Object);
+            mockOrchestratorClients.Setup(x => x.Group("session-test-session")).Returns(mockOrchestratorClient.Object);
 
             // Act
             await _messageRouter.BroadcastToSessionAsync(sessionId, method, data);
 
             // Assert
-            mockClientProxy.Verify(
+            mockOrchestratorClient.As<IClientProxy>().Verify(
                 x => x.SendAsync(method, data, default),
                 Times.Once);
         }
@@ -144,17 +144,17 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Services
             var method = "CustomGenericMethod";
             var data = new { message = "test data" };
 
-            var mockClientProxy = new Mock<IClientProxy>();
+            var mockOrchestratorClient = new Mock<IOrchestratorClient>();
             var mockOrchestratorClients = new Mock<IHubCallerClients<IOrchestratorClient>>();
 
             _mockOrchestratorHubContext.SetupGet(x => x.Clients).Returns(mockOrchestratorClients.Object);
-            mockOrchestratorClients.Setup(x => x.Group("session-test-session")).Returns(mockClientProxy.Object);
+            mockOrchestratorClients.Setup(x => x.Group("session-test-session")).Returns(mockOrchestratorClient.Object);
 
             // Act
             await _messageRouter.BroadcastToSessionAsync(sessionId, method, data);
 
             // Assert
-            mockClientProxy.Verify(
+            mockOrchestratorClient.As<IClientProxy>().Verify(
                 x => x.SendAsync(method, data, default),
                 Times.Once);
         }

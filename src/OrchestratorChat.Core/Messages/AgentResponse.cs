@@ -10,12 +10,12 @@ public class AgentResponse
     /// <summary>
     /// ID of the message this response relates to
     /// </summary>
-    public string MessageId { get; set; }
+    public string MessageId { get; set; } = string.Empty;
     
     /// <summary>
     /// Content of the response
     /// </summary>
-    public string Content { get; set; }
+    public string Content { get; set; } = string.Empty;
     
     /// <summary>
     /// Type of response
@@ -40,7 +40,7 @@ public class AgentResponse
     /// <summary>
     /// Token usage information for this response
     /// </summary>
-    public TokenUsage Usage { get; set; }
+    public TokenUsage Usage { get; set; } = new();
     
     /// <summary>
     /// Unique identifier for the response (for test compatibility)

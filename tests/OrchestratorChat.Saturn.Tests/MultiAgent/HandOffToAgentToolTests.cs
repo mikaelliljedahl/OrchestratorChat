@@ -284,6 +284,7 @@ public class HandOffToAgentToolTests : IDisposable
 
     private static async IAsyncEnumerable<AgentResponse> CreateAsyncEnumerable(IEnumerable<AgentResponse> responses)
     {
+        await Task.Yield(); // This makes the method truly async to avoid CS1998
         foreach (var response in responses)
         {
             yield return response;

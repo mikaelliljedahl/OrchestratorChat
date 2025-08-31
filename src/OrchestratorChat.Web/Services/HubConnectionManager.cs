@@ -18,7 +18,7 @@ public class HubConnectionManager : IHubConnectionManager
     public HubConnection? AgentHubConnection => _agentHubConnection;
     public HubConnection? OrchestratorHubConnection => _orchestratorHubConnection;
 
-    public async Task InitializeAsync(string baseUrl)
+    public Task InitializeAsync(string baseUrl)
     {
         _baseUrl = baseUrl;
         
@@ -34,6 +34,8 @@ public class HubConnectionManager : IHubConnectionManager
 
         // Set up connection event handlers
         SetupConnectionEventHandlers();
+        
+        return Task.CompletedTask;
     }
 
     public async Task StartConnectionsAsync()

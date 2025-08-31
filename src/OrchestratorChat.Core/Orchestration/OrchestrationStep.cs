@@ -18,12 +18,12 @@ public class OrchestrationStep
     /// <summary>
     /// ID of the agent that should execute this step
     /// </summary>
-    public string AgentId { get; set; }
+    public string AgentId { get; set; } = string.Empty;
     
     /// <summary>
     /// Description of the task to be performed in this step
     /// </summary>
-    public string Task { get; set; }
+    public string Task { get; set; } = string.Empty;
     
     /// <summary>
     /// List of step orders that this step depends on

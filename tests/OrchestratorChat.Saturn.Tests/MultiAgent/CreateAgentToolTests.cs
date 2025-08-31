@@ -50,7 +50,7 @@ public class CreateAgentToolTests : IDisposable
                 ["agent_name"] = "TestAgent",
                 ["task"] = "Test task for the agent",
                 ["model"] = "claude-3-sonnet",
-                ["provider_type"] = "OpenRouter",
+                ["provider_type"] = ProviderType.OpenRouter,
                 ["temperature"] = 0.8
             }
         };
@@ -297,6 +297,7 @@ public class CreateAgentToolTests : IDisposable
 
     private static async IAsyncEnumerable<AgentResponse> CreateAsyncEnumerable(IEnumerable<AgentResponse> responses)
     {
+        await Task.Yield(); // This makes the method truly async to avoid CS1998
         foreach (var response in responses)
         {
             yield return response;

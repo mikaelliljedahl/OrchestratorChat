@@ -89,7 +89,7 @@ namespace OrchestratorChat.SignalR.Services
         }
 
         /// <inheritdoc />
-        public async Task<bool> AddUserToSessionAsync(string connectionId, string sessionId)
+        public Task<bool> AddUserToSessionAsync(string connectionId, string sessionId)
         {
             try
             {
@@ -121,18 +121,18 @@ namespace OrchestratorChat.SignalR.Services
                 _logger.LogDebug("Added user {UserId} (connection {ConnectionId}) to session {SessionId}", 
                     userId, connectionId, sessionId);
 
-                return await Task.FromResult(true);
+                return Task.FromResult(true);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to add connection {ConnectionId} to session {SessionId}", 
                     connectionId, sessionId);
-                return false;
+                return Task.FromResult(false);
             }
         }
 
         /// <inheritdoc />
-        public async Task<bool> RemoveUserFromSessionAsync(string connectionId, string sessionId)
+        public Task<bool> RemoveUserFromSessionAsync(string connectionId, string sessionId)
         {
             try
             {
@@ -166,13 +166,13 @@ namespace OrchestratorChat.SignalR.Services
                 _logger.LogDebug("Removed user {UserId} (connection {ConnectionId}) from session {SessionId}", 
                     userId, connectionId, sessionId);
 
-                return await Task.FromResult(true);
+                return Task.FromResult(true);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to remove connection {ConnectionId} from session {SessionId}", 
                     connectionId, sessionId);
-                return false;
+                return Task.FromResult(false);
             }
         }
 

@@ -13,12 +13,12 @@ public class ToolExecutionResult
     /// <summary>
     /// Output produced by the tool
     /// </summary>
-    public string Output { get; set; }
+    public string Output { get; set; } = string.Empty;
     
     /// <summary>
     /// Error message if execution failed
     /// </summary>
-    public string Error { get; set; }
+    public string Error { get; set; } = string.Empty;
     
     /// <summary>
     /// Time taken to execute the tool

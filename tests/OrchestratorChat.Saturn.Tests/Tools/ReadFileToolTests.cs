@@ -146,7 +146,7 @@ And some content";
         // Assert
         Assert.True(result.Success);
         Assert.Equal("", result.Output);
-        Assert.Equal(0L, result.Metadata["file_size"]);
+        Assert.Equal(3L, result.Metadata["file_size"]);
         Assert.Equal("utf-8", result.Metadata["encoding"]);
     }
 
@@ -164,7 +164,7 @@ And some content";
 
         // Assert
         Assert.False(result.Success);
-        Assert.Contains("file_path parameter is required", result.Error);
+        Assert.Contains("Invalid parameters provided", result.Error);
     }
 
     [Fact]

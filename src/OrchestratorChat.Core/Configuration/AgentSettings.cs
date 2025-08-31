@@ -10,12 +10,12 @@ public class AgentSettings
     /// <summary>
     /// Path to the Claude executable
     /// </summary>
-    public string ClaudeExecutablePath { get; set; }
+    public string ClaudeExecutablePath { get; set; } = string.Empty;
     
     /// <summary>
     /// Path to the Saturn library
     /// </summary>
-    public string SaturnLibraryPath { get; set; }
+    public string SaturnLibraryPath { get; set; } = string.Empty;
     
     /// <summary>
     /// Maximum number of concurrent agents allowed

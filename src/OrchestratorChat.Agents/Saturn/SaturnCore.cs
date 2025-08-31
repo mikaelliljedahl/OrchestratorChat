@@ -208,26 +208,24 @@ public class SaturnCoreOperations : ISaturnCoreOperations, IDisposable
         }
     }
 
-    public async Task<List<SaturnToolInfo>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
+    public Task<List<SaturnToolInfo>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
     {
-        await Task.CompletedTask; // For async interface compliance
-        
         if (!_isInitialized)
         {
             _logger.LogWarning("Attempting to get available tools before initialization");
-            return new List<SaturnToolInfo>();
+            return Task.FromResult(new List<SaturnToolInfo>());
         }
 
         try
         {
             var tools = _saturnCore.GetAvailableTools();
             _logger.LogDebug("Retrieved {ToolCount} available tools", tools.Count);
-            return tools;
+            return Task.FromResult(tools);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving available tools");
-            return new List<SaturnToolInfo>();
+            return Task.FromResult(new List<SaturnToolInfo>());
         }
     }
 
@@ -258,15 +256,16 @@ public class SaturnCoreOperations : ISaturnCoreOperations, IDisposable
         }
     }
 
-    private async Task SetWorkingDirectoryInternalAsync(string path)
+    private Task SetWorkingDirectoryInternalAsync(string path)
     {
         // Update Saturn agent's working directory if possible
         // This would depend on Saturn's internal implementation
         // For now, we just store it for future use
-        await Task.CompletedTask;
         
         // If Saturn agent has configuration or context that can be updated:
         // await _saturnAgent.UpdateConfigurationAsync(new { WorkingDirectory = path });
+        
+        return Task.CompletedTask;
     }
 
     private void RegisterDefaultTools()

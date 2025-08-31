@@ -142,15 +142,16 @@ public class AgentManager : IAgentManager
 {
     private readonly Dictionary<string, ISaturnAgent> _agents = new();
 
-    public async Task<ISaturnAgent> GetAgentAsync(string agentId)
+    public Task<ISaturnAgent> GetAgentAsync(string agentId)
     {
         _agents.TryGetValue(agentId, out var agent);
-        return agent ?? throw new ArgumentException($"Agent {agentId} not found");
+        var result = agent ?? throw new ArgumentException($"Agent {agentId} not found");
+        return Task.FromResult(result);
     }
 
-    public async Task<List<ISaturnAgent>> GetAllAgentsAsync()
+    public Task<List<ISaturnAgent>> GetAllAgentsAsync()
     {
-        return _agents.Values.ToList();
+        return Task.FromResult(_agents.Values.ToList());
     }
 
     public async Task RemoveAgentAsync(string agentId)
@@ -162,13 +163,13 @@ public class AgentManager : IAgentManager
         }
     }
 
-    public async Task<Dictionary<string, object>> GetAgentStatusAsync()
+    public Task<Dictionary<string, object>> GetAgentStatusAsync()
     {
         var status = new Dictionary<string, object>();
         foreach (var kvp in _agents)
         {
             status[kvp.Key] = kvp.Value.Status;
         }
-        return status;
+        return Task.FromResult(status);
     }
 }

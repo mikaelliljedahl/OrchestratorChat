@@ -13,7 +13,7 @@ public class SecuritySettings
     /// <summary>
     /// JWT secret key
     /// </summary>
-    public string JwtSecret { get; set; }
+    public string JwtSecret { get; set; } = string.Empty;
     
     /// <summary>
     /// Token expiration time in minutes

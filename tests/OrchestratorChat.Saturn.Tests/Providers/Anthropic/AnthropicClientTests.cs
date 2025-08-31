@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Moq;
 using OrchestratorChat.Saturn.Models;
 using OrchestratorChat.Saturn.Providers.Anthropic;
 using OrchestratorChat.Saturn.Tests.TestHelpers;
@@ -28,6 +29,13 @@ public class AnthropicClientTests : IDisposable
         var httpClientField = typeof(AnthropicClient)
             .GetField("_httpClient", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         httpClientField?.SetValue(_client, _httpClient);
+
+        // Create a mock authentication service using a derived class
+        var mockAuthService = new MockAnthropicAuthService();
+
+        var authServiceField = typeof(AnthropicClient)
+            .GetField("_authService", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        authServiceField?.SetValue(_client, mockAuthService);
     }
 
     [Fact]
@@ -318,5 +326,33 @@ public class AnthropicClientTests : IDisposable
         _client?.Dispose();
         _httpClient?.Dispose();
         _mockHandler?.Dispose();
+    }
+}
+
+/// <summary>
+/// Mock implementation of AnthropicAuthService for testing
+/// Since AnthropicAuthService methods are not virtual, we'll create this as a separate mock class
+/// and use reflection to replace the service in the client
+/// </summary>
+public class MockAnthropicAuthService : IDisposable
+{
+    public Task<StoredTokens?> GetValidTokensAsync()
+    {
+        return Task.FromResult<StoredTokens?>(new StoredTokens { AccessToken = "mock-access-token" });
+    }
+
+    public void Logout()
+    {
+        // Mock logout - do nothing
+    }
+
+    public Task<bool> AuthenticateAsync(bool useClaudeMax = true)
+    {
+        return Task.FromResult(true); // Mock successful authentication
+    }
+
+    public void Dispose()
+    {
+        // Mock dispose - do nothing
     }
 }

@@ -19,8 +19,6 @@ public class OpenRouterClientTests : IDisposable
     public OpenRouterClientTests()
     {
         _mockHandler = new MockHttpMessageHandler();
-        var httpClient = new HttpClient(_mockHandler);
-        
         _logger = new LoggerFactory().CreateLogger<OpenRouterClient>();
         
         var options = new OpenRouterOptions
@@ -28,6 +26,11 @@ public class OpenRouterClientTests : IDisposable
             ApiKey = TestConstants.TestApiKey,
             BaseUrl = TestConstants.TestOpenRouterBaseUrl,
             DefaultModel = TestConstants.ValidOpenRouterModel
+        };
+        
+        var httpClient = new HttpClient(_mockHandler)
+        {
+            BaseAddress = new Uri(options.BaseUrl)
         };
         
         _client = new OpenRouterClient(options, _logger);
@@ -113,7 +116,7 @@ public class OpenRouterClientTests : IDisposable
         _mockHandler.EnqueueErrorResponse(HttpStatusCode.Unauthorized, "Invalid API key");
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<HttpRequestException>(
+        var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(
             () => _client.ChatAsync(messages, TestConstants.ValidOpenRouterModel));
         
         Assert.Contains("Invalid API key", exception.Message);
@@ -412,7 +415,7 @@ public class OpenRouterClientTests : IDisposable
         _mockHandler.EnqueueTimeout(TestConstants.ShortTimeoutMs);
 
         // Act & Assert
-        await Assert.ThrowsAsync<TaskCanceledException>(
+        await Assert.ThrowsAsync<InvalidOperationException>(
             () => _client.ChatAsync(messages, TestConstants.ValidOpenRouterModel));
     }
 

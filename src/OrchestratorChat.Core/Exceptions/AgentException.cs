@@ -10,7 +10,7 @@ public class AgentException : OrchestratorException
     /// <summary>
     /// ID of the agent that caused the exception
     /// </summary>
-    public string AgentId { get; set; }
+    public string AgentId { get; set; } = string.Empty;
     
     /// <summary>
     /// Current status of the agent when the exception occurred
@@ -25,7 +25,7 @@ public class AgentException : OrchestratorException
     public AgentException(string message, string agentId) 
         : base(message, "AGENT_ERROR")
     {
-        AgentId = agentId;
+        AgentId = agentId ?? string.Empty;
     }
     
     /// <summary>
@@ -37,7 +37,7 @@ public class AgentException : OrchestratorException
     public AgentException(string message, string agentId, Exception innerException) 
         : base(message, innerException, "AGENT_ERROR")
     {
-        AgentId = agentId;
+        AgentId = agentId ?? string.Empty;
     }
     
     /// <summary>
@@ -49,7 +49,7 @@ public class AgentException : OrchestratorException
     public AgentException(string message, string agentId, AgentStatus agentStatus) 
         : base(message, "AGENT_ERROR")
     {
-        AgentId = agentId;
+        AgentId = agentId ?? string.Empty;
         AgentStatus = agentStatus;
     }
 }

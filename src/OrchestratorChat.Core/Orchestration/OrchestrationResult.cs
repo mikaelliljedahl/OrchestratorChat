@@ -18,7 +18,7 @@ public class OrchestrationResult
     /// <summary>
     /// Final output from the orchestration
     /// </summary>
-    public string FinalOutput { get; set; }
+    public string FinalOutput { get; set; } = string.Empty;
     
     /// <summary>
     /// Total time taken for the entire orchestration

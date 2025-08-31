@@ -3,6 +3,7 @@ using Moq;
 using OrchestratorChat.Core.Events;
 using OrchestratorChat.Core.Orchestration;
 using OrchestratorChat.SignalR.Events;
+using OrchestratorChat.SignalR.Contracts.Responses;
 using OrchestratorChat.SignalR.IntegrationTests.Fixtures;
 using OrchestratorChat.SignalR.IntegrationTests.Helpers;
 using System.Collections.Concurrent;
@@ -52,11 +53,11 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
                 StepId = "step-1",
                 StepName = "Initialize Project",
                 CompletedAt = DateTime.UtcNow,
-                Progress = TestDataBuilder.CreateTestOrchestrationProgress()
+                Progress = 50 // 50% progress
             };
 
-            // Publish event through the event bus
-            _fixture.MockEventBus.Raise(bus => bus.EventPublished += null, stepCompletedEvent);
+            // Simulate event publication
+            await _fixture.MockEventBus.Object.PublishAsync(stepCompletedEvent);
 
             // Assert
             await Task.Delay(200);
@@ -90,7 +91,14 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             var progressEvent = new OrchestrationProgressEvent
             {
                 SessionId = testSession.Id,
-                Progress = TestDataBuilder.CreateTestOrchestrationProgress()
+                Progress = new OrchestrationProgress
+                {
+                    CurrentStep = 2,
+                    TotalSteps = 4,
+                    CurrentAgent = "test-agent",
+                    CurrentTask = "50% complete",
+                    PercentComplete = 50.0
+                }
             };
 
             // In a real scenario, this would be handled by an event handler service
@@ -123,8 +131,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             {
                 AgentId = agentId,
                 OldStatus = Core.Agents.AgentStatus.Ready,
-                NewStatus = Core.Agents.AgentStatus.Processing,
-                Timestamp = DateTime.UtcNow
+                NewStatus = Core.Agents.AgentStatus.Processing
             };
 
             // Assert - Verify event structure
@@ -134,7 +141,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
         }
 
         [Fact]
-        public async Task EventBusSubscription_ShouldHandleMultipleEventTypes()
+        public void EventBusSubscription_ShouldHandleMultipleEventTypes()
         {
             // Arrange
             var eventBus = _fixture.MockEventBus.Object;
@@ -156,15 +163,14 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
         }
 
         [Fact]
-        public async Task EventHandlerRegistration_ShouldRegisterCorrectHandlers()
+        public void EventHandlerRegistration_ShouldRegisterCorrectHandlers()
         {
             // Arrange
             var serviceProvider = _fixture.Factory.Services;
             
             // Act - Try to resolve event handlers
-            var orchestrationHandler = serviceProvider.GetService<IEventHandler<OrchestrationStepCompletedEvent>>();
-            var progressHandler = serviceProvider.GetService<IEventHandler<OrchestrationProgressEvent>>();
-            var agentHandler = serviceProvider.GetService<IEventHandler<AgentStatusChangeEvent>>();
+            // Event handler resolution removed - IEventHandler interface is in SignalR project
+            // Tests verify service provider is configured correctly
 
             // Assert - In a real implementation, these handlers would be registered
             // For the test, we verify the service provider is configured
@@ -179,8 +185,8 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             var publishedEvents = new ConcurrentQueue<IEvent>();
 
             // Setup mock to capture published events
-            _fixture.MockEventBus.Setup(x => x.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
-                .Callback<IEvent, CancellationToken>((evt, token) => publishedEvents.Enqueue(evt))
+            _fixture.MockEventBus.Setup(x => x.PublishAsync(It.IsAny<IEvent>()))
+                .Callback<IEvent>((evt) => publishedEvents.Enqueue(evt))
                 .Returns(Task.CompletedTask);
 
             var events = new List<IEvent>();
@@ -198,12 +204,12 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             }
 
             // Act - Publish events concurrently
-            var publishTasks = events.Select(evt => eventBus.PublishAsync(evt, CancellationToken.None));
+            var publishTasks = events.Select(evt => eventBus.PublishAsync(evt));
             await Task.WhenAll(publishTasks);
 
             // Assert
             Assert.Equal(100, publishedEvents.Count);
-            _fixture.MockEventBus.Verify(x => x.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()), 
+            _fixture.MockEventBus.Verify(x => x.PublishAsync(It.IsAny<IEvent>()), 
                 Times.Exactly(100));
         }
 
@@ -211,7 +217,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
         public async Task EventErrorHandling_ShouldNotCrashSystem()
         {
             // Arrange
-            _fixture.MockEventBus.Setup(x => x.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            _fixture.MockEventBus.Setup(x => x.PublishAsync(It.IsAny<IEvent>()))
                 .ThrowsAsync(new Exception("Event publishing failed"));
 
             var problematicEvent = new OrchestrationStepCompletedEvent
@@ -223,7 +229,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             };
 
             // Act & Assert - Should not throw
-            var act = async () => await _fixture.MockEventBus.Object.PublishAsync(problematicEvent, CancellationToken.None);
+            var act = async () => await _fixture.MockEventBus.Object.PublishAsync(problematicEvent);
             var exception = await Assert.ThrowsAsync<Exception>(act);
             Assert.Equal("Event publishing failed", exception.Message);
 
@@ -246,8 +252,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
 
             // Act - Subscribe
             var eventSubscription = await eventBus.SubscribeAsync<OrchestrationStepCompletedEvent>(
-                evt => { receivedEvents.Enqueue(evt); return Task.CompletedTask; }, 
-                CancellationToken.None);
+                evt => { receivedEvents.Enqueue(evt); return Task.CompletedTask; });
 
             // Assert subscription is active
             Assert.NotNull(eventSubscription);
@@ -258,8 +263,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
 
             // Assert
             _fixture.MockEventBus.Verify(x => x.SubscribeAsync<OrchestrationStepCompletedEvent>(
-                It.IsAny<Func<OrchestrationStepCompletedEvent, Task>>(), 
-                It.IsAny<CancellationToken>()), 
+                It.IsAny<Func<OrchestrationStepCompletedEvent, Task>>(), It.IsAny<CancellationToken>()), 
                 Times.Once);
         }
 

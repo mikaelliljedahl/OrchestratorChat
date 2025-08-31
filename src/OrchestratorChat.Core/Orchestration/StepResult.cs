@@ -18,7 +18,7 @@ public class StepResult
     /// <summary>
     /// ID of the agent that executed the step
     /// </summary>
-    public string AgentId { get; set; }
+    public string AgentId { get; set; } = string.Empty;
     
     /// <summary>
     /// Whether the step completed successfully
@@ -28,12 +28,12 @@ public class StepResult
     /// <summary>
     /// Output produced by the step
     /// </summary>
-    public string Output { get; set; }
+    public string Output { get; set; } = string.Empty;
     
     /// <summary>
     /// Error message if the step failed
     /// </summary>
-    public string Error { get; set; }
+    public string Error { get; set; } = string.Empty;
     
     /// <summary>
     /// Time taken to execute the step

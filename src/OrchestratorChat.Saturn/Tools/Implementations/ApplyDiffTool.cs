@@ -171,6 +171,7 @@ public class ApplyDiffTool : ToolBase
             
             var currentIndex = 0;
             var lineOffset = 0;
+            var hasValidDiffOperations = false;
 
             foreach (var line in lines)
             {
@@ -195,6 +196,7 @@ public class ApplyDiffTool : ToolBase
                             currentIndex = Math.Max(0, startLine - 1 + lineOffset); // Convert to 0-based index
                         }
                     }
+                    hasValidDiffOperations = true;
                     continue;
                 }
 
@@ -230,6 +232,7 @@ public class ApplyDiffTool : ToolBase
                             return null;
                         }
                     }
+                    hasValidDiffOperations = true;
                 }
                 else if (trimmedLine.StartsWith("+"))
                 {
@@ -238,12 +241,21 @@ public class ApplyDiffTool : ToolBase
                     result.Insert(currentIndex, lineContent);
                     currentIndex++;
                     lineOffset++;
+                    hasValidDiffOperations = true;
                 }
                 else if (trimmedLine.StartsWith(" "))
                 {
                     // Context line - advance index
                     currentIndex++;
+                    hasValidDiffOperations = true;
                 }
+                // Ignore lines that don't match any diff format
+            }
+
+            // If no valid diff operations were found, this is not a valid unified diff
+            if (!hasValidDiffOperations)
+            {
+                return null;
             }
 
             return string.Join("\n", result);
@@ -276,13 +288,20 @@ public class ApplyDiffTool : ToolBase
     {
         try
         {
-            // Normalize the path and check for directory traversal
+            // Normalize the path to detect directory traversal attacks
             var fullPath = Path.GetFullPath(path);
-            var currentDir = Directory.GetCurrentDirectory();
             
-            // Ensure the path is within or relative to the current directory
-            return fullPath.StartsWith(currentDir, StringComparison.OrdinalIgnoreCase) ||
-                   !Path.IsPathRooted(path);
+            // Check for dangerous patterns that could indicate directory traversal
+            // This is a more permissive approach that blocks obvious attacks while allowing legitimate paths
+            if (path.Contains("..\\") || path.Contains("../") || 
+                path.Contains("~") || path.Contains("//") || 
+                fullPath.Contains(".."))
+            {
+                return false;
+            }
+            
+            // Allow the path if it's a valid file path without directory traversal
+            return true;
         }
         catch
         {

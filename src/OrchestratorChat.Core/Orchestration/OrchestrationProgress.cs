@@ -18,12 +18,12 @@ public class OrchestrationProgress
     /// <summary>
     /// ID of the agent currently executing
     /// </summary>
-    public string CurrentAgent { get; set; }
+    public string CurrentAgent { get; set; } = string.Empty;
     
     /// <summary>
     /// Description of the current task being performed
     /// </summary>
-    public string CurrentTask { get; set; }
+    public string CurrentTask { get; set; } = string.Empty;
     
     /// <summary>
     /// Percentage of completion (0-100)

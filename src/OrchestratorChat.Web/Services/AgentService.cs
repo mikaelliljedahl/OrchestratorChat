@@ -16,7 +16,7 @@ public class AgentService : IAgentService
         _agentFactory = agentFactory;
     }
 
-    public async Task<List<AgentInfo>> GetConfiguredAgentsAsync()
+    public Task<List<AgentInfo>> GetConfiguredAgentsAsync()
     {
         var agentInfos = new List<AgentInfo>();
         
@@ -35,14 +35,14 @@ public class AgentService : IAgentService
             });
         }
 
-        return agentInfos;
+        return Task.FromResult(agentInfos);
     }
 
-    public async Task<AgentInfo?> GetAgentAsync(string agentId)
+    public Task<AgentInfo?> GetAgentAsync(string agentId)
     {
         if (_agents.TryGetValue(agentId, out var agent))
         {
-            return new AgentInfo
+            var agentInfo = new AgentInfo
             {
                 Id = agent.Id,
                 Name = agent.Name,
@@ -53,9 +53,10 @@ public class AgentService : IAgentService
                 LastActive = DateTime.UtcNow,
                 WorkingDirectory = agent.WorkingDirectory
             };
+            return Task.FromResult<AgentInfo?>(agentInfo);
         }
 
-        return null;
+        return Task.FromResult<AgentInfo?>(null);
     }
 
     public async Task<AgentInfo> CreateAgentAsync(AgentType type, AgentConfiguration configuration)
@@ -76,32 +77,36 @@ public class AgentService : IAgentService
         };
     }
 
-    public async Task UpdateAgentAsync(AgentInfo agentInfo)
+    public Task UpdateAgentAsync(AgentInfo agentInfo)
     {
         if (_agents.TryGetValue(agentInfo.Id, out var agent))
         {
             agent.Name = agentInfo.Name;
             agent.WorkingDirectory = agentInfo.WorkingDirectory;
         }
+        
+        return Task.CompletedTask;
     }
 
-    public async Task DeleteAgentAsync(string agentId)
+    public Task DeleteAgentAsync(string agentId)
     {
         if (_agents.TryGetValue(agentId, out var agent))
         {
             // await agent.DisposeAsync(); // TODO: Add cleanup when available
             _agents.Remove(agentId);
         }
+        
+        return Task.CompletedTask;
     }
 
-    public async Task<bool> IsAgentAvailableAsync(string agentId)
+    public Task<bool> IsAgentAvailableAsync(string agentId)
     {
         if (_agents.TryGetValue(agentId, out var agent))
         {
-            return agent.Status == AgentStatus.Ready;
+            return Task.FromResult(agent.Status == AgentStatus.Ready);
         }
         
-        return false;
+        return Task.FromResult(false);
     }
 
     private AgentType GetAgentTypeFromAgent(IAgent agent)

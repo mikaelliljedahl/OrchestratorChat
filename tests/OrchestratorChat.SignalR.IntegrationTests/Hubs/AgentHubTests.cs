@@ -44,16 +44,29 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
 
             _fixture.MockSessionManager
                 .Setup(x => x.UpdateSessionAsync(It.IsAny<Session>()))
-                .Returns(Task.CompletedTask);
+                .ReturnsAsync(true);
 
-            _fixture.MockAgentFactory.As<MockAgentFactory>()
+            _fixture.MockAgentFactory
                 .SetupCreateAgentAsync("test-agent", testAgent.Object);
 
-            testAgent.Setup(x => x.SendMessageAsync(It.IsAny<AgentMessage>()))
-                .Returns(testResponses);
+            testAgent.Setup(x => x.SendMessageStreamAsync(It.IsAny<AgentMessage>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(testResponses);
+
+            testAgent.Setup(x => x.SendMessageAsync(It.IsAny<AgentMessage>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new AgentResponse
+                {
+                    Content = "Final response",
+                    Type = ResponseType.Text,
+                    IsComplete = true
+                });
 
             testAgent.SetupGet(x => x.Status).Returns(AgentStatus.Ready);
-            testAgent.SetupGet(x => x.Capabilities).Returns(new List<string> { "chat", "code" });
+            testAgent.SetupGet(x => x.Capabilities).Returns(new AgentCapabilities
+            {
+                SupportsStreaming = true,
+                SupportsTools = true,
+                SupportedModels = new List<string> { "chat", "code" }
+            });
 
             _client.On<AgentResponseDto>("ReceiveAgentResponse", response =>
             {
@@ -136,10 +149,10 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
             var testAgent = new Mock<IAgent>();
             var testResult = TestDataBuilder.CreateTestToolResult();
 
-            _fixture.MockAgentFactory.As<MockAgentFactory>()
+            _fixture.MockAgentFactory
                 .SetupCreateAgentAsync("test-agent", testAgent.Object);
 
-            testAgent.Setup(x => x.ExecuteToolAsync(It.IsAny<ToolCall>()))
+            testAgent.Setup(x => x.ExecuteToolAsync(It.IsAny<ToolCall>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(testResult);
 
             var request = new ToolExecutionRequest
@@ -168,10 +181,10 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
             
             var testAgent = new Mock<IAgent>();
 
-            _fixture.MockAgentFactory.As<MockAgentFactory>()
+            _fixture.MockAgentFactory
                 .SetupCreateAgentAsync("test-agent", testAgent.Object);
 
-            testAgent.Setup(x => x.ExecuteToolAsync(It.IsAny<ToolCall>()))
+            testAgent.Setup(x => x.ExecuteToolAsync(It.IsAny<ToolCall>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new Exception("Tool execution failed"));
 
             var request = new ToolExecutionRequest
@@ -201,11 +214,17 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
             var statusReceived = false;
             AgentStatusDto? receivedStatus = null;
 
-            _fixture.MockAgentFactory.As<MockAgentFactory>()
+            _fixture.MockAgentFactory
                 .SetupCreateAgentAsync("test-agent", testAgent.Object);
 
             testAgent.SetupGet(x => x.Status).Returns(AgentStatus.Processing);
-            testAgent.SetupGet(x => x.Capabilities).Returns(new List<string> { "chat", "code", "tools" });
+            testAgent.SetupGet(x => x.Capabilities).Returns(new AgentCapabilities
+            {
+                SupportsStreaming = true,
+                SupportsTools = true,
+                SupportsFileOperations = true,
+                SupportedModels = new List<string> { "chat", "code", "tools" }
+            });
 
             _client.On<AgentStatusDto>("AgentStatusUpdate", status =>
             {
@@ -222,9 +241,10 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
             Assert.NotNull(receivedStatus);
             Assert.Equal("test-agent", receivedStatus!.AgentId);
             Assert.Equal(AgentStatus.Processing, receivedStatus.Status);
-            Assert.Contains("chat", receivedStatus.Capabilities);
-            Assert.Contains("code", receivedStatus.Capabilities);
-            Assert.Contains("tools", receivedStatus.Capabilities);
+            Assert.NotNull(receivedStatus.Capabilities);
+            Assert.Contains("chat", receivedStatus.Capabilities.SupportedModels);
+            Assert.Contains("code", receivedStatus.Capabilities.SupportedModels);
+            Assert.Contains("tools", receivedStatus.Capabilities.SupportedModels);
         }
 
         [Fact]
@@ -254,11 +274,15 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
             var testAgent = new Mock<IAgent>();
             var statusUpdates = new List<AgentStatusDto>();
 
-            _fixture.MockAgentFactory.As<MockAgentFactory>()
+            _fixture.MockAgentFactory
                 .SetupCreateAgentAsync("test-agent", testAgent.Object);
 
             testAgent.SetupGet(x => x.Status).Returns(AgentStatus.Ready);
-            testAgent.SetupGet(x => x.Capabilities).Returns(new List<string> { "chat" });
+            testAgent.SetupGet(x => x.Capabilities).Returns(new AgentCapabilities
+            {
+                SupportsStreaming = true,
+                SupportedModels = new List<string> { "chat" }
+            });
 
             _client.On<AgentStatusDto>("AgentStatusUpdate", status =>
             {
@@ -273,7 +297,12 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
             testAgent.SetupGet(x => x.Status).Returns(AgentStatus.Processing);
             testAgent.Raise(x => x.StatusChanged += null, 
                 testAgent.Object, 
-                new AgentStatusChangedEventArgs(AgentStatus.Ready, AgentStatus.Processing));
+                new AgentStatusChangedEventArgs
+                {
+                    AgentId = "test-agent",
+                    OldStatus = AgentStatus.Ready,
+                    NewStatus = AgentStatus.Processing
+                });
 
             // Assert
             await Task.Delay(200);
@@ -298,14 +327,23 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
 
             _fixture.MockSessionManager
                 .Setup(x => x.UpdateSessionAsync(It.IsAny<Session>()))
-                .Returns(Task.CompletedTask);
+                .ReturnsAsync(true);
 
-            _fixture.MockAgentFactory.As<MockAgentFactory>()
+            _fixture.MockAgentFactory
                 .SetupCreateAgentAsync("test-agent", testAgent.Object);
 
-            testAgent.Setup(x => x.SendMessageAsync(It.IsAny<AgentMessage>()))
-                .Callback<AgentMessage>(msg => capturedMessage = msg)
-                .Returns(testResponses);
+            testAgent.Setup(x => x.SendMessageStreamAsync(It.IsAny<AgentMessage>(), It.IsAny<CancellationToken>()))
+                .Callback<AgentMessage, CancellationToken>((msg, ct) => capturedMessage = msg)
+                .ReturnsAsync(testResponses);
+
+            testAgent.Setup(x => x.SendMessageAsync(It.IsAny<AgentMessage>(), It.IsAny<CancellationToken>()))
+                .Callback<AgentMessage, CancellationToken>((msg, ct) => capturedMessage = msg)
+                .ReturnsAsync(new AgentResponse
+                {
+                    Content = "Final response",
+                    Type = ResponseType.Text,
+                    IsComplete = true
+                });
 
             var attachments = new List<Attachment>
             {

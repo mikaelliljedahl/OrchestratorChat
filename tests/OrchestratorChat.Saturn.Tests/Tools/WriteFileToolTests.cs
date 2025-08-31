@@ -99,7 +99,7 @@ public class WriteFileToolTests : IDisposable
 
         // Assert
         Assert.False(result.Success);
-        Assert.Contains("file_path parameter is required", result.Error);
+        Assert.Contains("Invalid parameters provided", result.Error);
     }
 
     [Fact]
@@ -257,7 +257,7 @@ public class WriteFileToolTests : IDisposable
 
         // Assert
         Assert.False(result.Success);
-        Assert.Contains("content parameter is required", result.Error);
+        Assert.Contains("Invalid parameters provided", result.Error);
     }
 
     [Fact]

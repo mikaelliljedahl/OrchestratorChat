@@ -8,12 +8,12 @@ public class AgentOutputEventArgs : EventArgs
     /// <summary>
     /// ID of the agent that produced the output
     /// </summary>
-    public string AgentId { get; set; }
+    public string AgentId { get; set; } = string.Empty;
     
     /// <summary>
     /// The output content
     /// </summary>
-    public string Content { get; set; }
+    public string Content { get; set; } = string.Empty;
     
     /// <summary>
     /// Legacy property name for test compatibility
@@ -23,7 +23,7 @@ public class AgentOutputEventArgs : EventArgs
     /// <summary>
     /// Type of output (stdout, stderr, etc.)
     /// </summary>
-    public string OutputType { get; set; }
+    public string OutputType { get; set; } = string.Empty;
     
     /// <summary>
     /// Timestamp when the output was received

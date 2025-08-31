@@ -24,7 +24,7 @@ public interface IOrchestrator
     /// <returns>The result of the orchestration</returns>
     Task<OrchestrationResult> ExecutePlanAsync(
         OrchestrationPlan plan,
-        IProgress<OrchestrationProgress> progress = null,
+        IProgress<OrchestrationProgress>? progress = null,
         CancellationToken cancellationToken = default);
     
     /// <summary>

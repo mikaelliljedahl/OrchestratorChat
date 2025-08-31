@@ -13,7 +13,7 @@ public class AgentMessage
     /// <summary>
     /// Content of the message
     /// </summary>
-    public string Content { get; set; }
+    public string Content { get; set; } = string.Empty;
     
     /// <summary>
     /// Role of the message sender
@@ -23,12 +23,12 @@ public class AgentMessage
     /// <summary>
     /// ID of the agent associated with this message
     /// </summary>
-    public string AgentId { get; set; }
+    public string AgentId { get; set; } = string.Empty;
     
     /// <summary>
     /// ID of the session this message belongs to
     /// </summary>
-    public string SessionId { get; set; }
+    public string SessionId { get; set; } = string.Empty;
     
     /// <summary>
     /// Timestamp when the message was created
@@ -48,7 +48,7 @@ public class AgentMessage
     /// <summary>
     /// ID of the parent message if this is a reply
     /// </summary>
-    public string ParentMessageId { get; set; }
+    public string ParentMessageId { get; set; } = string.Empty;
     
     /// <summary>
     /// ID of the sender (for tracking message origin)

@@ -22,8 +22,6 @@ public class ChatCompletionsServiceTests : IDisposable
     public ChatCompletionsServiceTests()
     {
         _mockHandler = new MockHttpMessageHandler();
-        var httpClient = new HttpClient(_mockHandler);
-        
         _options = new OpenRouterOptions
         {
             ApiKey = TestConstants.TestApiKey,
@@ -31,6 +29,11 @@ public class ChatCompletionsServiceTests : IDisposable
             DefaultModel = TestConstants.ValidOpenRouterModel,
             DefaultTemperature = TestConstants.DefaultTemperature,
             DefaultMaxTokens = TestConstants.DefaultMaxTokens
+        };
+        
+        var httpClient = new HttpClient(_mockHandler)
+        {
+            BaseAddress = new Uri(_options.BaseUrl)
         };
         
         var httpLogger = new LoggerFactory().CreateLogger<HttpClientAdapter>();

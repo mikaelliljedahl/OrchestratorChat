@@ -131,11 +131,11 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
             OrchestrationResult? receivedResult = null;
 
             _fixture.MockOrchestrator
-                .Setup(x => x.CreatePlanAsync(It.IsAny<OrchestrationRequest>()))
+                .Setup(x => x.CreatePlanAsync(It.IsAny<OrchestrationRequest>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(testPlan);
 
             _fixture.MockOrchestrator
-                .Setup(x => x.ExecutePlanAsync(It.IsAny<OrchestrationPlan>(), It.IsAny<IProgress<OrchestrationProgress>>()))
+                .Setup(x => x.ExecutePlanAsync(It.IsAny<OrchestrationPlan>(), It.IsAny<IProgress<OrchestrationProgress>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(testResult);
 
             _client.On<OrchestrationPlan>("OrchestrationPlanCreated", plan =>
@@ -170,7 +170,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
 
             Assert.True(orchestrationCompleted);
             Assert.NotNull(receivedResult);
-            Assert.Equal(testResult.PlanId, receivedResult!.PlanId);
+            Assert.Equal(testResult.Success, receivedResult!.Success);
         }
 
         [Fact]
@@ -265,7 +265,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Hubs
             ErrorResponse? receivedError = null;
 
             _fixture.MockOrchestrator
-                .Setup(x => x.CreatePlanAsync(It.IsAny<OrchestrationRequest>()))
+                .Setup(x => x.CreatePlanAsync(It.IsAny<OrchestrationRequest>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new Exception("Test orchestration exception"));
 
             _client.On<ErrorResponse>("ReceiveError", error =>

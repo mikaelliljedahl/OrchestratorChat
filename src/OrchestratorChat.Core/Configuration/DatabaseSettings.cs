@@ -8,7 +8,7 @@ public class DatabaseSettings
     /// <summary>
     /// Database connection string
     /// </summary>
-    public string ConnectionString { get; set; }
+    public string ConnectionString { get; set; } = string.Empty;
     
     /// <summary>
     /// Command timeout in seconds

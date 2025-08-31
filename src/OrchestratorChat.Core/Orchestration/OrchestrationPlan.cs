@@ -8,7 +8,7 @@ public class OrchestrationPlan
     /// <summary>
     /// Unique identifier for the plan
     /// </summary>
-    public string Id { get; set; }
+    public string Id { get; set; } = string.Empty;
     
     /// <summary>
     /// Ordered list of steps in the orchestration plan

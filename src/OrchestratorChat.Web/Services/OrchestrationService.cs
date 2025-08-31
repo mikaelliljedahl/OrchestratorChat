@@ -43,15 +43,15 @@ public class OrchestrationService : IOrchestrationService
         return result;
     }
 
-    public async Task<List<OrchestrationPlan>> GetRecentPlansAsync(int count = 10)
+    public Task<List<OrchestrationPlan>> GetRecentPlansAsync(int count = 10)
     {
-        return _recentPlans.Take(count).ToList();
+        return Task.FromResult(_recentPlans.Take(count).ToList());
     }
 
-    public async Task<OrchestrationResult?> GetExecutionResultAsync(string planId)
+    public Task<OrchestrationResult?> GetExecutionResultAsync(string planId)
     {
         _results.TryGetValue(planId, out var result);
-        return result;
+        return Task.FromResult(result);
     }
 
     private OrchestratorChat.Web.Models.OrchestrationProgress MapProgress(Core.Orchestration.OrchestrationProgress coreProgress)

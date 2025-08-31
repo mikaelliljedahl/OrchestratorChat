@@ -48,11 +48,11 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
                 .ReturnsAsync(testSession);
 
             _fixture.MockOrchestrator
-                .Setup(x => x.CreatePlanAsync(It.IsAny<OrchestrationRequest>()))
+                .Setup(x => x.CreatePlanAsync(It.IsAny<OrchestrationRequest>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(testPlan);
 
             _fixture.MockOrchestrator
-                .Setup(x => x.ExecutePlanAsync(It.IsAny<OrchestrationPlan>(), It.IsAny<IProgress<OrchestrationProgress>>()))
+                .Setup(x => x.ExecutePlanAsync(It.IsAny<OrchestrationPlan>(), It.IsAny<IProgress<OrchestrationProgress>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(testResult);
 
             // Setup event handlers
@@ -101,8 +101,8 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             Assert.Contains("Completed", orchestrationEvents);
             
             // Verify mocks were called correctly
-            _fixture.MockOrchestrator.Verify(x => x.CreatePlanAsync(It.IsAny<OrchestrationRequest>()), Times.Once);
-            _fixture.MockOrchestrator.Verify(x => x.ExecutePlanAsync(It.IsAny<OrchestrationPlan>(), It.IsAny<IProgress<OrchestrationProgress>>()), Times.Once);
+            _fixture.MockOrchestrator.Verify(x => x.CreatePlanAsync(It.IsAny<OrchestrationRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+            _fixture.MockOrchestrator.Verify(x => x.ExecutePlanAsync(It.IsAny<OrchestrationPlan>(), It.IsAny<IProgress<OrchestrationProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -123,13 +123,21 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
 
             _fixture.MockSessionManager
                 .Setup(x => x.UpdateSessionAsync(It.IsAny<Session>()))
-                .Returns(Task.CompletedTask);
+                .ReturnsAsync(true);
 
-            _fixture.MockAgentFactory.As<MockAgentFactory>()
+            _fixture.MockAgentFactory
                 .SetupCreateAgentAsync("agent-1", testAgent.Object);
 
-            testAgent.Setup(x => x.SendMessageAsync(It.IsAny<AgentMessage>()))
-                .Returns(testResponses);
+            testAgent.Setup(x => x.SendMessageStreamAsync(It.IsAny<AgentMessage>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(testResponses);
+
+            testAgent.Setup(x => x.SendMessageAsync(It.IsAny<AgentMessage>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new AgentResponse
+                {
+                    Content = "Final response",
+                    Type = ResponseType.Text,
+                    IsComplete = true
+                });
 
             _agentClient.On<AgentResponseDto>("ReceiveAgentResponse", response => 
                 receivedResponses.Enqueue(response));
@@ -212,10 +220,10 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             var testAgent = new Mock<IAgent>();
             var testResult = TestDataBuilder.CreateTestToolResult();
 
-            _fixture.MockAgentFactory.As<MockAgentFactory>()
+            _fixture.MockAgentFactory
                 .SetupCreateAgentAsync("agent-1", testAgent.Object);
 
-            testAgent.Setup(x => x.ExecuteToolAsync(It.IsAny<ToolCall>()))
+            testAgent.Setup(x => x.ExecuteToolAsync(It.IsAny<ToolCall>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(testResult);
 
             // Act
@@ -243,7 +251,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
                 x => x.ExecuteToolAsync(It.Is<ToolCall>(call =>
                     call.ToolName == "file_read" &&
                     call.Parameters.ContainsKey("path") &&
-                    call.Parameters["path"].ToString() == "/test/file.txt")),
+                    call.Parameters["path"].ToString() == "/test/file.txt"), It.IsAny<CancellationToken>()),
                 Times.Once);
         }
 
@@ -258,7 +266,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             var agentErrors = new ConcurrentQueue<ErrorResponse>();
 
             _fixture.MockOrchestrator
-                .Setup(x => x.CreatePlanAsync(It.IsAny<OrchestrationRequest>()))
+                .Setup(x => x.CreatePlanAsync(It.IsAny<OrchestrationRequest>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new Exception("Orchestration failed"));
 
             _fixture.MockSessionManager
@@ -321,13 +329,21 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
 
             _fixture.MockSessionManager
                 .Setup(x => x.UpdateSessionAsync(It.IsAny<Session>()))
-                .Returns(Task.CompletedTask);
+                .ReturnsAsync(true);
 
-            _fixture.MockAgentFactory.As<MockAgentFactory>()
+            _fixture.MockAgentFactory
                 .SetupCreateAgentAsync("agent-1", testAgent.Object);
 
-            testAgent.Setup(x => x.SendMessageAsync(It.IsAny<AgentMessage>()))
-                .Returns(testResponses);
+            testAgent.Setup(x => x.SendMessageStreamAsync(It.IsAny<AgentMessage>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(testResponses);
+
+            testAgent.Setup(x => x.SendMessageAsync(It.IsAny<AgentMessage>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new AgentResponse
+                {
+                    Content = "Final response",
+                    Type = ResponseType.Text,
+                    IsComplete = true
+                });
 
             _agentClient.On<AgentResponseDto>("ReceiveAgentResponse", response => 
                 allResponses.Enqueue(response));
@@ -357,7 +373,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Integration
             Assert.Equal(15, allResponses.Count);
             
             // Verify all agents were created and called
-            testAgent.Verify(x => x.SendMessageAsync(It.IsAny<AgentMessage>()), Times.Exactly(5));
+            testAgent.Verify(x => x.SendMessageAsync(It.IsAny<AgentMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(5));
         }
 
         public async ValueTask DisposeAsync()

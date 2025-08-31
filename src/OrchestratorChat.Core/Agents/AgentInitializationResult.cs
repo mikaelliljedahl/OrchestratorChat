@@ -13,12 +13,12 @@ public class AgentInitializationResult
     /// <summary>
     /// Error message if initialization failed
     /// </summary>
-    public string ErrorMessage { get; set; }
+    public string ErrorMessage { get; set; } = string.Empty;
     
     /// <summary>
     /// Agent capabilities discovered during initialization
     /// </summary>
-    public AgentCapabilities Capabilities { get; set; }
+    public AgentCapabilities Capabilities { get; set; } = new();
     
     /// <summary>
     /// Time taken to initialize the agent

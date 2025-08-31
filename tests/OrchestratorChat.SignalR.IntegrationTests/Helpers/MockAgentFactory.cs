@@ -49,7 +49,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Helpers
                 .ReturnsAsync(new List<AgentType> { AgentType.Claude, AgentType.GPT4, AgentType.Saturn });
 
             Setup(x => x.DisposeAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .Returns((string agentId) =>
+                .Returns((string agentId, CancellationToken cancellationToken) =>
                 {
                     _createdAgents.TryRemove(agentId, out _);
                     return Task.CompletedTask;
@@ -116,12 +116,26 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Helpers
             mockAgent.SetupGet(x => x.Id).Returns(agentId);
             mockAgent.SetupGet(x => x.Type).Returns(type);
             mockAgent.SetupGet(x => x.Status).Returns(AgentStatus.Ready);
-            mockAgent.SetupGet(x => x.Capabilities).Returns(new List<string> { "chat", "code" });
+            mockAgent.SetupGet(x => x.Capabilities).Returns(new AgentCapabilities
+            {
+                SupportsStreaming = true,
+                SupportsTools = true,
+                SupportsFileOperations = true,
+                SupportedModels = new List<string> { "chat", "code" }
+            });
             
-            mockAgent.Setup(x => x.SendMessageAsync(It.IsAny<Core.Messages.AgentMessage>()))
-                .Returns(CreateDefaultResponseStream());
+            mockAgent.Setup(x => x.SendMessageAsync(It.IsAny<Core.Messages.AgentMessage>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Core.Messages.AgentResponse
+                {
+                    Content = "Mock response",
+                    Type = Core.Messages.ResponseType.Text,
+                    IsComplete = true
+                });
 
-            mockAgent.Setup(x => x.ExecuteToolAsync(It.IsAny<Core.Tools.ToolCall>()))
+            mockAgent.Setup(x => x.SendMessageStreamAsync(It.IsAny<Core.Messages.AgentMessage>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(CreateDefaultResponseStream());
+
+            mockAgent.Setup(x => x.ExecuteToolAsync(It.IsAny<Core.Tools.ToolCall>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new Core.Tools.ToolExecutionResult
                 {
                     Success = true,

@@ -180,7 +180,7 @@ public class OpenRouterProvider : LLMProviderBase
         }
     }
 
-    public override async Task<string> GetCompletionAsync(
+    public override Task<string> GetCompletionAsync(
         List<AgentMessage> messages, 
         string model, 
         double temperature = 0.7, 
@@ -188,13 +188,13 @@ public class OpenRouterProvider : LLMProviderBase
         CancellationToken cancellationToken = default)
     {
         // TODO: Implement completion
-        throw new NotImplementedException("OpenRouter completion not yet implemented");
+        return Task.FromException<string>(new NotImplementedException("OpenRouter completion not yet implemented"));
     }
 
-    public override async Task<bool> ValidateAsync()
+    public override Task<bool> ValidateAsync()
     {
         // TODO: Validate API key and connection
-        return !string.IsNullOrEmpty(_apiKey);
+        return Task.FromResult(!string.IsNullOrEmpty(_apiKey));
     }
 }
 
@@ -381,7 +381,7 @@ public class AnthropicProvider : LLMProviderBase
         }
     }
 
-    public override async Task<string> GetCompletionAsync(
+    public override Task<string> GetCompletionAsync(
         List<AgentMessage> messages, 
         string model, 
         double temperature = 0.7, 
@@ -389,10 +389,10 @@ public class AnthropicProvider : LLMProviderBase
         CancellationToken cancellationToken = default)
     {
         // TODO: Implement completion
-        throw new NotImplementedException("Anthropic completion not yet implemented");
+        return Task.FromException<string>(new NotImplementedException("Anthropic completion not yet implemented"));
     }
 
-    public override async Task<bool> ValidateAsync()
+    public override Task<bool> ValidateAsync()
     {
         // Validate API key or OAuth token
         var hasApiKey = !string.IsNullOrEmpty(_apiKey) || 
@@ -401,6 +401,6 @@ public class AnthropicProvider : LLMProviderBase
                            (_configuration?.Settings.ContainsKey("OAuthToken") == true && 
                             !string.IsNullOrEmpty(_configuration.Settings["OAuthToken"]?.ToString()));
         
-        return hasApiKey || hasOAuthToken;
+        return Task.FromResult(hasApiKey || hasOAuthToken);
     }
 }

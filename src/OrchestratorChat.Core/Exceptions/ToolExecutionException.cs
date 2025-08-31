@@ -10,12 +10,12 @@ public class ToolExecutionException : OrchestratorException
     /// <summary>
     /// Name of the tool that failed to execute
     /// </summary>
-    public string ToolName { get; set; }
+    public string ToolName { get; set; } = string.Empty;
     
     /// <summary>
     /// The tool call that caused the exception
     /// </summary>
-    public ToolCall Call { get; set; }
+    public ToolCall Call { get; set; } = new();
     
     /// <summary>
     /// Initializes a new instance of the ToolExecutionException class
@@ -26,8 +26,8 @@ public class ToolExecutionException : OrchestratorException
     public ToolExecutionException(string message, string toolName, ToolCall call) 
         : base(message, "TOOL_ERROR")
     {
-        ToolName = toolName;
-        Call = call;
+        ToolName = toolName ?? string.Empty;
+        Call = call ?? new ToolCall();
     }
     
     /// <summary>
@@ -40,7 +40,7 @@ public class ToolExecutionException : OrchestratorException
     public ToolExecutionException(string message, string toolName, ToolCall call, Exception innerException) 
         : base(message, innerException, "TOOL_ERROR")
     {
-        ToolName = toolName;
-        Call = call;
+        ToolName = toolName ?? string.Empty;
+        Call = call ?? new ToolCall();
     }
 }
