@@ -1,0 +1,289 @@
+@page "/sessions"
+@using OrchestratorChat.Web.Models
+@using OrchestratorChat.Web.Services
+@using OrchestratorChat.Core.Sessions
+@inject ISessionManager SessionManager
+@inject NavigationManager Navigation
+
+<PageTitle>Sessions - OrchestratorChat</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large">
+    <div class="d-flex justify-space-between align-center mb-4">
+        <div>
+            <MudText Typo="Typo.h4" Class="mb-2">Sessions</MudText>
+            <MudText Typo="Typo.body2" Class="text-muted">
+                Manage and view your conversation sessions
+            </MudText>
+        </div>
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary" 
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="@CreateNewSession">
+            New Session
+        </MudButton>
+    </div>
+
+    <MudPaper Class="pa-4 mb-4">
+        <div class="d-flex gap-4 align-center">
+            <MudTextField @bind-Value="_searchQuery"
+                          @onkeyup="@FilterSessions"
+                          Placeholder="Search sessions..."
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Class="flex-grow-1" />
+            
+            <MudSelect T="SessionStatus?" @bind-Value="_statusFilter" 
+                       @onchange="@FilterSessions"
+                       Label="Status Filter"
+                       AnchorOrigin="Origin.BottomCenter">
+                <MudSelectItem T="SessionStatus?" Value="@((SessionStatus?)null)">All Statuses</MudSelectItem>
+                <MudSelectItem T="SessionStatus?" Value="@SessionStatus.Active">Active</MudSelectItem>
+                <MudSelectItem T="SessionStatus?" Value="@SessionStatus.Paused">Paused</MudSelectItem>
+                <MudSelectItem T="SessionStatus?" Value="@SessionStatus.Completed">Completed</MudSelectItem>
+                <MudSelectItem T="SessionStatus?" Value="@SessionStatus.Cancelled">Cancelled</MudSelectItem>
+            </MudSelect>
+            
+            <MudSelect T="string" @bind-Value="_sortBy" 
+                       @onchange="@SortSessions"
+                       Label="Sort By">
+                <MudSelectItem T="string" Value="@("LastActivity")">Last Activity</MudSelectItem>
+                <MudSelectItem T="string" Value="@("Created")">Created Date</MudSelectItem>
+                <MudSelectItem T="string" Value="@("Name")">Name</MudSelectItem>
+                <MudSelectItem T="string" Value="@("Messages")">Message Count</MudSelectItem>
+            </MudSelect>
+        </div>
+    </MudPaper>
+
+    @if (_loading)
+    {
+        <div class="d-flex justify-center pa-8">
+            <MudProgressCircular Indeterminate="true" />
+        </div>
+    }
+    else if (!_filteredSessions.Any())
+    {
+        <MudPaper Class="pa-8 text-center">
+            <MudIcon Icon="@Icons.Material.Filled.History" Size="Size.Large" Class="text-muted mb-4" />
+            <MudText Typo="Typo.h6" Class="mb-2">
+                @(_sessions.Any() ? "No sessions match your filters" : "No sessions yet")
+            </MudText>
+            <MudText Typo="Typo.body2" Class="text-muted mb-4">
+                @(_sessions.Any() ? "Try adjusting your search or filter criteria" : "Create your first session to get started")
+            </MudText>
+            @if (!_sessions.Any())
+            {
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="@CreateNewSession">
+                    Create First Session
+                </MudButton>
+            }
+        </MudPaper>
+    }
+    else
+    {
+        <MudGrid>
+            @foreach (var session in _filteredSessions)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <MudCard Class="mud-height-full cursor-pointer hover-card" 
+                             @onclick="@(() => OpenSession(session))">
+                        <MudCardContent>
+                            <div class="d-flex justify-space-between align-start mb-2">
+                                <MudText Typo="Typo.h6" Class="text-truncate">
+                                    @(string.IsNullOrEmpty(session.Name) ? $"Session {session.Id[..8]}..." : session.Name)
+                                </MudText>
+                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(session.Status)">
+                                    @session.Status
+                                </MudChip>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <MudText Typo="Typo.caption" Class="text-muted">
+                                    Created: @session.CreatedAt.ToString("MMM dd, yyyy HH:mm")
+                                </MudText>
+                                <br />
+                                <MudText Typo="Typo.caption" Class="text-muted">
+                                    Last Activity: @session.LastActivity.ToString("MMM dd, yyyy HH:mm")
+                                </MudText>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(session.LastMessage))
+                            {
+                                <MudText Typo="Typo.body2" Class="text-truncate mb-2">
+                                    "@session.LastMessage"
+                                </MudText>
+                            }
+
+                            <div class="d-flex justify-space-between align-center">
+                                <div class="d-flex gap-1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Message" Size="Size.Small" Class="text-muted" />
+                                    <MudText Typo="Typo.caption">@session.MessageCount</MudText>
+                                </div>
+                                
+                                <div class="d-flex gap-1 flex-wrap">
+                                    @foreach (var participant in session.ParticipantNames.Take(2))
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Default">
+                                            @participant
+                                        </MudChip>
+                                    }
+                                    @if (session.ParticipantNames.Count > 2)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Default">
+                                            +@(session.ParticipantNames.Count - 2)
+                                        </MudChip>
+                                    }
+                                </div>
+                            </div>
+                        </MudCardContent>
+                        
+                        <MudCardActions Class="justify-end">
+                            <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" 
+                                           Size="Size.Small"
+                                           OnClick="@(() => OpenSession(session))"
+                                           title="Open Session" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                           Size="Size.Small"
+                                           Color="Color.Error"
+                                           OnClick="@(() => DeleteSession(session))"
+                                           title="Delete Session" />
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</MudContainer>
+
+<style>
+    .hover-card {
+        transition: transform 0.2s ease-in-out;
+    }
+    .hover-card:hover {
+        transform: translateY(-2px);
+    }
+    .cursor-pointer {
+        cursor: pointer;
+    }
+</style>
+
+@code {
+    private List<SessionSummary> _sessions = new();
+    private List<SessionSummary> _filteredSessions = new();
+    private string _searchQuery = "";
+    private SessionStatus? _statusFilter = null;
+    private string _sortBy = "LastActivity";
+    private bool _loading = true;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSessions();
+    }
+    
+    private async Task LoadSessions()
+    {
+        try
+        {
+            _loading = true;
+            var sessions = await SessionManager.GetRecentSessionsAsync(100); // Load more sessions for full page
+            _sessions = sessions.Select(s => new SessionSummary
+            {
+                Id = s.Id,
+                Name = s.Name,
+                Type = s.Type,
+                CreatedAt = s.CreatedAt,
+                LastActivity = s.LastActivityAt,
+                MessageCount = s.Messages.Count,
+                LastMessage = s.Messages.LastOrDefault()?.Content?.Length > 50 
+                    ? s.Messages.LastOrDefault()?.Content?.Substring(0, 50) + "..."
+                    : s.Messages.LastOrDefault()?.Content,
+                ParticipantNames = s.ParticipantAgents?.Select(a => a.Name).ToList() ?? new(),
+                Status = s.Status
+            }).ToList();
+            
+            SortSessions();
+            FilterSessions();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading sessions: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+    
+    private void FilterSessions()
+    {
+        var filtered = _sessions.AsEnumerable();
+        
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(_searchQuery))
+        {
+            filtered = filtered.Where(s => 
+                s.Name.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                s.LastMessage?.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) == true ||
+                s.ParticipantNames.Any(p => p.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)));
+        }
+        
+        // Apply status filter
+        if (_statusFilter.HasValue)
+        {
+            filtered = filtered.Where(s => s.Status == _statusFilter.Value);
+        }
+        
+        _filteredSessions = filtered.ToList();
+        StateHasChanged();
+    }
+    
+    private void SortSessions()
+    {
+        _sessions = _sortBy switch
+        {
+            "Created" => _sessions.OrderByDescending(s => s.CreatedAt).ToList(),
+            "Name" => _sessions.OrderBy(s => s.Name).ToList(),
+            "Messages" => _sessions.OrderByDescending(s => s.MessageCount).ToList(),
+            _ => _sessions.OrderByDescending(s => s.LastActivity).ToList() // Default: LastActivity
+        };
+    }
+    
+    private void OpenSession(SessionSummary session)
+    {
+        Navigation.NavigateTo($"/session/{session.Id}");
+    }
+    
+    private void CreateNewSession()
+    {
+        Navigation.NavigateTo("/orchestrator");
+    }
+    
+    private async Task DeleteSession(SessionSummary session)
+    {        
+        try
+        {
+            // Use EndSessionAsync since DeleteSessionAsync might not be available in ISessionManager
+            await SessionManager.EndSessionAsync(session.Id);
+            _sessions.RemoveAll(s => s.Id == session.Id);
+            FilterSessions();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting session: {ex.Message}");
+        }
+    }
+    
+    private Color GetStatusColor(SessionStatus status)
+    {
+        return status switch
+        {
+            SessionStatus.Active => Color.Success,
+            SessionStatus.Paused => Color.Warning,
+            SessionStatus.Completed => Color.Info,
+            SessionStatus.Cancelled => Color.Error,
+            _ => Color.Default
+        };
+    }
+}

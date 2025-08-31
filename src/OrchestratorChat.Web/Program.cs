@@ -9,6 +9,7 @@ using OrchestratorChat.Core.Events;
 using OrchestratorChat.Core.Agents;
 using OrchestratorChat.Data;
 using OrchestratorChat.Data.Repositories;
+using OrchestratorChat.Data.Adapters;
 using OrchestratorChat.Configuration;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,9 +34,12 @@ builder.Services.AddSingleton<OrchestratorChat.Core.Configuration.IConfiguration
 
 // Add core services
 builder.Services.AddScoped<IEventBus, EventBus>();
-builder.Services.AddScoped<OrchestratorChat.Data.Repositories.ISessionRepository, SessionRepository>();
+builder.Services.AddScoped<OrchestratorChat.Core.Sessions.ISessionRepository, OrchestratorChat.Data.Adapters.SessionRepositoryAdapter>();
 builder.Services.AddScoped<ISessionManager, SessionManager>();
 builder.Services.AddScoped<IOrchestrator, Orchestrator>();
+
+// Add Saturn services
+builder.Services.AddScoped<OrchestratorChat.Agents.Saturn.ISaturnCore, OrchestratorChat.Agents.Saturn.SaturnCore>();
 
 // Add agent services
 builder.Services.AddScoped<IAgentFactory, AgentFactory>();
