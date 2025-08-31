@@ -35,6 +35,7 @@ builder.Services.AddSingleton<OrchestratorChat.Core.Configuration.IConfiguration
 // Add core services
 builder.Services.AddScoped<IEventBus, EventBus>();
 builder.Services.AddScoped<OrchestratorChat.Core.Sessions.ISessionRepository, OrchestratorChat.Data.Adapters.SessionRepositoryAdapter>();
+builder.Services.AddScoped<OrchestratorChat.Data.Repositories.IAgentRepository, OrchestratorChat.Data.Repositories.AgentRepository>();
 builder.Services.AddScoped<ISessionManager, SessionManager>();
 builder.Services.AddScoped<IOrchestrator, Orchestrator>();
 
@@ -43,6 +44,7 @@ builder.Services.AddScoped<OrchestratorChat.Agents.Saturn.ISaturnCore, Orchestra
 
 // Add agent services
 builder.Services.AddScoped<IAgentFactory, AgentFactory>();
+builder.Services.AddSingleton<IAgentRegistry, AgentRegistry>();
 builder.Services.AddScoped<ClaudeAgent>();
 builder.Services.AddScoped<SaturnAgent>();
 

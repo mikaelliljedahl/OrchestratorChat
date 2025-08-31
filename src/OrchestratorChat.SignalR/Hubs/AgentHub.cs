@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
+using System.Text.Json;
 using OrchestratorChat.Core.Agents;
 using OrchestratorChat.Core.Sessions;
 using OrchestratorChat.Core.Messages;
@@ -9,6 +10,8 @@ using OrchestratorChat.Core.Tools;
 using OrchestratorChat.SignalR.Clients;
 using OrchestratorChat.SignalR.Contracts.Requests;
 using OrchestratorChat.SignalR.Contracts.Responses;
+using OrchestratorChat.Data.Repositories;
+using OrchestratorChat.Data.Models;
 using IAgentFactory = OrchestratorChat.Core.Agents.IAgentFactory;
 
 namespace OrchestratorChat.SignalR.Hubs
@@ -18,22 +21,24 @@ namespace OrchestratorChat.SignalR.Hubs
     /// </summary>
     public class AgentHub : Hub<IAgentClient>
     {
-        private readonly IServiceProvider _serviceProvider;
+        private readonly IAgentRegistry _agentRegistry;
+        private readonly IAgentRepository _agentRepository;
         private readonly ISessionManager _sessionManager;
         private readonly ILogger<AgentHub> _logger;
         private readonly IHubContext<AgentHub, IAgentClient> _agentHubContext;
-        private static readonly ConcurrentDictionary<string, IAgent> _activeAgents = new();
 
         /// <summary>
         /// Initializes a new instance of AgentHub
         /// </summary>
         public AgentHub(
-            IServiceProvider serviceProvider,
+            IAgentRegistry agentRegistry,
+            IAgentRepository agentRepository,
             ISessionManager sessionManager,
             ILogger<AgentHub> logger,
             IHubContext<AgentHub, IAgentClient> agentHubContext)
         {
-            _serviceProvider = serviceProvider;
+            _agentRegistry = agentRegistry ?? throw new ArgumentNullException(nameof(agentRegistry));
+            _agentRepository = agentRepository ?? throw new ArgumentNullException(nameof(agentRepository));
             _sessionManager = sessionManager;
             _logger = logger;
             _agentHubContext = agentHubContext;
@@ -76,8 +81,18 @@ namespace OrchestratorChat.SignalR.Hubs
                 _logger.LogInformation("Sending message to agent {AgentId} in session {SessionId}", 
                     request.AgentId, request.SessionId);
 
-                // Get or create agent
-                var agent = await GetOrCreateAgentAsync(request.AgentId);
+                // Get or create agent using registry
+                var agent = await _agentRegistry.GetOrCreateAsync(request.AgentId, async () =>
+                {
+                    var stored = await _agentRepository.GetWithConfigurationAsync(request.AgentId);
+                    if (stored == null)
+                    {
+                        throw new InvalidOperationException($"Agent {request.AgentId} not found. Please create the agent first through the UI.");
+                    }
+
+                    var cfg = MapToCoreConfiguration(stored);
+                    return (stored.Type, cfg);
+                });
 
                 // Create message
                 var message = new AgentMessage
@@ -121,13 +136,25 @@ namespace OrchestratorChat.SignalR.Hubs
 
                 _logger.LogInformation("Completed message processing for agent {AgentId}", request.AgentId);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
             {
-                _logger.LogError(ex, "Failed to send message to agent {AgentId}", request.AgentId);
+                _logger.LogWarning("Agent {AgentId} not found in repository", request.AgentId);
 
                 await Clients.Caller.ReceiveError(new ErrorResponse
                 {
                     Error = ex.Message,
+                    AgentId = request.AgentId,
+                    SessionId = request.SessionId
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send message to agent {AgentId}", request.AgentId);
+
+                var friendlyError = GetFriendlyErrorMessage(ex);
+                await Clients.Caller.ReceiveError(new ErrorResponse
+                {
+                    Error = friendlyError,
                     AgentId = request.AgentId,
                     SessionId = request.SessionId
                 });
@@ -146,7 +173,17 @@ namespace OrchestratorChat.SignalR.Hubs
                 _logger.LogInformation("Executing tool {ToolName} on agent {AgentId}", 
                     request.ToolName, request.AgentId);
 
-                var agent = await GetOrCreateAgentAsync(request.AgentId);
+                var agent = await _agentRegistry.GetOrCreateAsync(request.AgentId, async () =>
+                {
+                    var stored = await _agentRepository.GetWithConfigurationAsync(request.AgentId);
+                    if (stored == null)
+                    {
+                        throw new InvalidOperationException($"Agent {request.AgentId} not found. Please create the agent first through the UI.");
+                    }
+
+                    var cfg = MapToCoreConfiguration(stored);
+                    return (stored.Type, cfg);
+                });
 
                 var result = await agent.ExecuteToolAsync(new ToolCall
                 {
@@ -192,7 +229,8 @@ namespace OrchestratorChat.SignalR.Hubs
                 _logger.LogInformation("Client {ConnectionId} subscribed to agent {AgentId}", 
                     Context.ConnectionId, agentId);
 
-                if (_activeAgents.TryGetValue(agentId, out var agent))
+                var agent = await _agentRegistry.FindAsync(agentId);
+                if (agent != null)
                 {
                     await Clients.Caller.AgentStatusUpdate(new AgentStatusDto
                     {
@@ -227,42 +265,90 @@ namespace OrchestratorChat.SignalR.Hubs
         }
 
         /// <summary>
-        /// Get or create an agent instance
+        /// Maps repository entity to Core configuration
         /// </summary>
-        /// <param name="agentId">Agent ID</param>
-        /// <returns>Agent instance</returns>
-        private async Task<IAgent> GetOrCreateAgentAsync(string agentId)
+        /// <param name="stored">Stored agent entity with configuration</param>
+        /// <returns>Core agent configuration</returns>
+        private static AgentConfiguration MapToCoreConfiguration(AgentEntity stored)
         {
-            if (_activeAgents.TryGetValue(agentId, out var agent))
-                return agent;
+            var config = stored.Configuration;
+            if (config == null)
+            {
+                throw new InvalidOperationException($"Agent {stored.Id} has no configuration");
+            }
 
-            // Create agent based on configuration
-            // This would typically load from database or configuration
-            var factory = _serviceProvider.GetRequiredService<IAgentFactory>();
-            agent = await factory.CreateAgentAsync(AgentType.Claude, new AgentConfiguration());
+            var coreConfig = new AgentConfiguration
+            {
+                Name = stored.Name,
+                Type = stored.Type,
+                WorkingDirectory = stored.WorkingDirectory,
+                Model = config.Model,
+                Temperature = config.Temperature,
+                MaxTokens = config.MaxTokens,
+                SystemPrompt = config.SystemPrompt,
+                RequireApproval = config.RequireApproval
+            };
 
-            _activeAgents[agentId] = agent;
-
-            // Hook up events
-            agent.StatusChanged += async (s, e) =>
+            // Deserialize custom settings
+            if (!string.IsNullOrEmpty(config.CustomSettingsJson))
             {
                 try
                 {
-                    await _agentHubContext.Clients.Group($"agent-{agentId}")
-                        .AgentStatusUpdate(new AgentStatusDto
-                        {
-                            AgentId = agentId,
-                            Status = e.NewStatus
-                        });
+                    var customSettings = JsonSerializer.Deserialize<Dictionary<string, object>>(config.CustomSettingsJson);
+                    if (customSettings != null)
+                    {
+                        coreConfig.CustomSettings = customSettings;
+                    }
                 }
-                catch (Exception ex)
+                catch (JsonException ex)
                 {
-                    _logger.LogError(ex, "Failed to send status update for agent {AgentId}", agentId);
+                    throw new InvalidOperationException($"Invalid custom settings JSON for agent {stored.Id}", ex);
                 }
-            };
+            }
 
-            _logger.LogInformation("Created and cached agent {AgentId}", agentId);
-            return agent;
+            // Deserialize enabled tools
+            if (!string.IsNullOrEmpty(config.EnabledToolsJson))
+            {
+                try
+                {
+                    var enabledTools = JsonSerializer.Deserialize<List<string>>(config.EnabledToolsJson);
+                    if (enabledTools != null)
+                    {
+                        coreConfig.EnabledTools = enabledTools;
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    throw new InvalidOperationException($"Invalid enabled tools JSON for agent {stored.Id}", ex);
+                }
+            }
+
+            return coreConfig;
+        }
+
+        /// <summary>
+        /// Provides user-friendly error messages for common issues
+        /// </summary>
+        /// <param name="exception">The original exception</param>
+        /// <returns>Friendly error message</returns>
+        private static string GetFriendlyErrorMessage(Exception exception)
+        {
+            return exception.Message switch
+            {
+                var msg when msg.Contains("claude") && msg.Contains("not found") =>
+                    "Claude CLI is not installed or not found in PATH. Please install Claude CLI and ensure it's authenticated.",
+                
+                var msg when msg.Contains("API key") || msg.Contains("authentication") =>
+                    "API key is missing or invalid. Please check your OpenRouter API key or Claude authentication.",
+                
+                var msg when msg.Contains("timeout") =>
+                    "The agent took too long to respond. Please try again.",
+                
+                var msg when msg.Contains("connection") =>
+                    "Unable to connect to the agent service. Please check your internet connection and try again.",
+                
+                _ => exception.Message
+            };
         }
     }
 }

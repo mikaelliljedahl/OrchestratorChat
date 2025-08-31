@@ -16,7 +16,8 @@
     <MudItem xs="12" md="3">
         <AgentSidebar Agents="@_agents" 
                      SelectedAgent="@_selectedAgent"
-                     OnAgentSelected="@SelectAgent" />
+                     OnAgentSelected="@SelectAgent"
+                     OnCreateAgent="@ShowCreateAgentDialog" />
     </MudItem>
     
     <MudItem xs="12" md="9">
@@ -55,6 +56,8 @@
 
 <SessionHistory @bind-IsOpen="_showHistory" OnSessionSelected="@((Core.Sessions.Session session) => LoadSession(session))" />
 
+<CreateAgentDialog @bind-IsVisible="_showCreateAgentDialog" OnAgentCreated="@CreateNewAgent" />
+
 @code {
     [Parameter] public string? AgentId { get; set; }
     [Parameter] public string? SessionId { get; set; }
@@ -68,6 +71,7 @@
     private bool _isProcessing = false;
     private bool _isTyping = false;
     private bool _showHistory = false;
+    private bool _showCreateAgentDialog = false;
     private ElementReference _messagesContainer;
     
     protected override async Task OnInitializedAsync()
@@ -253,6 +257,29 @@
     private void ShowAgentSettings()
     {
         // TODO: Implement agent settings
+    }
+    
+    private void ShowCreateAgentDialog()
+    {
+        _showCreateAgentDialog = true;
+    }
+    
+    private async Task CreateNewAgent(Core.Agents.AgentConfiguration configuration)
+    {
+        try
+        {
+            var newAgent = await AgentService.CreateAgentAsync(configuration.Type, configuration);
+            await LoadAgents(); // Refresh the agents list
+            
+            // Select the newly created agent
+            _selectedAgent = _agents.FirstOrDefault(a => a.Id == newAgent.Id);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating agent: {ex.Message}");
+            // TODO: Show error message to user
+        }
     }
     
     private Task LoadSession(Core.Sessions.Session session)

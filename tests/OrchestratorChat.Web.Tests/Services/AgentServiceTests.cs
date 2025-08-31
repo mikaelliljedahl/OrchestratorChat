@@ -1,6 +1,7 @@
 using NSubstitute;
 using OrchestratorChat.Core.Agents;
 using OrchestratorChat.Agents;
+using OrchestratorChat.Data.Repositories;
 using OrchestratorChat.Web.Models;
 using OrchestratorChat.Web.Services;
 using OrchestratorChat.Web.Tests.TestHelpers;
@@ -11,12 +12,14 @@ namespace OrchestratorChat.Web.Tests.Services;
 public class AgentServiceTests
 {
     private readonly IAgentFactory _mockAgentFactory;
+    private readonly IAgentRepository _mockAgentRepository;
     private readonly AgentService _service;
 
     public AgentServiceTests()
     {
         _mockAgentFactory = Substitute.For<IAgentFactory>();
-        _service = new AgentService(_mockAgentFactory);
+        _mockAgentRepository = Substitute.For<IAgentRepository>();
+        _service = new AgentService(_mockAgentFactory, _mockAgentRepository);
     }
 
     [Fact]

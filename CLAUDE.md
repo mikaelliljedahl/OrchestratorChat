@@ -68,93 +68,61 @@ dotnet ef migrations remove -p ../OrchestratorChat.Data -s .
 
 OrchestratorChat is a .NET-based multi-agent orchestration platform built with ASP.NET Core and Blazor Server that enables simultaneous coordination of multiple AI agents including Claude Code, embedded Saturn, and future extensibility for other agents.
 
-### Design Patterns and Architecture Decisions
-
-#### Repository Pattern
-The project uses the Repository pattern to separate data access logic from business logic:
-- **Core Layer**: Defines `ISessionRepository` interface in `Core.Sessions` namespace
-- **Data Layer**: Implements `SessionRepository` in `Data.Repositories` namespace
-- **Business Logic**: `SessionManager` in Core uses `ISessionRepository` for data operations
-- This pattern ensures Core doesn't depend on Data, maintaining clean architecture principles
-
-Example:
-```csharp
-// Core defines the interface
-public interface ISessionRepository
-{
-    Task<Session> CreateSessionAsync(Session session);
-    Task<Session?> GetSessionByIdAsync(string sessionId);
-}
-
-// Data implements it
-public class SessionRepository : ISessionRepository
-{
-    private readonly OrchestratorDbContext _dbContext;
-    // Implementation details...
-}
-
-// Core uses it via dependency injection
-public class SessionManager : ISessionManager
-{
-    private readonly ISessionRepository _repository;
-    private readonly IEventBus _eventBus;
-    
-    public SessionManager(ISessionRepository repository, IEventBus eventBus)
-    {
-        _repository = repository;
-        _eventBus = eventBus;
-    }
-}
-```
-
 ### Core Components
 
 1. **Core Abstractions** (`OrchestratorChat.Core/`)
-   - `IAgent`: Base interface for all agents
-   - `IMessage`: Message contracts and models
-   - `ISession`: Session management interfaces
-   - `ITool`: Tool system abstractions
-   - `IOrchestrationEngine`: Orchestration interfaces
-   - Event system for agent communication
-   - Configuration contracts
+   - `IAgent`: Base interface for all agents with lifecycle management
+   - `IMessage`: Message contracts and models for agent communication
+   - `ISession`: Session management interfaces and models
+   - `ITool`: Tool system abstractions for agent capabilities
+   - `IOrchestrationEngine`: Multi-agent coordination interfaces
+   - Event system for real-time agent communication
+   - Configuration contracts and models
 
 2. **Data Layer** (`OrchestratorChat.Data/`)
-   - Entity Framework Core with SQLite
-   - Repository pattern implementation
-   - Entity models for sessions, messages, agents
-   - Database context and configurations
-   - Migration support
+   - Entity Framework Core with SQLite for persistence
+   - Repository pattern implementation for clean architecture
+   - Entity models for sessions, messages, agents, and tools
+   - Database context with proper configurations
+   - Migration support for schema evolution
 
-3. **Configuration** (`OrchestratorChat.Configuration/`)
-   - Application settings management
-   - Agent configuration schemas
-   - MCP configuration support
-   - Environment-specific configurations
+3. **Agent Adapters** (`OrchestratorChat.Agents/`)
+   - **ClaudeAgent**: Process-based Claude Code integration with streaming
+   - **SaturnAgent**: Embedded Saturn library integration
+   - **AgentFactory**: Creates and manages agent instances
+   - **AgentHealthMonitor**: Monitors agent status and health
+   - Plugin architecture for extending with additional agents
 
-4. **Agent Adapters** (`OrchestratorChat.Agents/`)
-   - Claude Code agent adapter
-   - Saturn integration layer
-   - Plugin architecture for future agents
-   - Agent lifecycle management
+4. **Saturn Integration** (`OrchestratorChat.Saturn/`)
+   - Embedded Saturn as library (not CLI process)
+   - Removed Terminal.Gui dependencies for headless operation
+   - Support for multiple Saturn instances per session
+   - Provider abstraction layer for OpenRouter/Anthropic
 
-5. **Saturn Integration** (`OrchestratorChat.Saturn/`)
-   - Embedded Saturn as library (not CLI)
-   - Removed Terminal.Gui dependencies
-   - Multi-agent Saturn instances
-   - Provider abstraction layer
+5. **SignalR Communication** (`OrchestratorChat.SignalR/`)
+   - **OrchestratorHub**: Session management and orchestration control
+   - **AgentHub**: Agent messaging with real-time streaming
+   - **MessageRouter**: Centralized message routing service
+   - **ConnectionManager**: Session-aware connection tracking
+   - **StreamManager**: Channel-based real-time streaming
+   - Event bus integration for Core events
 
-6. **SignalR Hub** (`OrchestratorChat.SignalR/`)
-   - Real-time communication layer
-   - WebSocket-based streaming
-   - Agent status broadcasting
-   - Message routing
-
-7. **Web UI** (`OrchestratorChat.Web/`)
-   - Blazor Server application
-   - MudBlazor component library
-   - Real-time chat interface
-   - Agent management dashboard
+6. **Web UI** (`OrchestratorChat.Web/`)
+   - Blazor Server application with MudBlazor components
+   - Real-time chat interface with agent communication
+   - Agent management dashboard and configuration
    - Session history and management
+   - **Sessions page** (`/sessions`) - comprehensive session management with search, filtering, and navigation
+   - Responsive design for various screen sizes
+
+### Technology Stack
+- **.NET 8.0**: Latest LTS version
+- **ASP.NET Core**: Web framework and hosting
+- **Blazor Server**: Real-time UI framework
+- **SignalR**: WebSocket-based real-time communication
+- **Entity Framework Core 8.0**: ORM with SQLite database
+- **MudBlazor**: Material Design component library
+- **xUnit**: Testing framework
 
 ### Project Dependencies
 
@@ -187,197 +155,67 @@ OrchestratorChat.Saturn
 OrchestratorChat.Core (no dependencies)
 ```
 
-## Implementation Status by Track
+## Key Design Patterns
 
-### Track 1: Core & Data - ✅ COMPLETED
-**Status**: Fully implemented with all critical services ready
+### Repository Pattern
+The project uses the Repository pattern to separate data access logic from business logic:
+- **Data Layer**: Implements `ISessionRepository` in `Data.Repositories` namespace
+- **Business Logic**: `SessionManager` in Core uses `ISessionRepository` for data operations
+- This pattern ensures Core doesn't depend on Data implementation details
 
-**Completed Components**:
-- ✅ **SessionManager** - Fully implemented with repository pattern
-  - Uses `ISessionRepository` for data operations
-  - Event publishing integrated via `IEventBus`
-  - Session lifecycle management complete
-  
-- ✅ **Orchestrator** - Complete implementation
-  - Multiple execution strategies (Sequential, Parallel, Adaptive)
-  - Agent factory integration
-  - Full event publishing
-  - Dependency checking and circular dependency detection
-  
-- ✅ **EventBus** - Thread-safe pub/sub implementation
-  - Async and sync publishing
-  - Full logging integration
-  - Handler subscription management
-
-- ✅ **Repository Pattern** - Clean architecture implemented
-  - `ISessionRepository` interface in Core
-  - `SessionRepository` implementation in Data
-  - Proper separation of concerns
-
-- ✅ Core abstractions and interfaces
-  - Agent interfaces (`IAgent`, `AgentCapabilities`, `AgentStatus`)
-  - Message models (`IMessage`, `Message`, `MessageType`) 
-  - Session management (`ISession`, `Session`, `ISessionManager`)
-  - Tool system (`ITool`, `ToolResult`)
-  - Event system (`IEvent`, `IEventBus`, various event types)
-  - Orchestration (`IOrchestrator`, `OrchestrationPlan`, `OrchestrationResult`)
-
-- ✅ Data layer with Entity Framework
-  - SQLite database context (`OrchestratorChatDbContext`)
-  - Entity models (Session, Message, Agent entities)
-  - Repository implementation (`SessionRepository`)
-  - Migration support configured
-
-**Service Registrations** (in `Program.cs`):
+Example:
 ```csharp
-builder.Services.AddScoped<IEventBus, EventBus>();
-builder.Services.AddScoped<ISessionRepository, SessionRepository>();
-builder.Services.AddScoped<ISessionManager, SessionManager>();
-builder.Services.AddScoped<IOrchestrator, Orchestrator>();
+// Data implements the repository
+public class SessionRepository : ISessionRepository
+{
+    private readonly OrchestratorDbContext _dbContext;
+    // Implementation details...
+}
+
+// Core uses it via dependency injection
+public class SessionManager : ISessionManager
+{
+    private readonly ISessionRepository _repository;
+    private readonly IEventBus _eventBus;
+    
+    public SessionManager(ISessionRepository repository, IEventBus eventBus)
+    {
+        _repository = repository;
+        _eventBus = eventBus;
+    }
+}
 ```
 
-### Track 2: Agent Adapters & Saturn - ✅ 100% COMPLETED
-**Status**: Fully implemented with all components from SaturnFork
+### Event-Driven Architecture
+- Agent status changes broadcast via `IEventBus`
+- Message routing through central orchestrator
+- UI updates stream in real-time via SignalR
+- Loose coupling between components
 
-**Completed Components**:
+### Dependency Injection
+- All services registered via DI container
+- Interfaces enable testing and loose coupling
+- Configuration bound from appsettings.json
 
-**1. Agent System (100%)**:
-- ✅ **ClaudeAgent** - Full process management with streaming (916 lines)
-  - Complete process lifecycle management
-  - JSON streaming response parsing
-  - Tool execution support
-  - Attachment handling for multi-modal content
-- ✅ **SaturnAgent** - Embedded library integration
-  - Full Saturn core integration
-  - Provider abstraction layer
-  - Event-based streaming
-- ✅ **SaturnCore** - Operational interface implementation
-- ✅ **AgentFactory** - Complete with registry and all methods
-  - `CreateAgentAsync`, `GetConfiguredAgents`, `GetAgentAsync`, `RegisterAgent`
-  - Thread-safe agent registry with ConcurrentDictionary
-- ✅ **Health Monitoring** - `AgentHealthMonitor` with timer-based checks
+### Asynchronous Operations
+- All I/O operations use async/await patterns
+- Real-time streaming with SignalR
+- Background task support for long-running operations
 
-**2. Provider System (100%)**:
-- ✅ **Anthropic OAuth Flow** - Complete PKCE implementation
-  - `AnthropicAuthService` with OAuth 2.0 + PKCE
-  - `PKCEGenerator` for secure code challenges
-  - `BrowserLauncher` for cross-platform browser opening
-  - `AnthropicClient` with Messages API and streaming
-  - `TokenStore` with cross-platform encryption (DPAPI/AES-GCM)
-- ✅ **OpenRouter Client** - Full API implementation
-  - `OpenRouterClient` with all services
-  - `ChatCompletionsService` with streaming support
-  - `ModelsService` with caching
-  - `HttpClientAdapter` with Polly retry logic
-- ✅ **SSE Streaming** - `SseParser` for real-time responses
-- ✅ **ProviderFactory** - Dynamic provider creation
-- ✅ **Correct LLM Models** - Updated to latest Claude 4 models
-  - claude-opus-4-1-20250805, claude-sonnet-4-20250514
-
-**3. Tool System (100%)**:
-- ✅ **Tool Executor** - Complete infrastructure with validation
-- ✅ **Command Approval Service** - With YOLO mode for development
-  - Web UI channeling support
-  - Dangerous operation detection
-  - SignalR event structure ready
-- ✅ **File Operation Tools** (9 tools):
-  - `ApplyDiffTool` - Unified diff patches
-  - `DeleteFileTool` - Safe deletion with backup
-  - `GlobTool` - Pattern matching
-  - `ListFilesTool` - Directory listing
-  - `SearchAndReplaceTool` - Regex support
-  - `GrepTool` - Enhanced multi-file search
-  - `ReadFileTool`, `WriteFileTool`, `BashTool`
-- ✅ **Tool Handlers** (4 handlers):
-  - `FileReadHandler`, `FileWriteHandler`
-  - `BashCommandHandler`, `WebSearchHandler`
-- ✅ **Multi-Agent Tools** (4 tools):
-  - `CreateAgentTool`, `HandOffToAgentTool`
-  - `WaitForAgentTool`, `GetAgentStatusTool`
-
-**4. Critical Requirements Met**:
-- ✅ System prompt: "You are Claude Code, Anthropic's official CLI for Claude."
-- ✅ User-Agent: "Claude-Code/1.0"
-- ✅ OAuth Bearer token support (no x-api-key header)
-- ✅ IAgentFactory moved to Core namespace
-- ✅ All SaturnFork patterns adapted
-
-**Implementation Metrics**:
-- **Files Created/Updated**: 45+ files
-- **Lines of Code**: ~9,500+ lines
-- **Build Status**: Compiles successfully (minor file lock issues unrelated to code)
-
-### Track 3: Web UI with Blazor - ✅ 100% FIXES APPLIED
-**Status**: All required fixes from track3 documentation completed
-
-**Completed Fixes**:
-1. ✅ OrchestrationService.cs property mismatches - FIXED
-2. ✅ AttachmentChip.razor property references - FIXED  
-3. ✅ SessionIndicator.razor ParticipantAgents reference - FIXED
-4. ✅ AgentService.cs DisposeAsync call - FIXED
-5. ✅ ChatInterface.razor EventCallback ambiguity - FIXED
-6. ✅ SessionService implementation - CREATED
-7. ✅ OrchestrationTimeline.razor MudBlazor components - FIXED
-8. ✅ Program.cs service registrations - FIXED
-9. ✅ CSS styling for timeline components - ADDED
-
-**Remaining Issues** (not Track 3 responsibility):
-- Missing Core model properties (from Track 1 extensions)
-- Agent implementation dependencies (Track 2)
-
-### Track 4: SignalR & Orchestration - ✅ 100% COMPLETED
-**Status**: Fully implemented with integration tests
-
-**Completed Components**:
-- ✅ **OrchestratorHub** - Full session management and orchestration control
-- ✅ **AgentHub** - Agent messaging with streaming support
-- ✅ **MessageRouter** - Centralized message routing service
-- ✅ **ConnectionManager** - Enhanced with session tracking
-- ✅ **StreamManager** - Channel-based real-time streaming
-- ✅ **Event Handlers** - Agent and orchestration event processing
-- ✅ **EventBusSubscriber** - Wires Core events to SignalR
-- ✅ **Console Client** - Persistent SignalR client with HTTP API
-- ✅ **Integration Tests** - 50+ tests covering all scenarios
-
-**Key Features**:
-- Real-time bidirectional communication
-- Event propagation from Core to SignalR clients
-- Session isolation with SignalR groups
-- Automatic reconnection with exponential backoff
-- Streaming responses via IAsyncEnumerable
-- Complete error handling and logging
-
-**Test Coverage**:
-- Hub connection tests
-- Message flow tests
-- Event bus integration tests
-- End-to-end scenarios
-- Service unit tests
-
-## Current Implementation Details
-
-### Technology Stack
-- **.NET 8.0**: Latest LTS version
-- **ASP.NET Core**: Web framework and hosting
-- **Blazor Server**: Real-time UI framework
-- **SignalR**: WebSocket-based real-time communication
-- **Entity Framework Core 8.0**: ORM with SQLite database
-- **MudBlazor**: Material Design component library
-- **xUnit**: Testing framework with FluentAssertions
-
-### Database Schema
+## Database Schema
 The SQLite database includes tables for:
-- Sessions (chat sessions with metadata)
-- Messages (individual messages with agent attribution)  
-- Agents (agent instances and configurations)
-- Tools (available tools and their configurations)
+- **Sessions**: Chat sessions with metadata and configuration
+- **Messages**: Individual messages with agent attribution
+- **Agents**: Agent instances and their configurations
+- **Tools**: Available tools and their configurations
+- **SessionAgents**: Many-to-many relationship between sessions and agents
 
-### Configuration Structure
+## Configuration Structure
 ```json
 {
   "Claude": {
     "ExecutablePath": "claude",
-    "DefaultModel": "claude-3-sonnet-20240229",
+    "DefaultModel": "claude-sonnet-4-20250514",
     "EnableMcp": true
   },
   "Saturn": {
@@ -392,132 +230,352 @@ The SQLite database includes tables for:
 }
 ```
 
-## Key Design Decisions
-
-### 1. Separation of Concerns
-- Core abstractions are agent-agnostic
-- Data layer is independent of UI concerns
-- Agent adapters translate between protocols
-- SignalR provides clean real-time abstraction
-
-### 2. Dependency Injection
-- All services registered via DI container
-- Interfaces enable testing and loose coupling
-- Configuration bound from appsettings.json
-
-### 3. Asynchronous by Default
-- All I/O operations use async/await
-- Real-time streaming with SignalR
-- Background task support for long-running operations
-
-### 4. Event-Driven Architecture
-- Agent status changes broadcast via events
-- Message routing through central orchestrator
-- UI updates stream in real-time
-
-### 5. Embedded Saturn Library
-- Transform Saturn from CLI to embeddable library
-- Remove Terminal.Gui dependencies
-- Support multiple Saturn instances per session
-
-## Integration Points Between Tracks
-
-### Core → All Other Projects
-- Provides interfaces and contracts
-- Defines event models and message types
-- Configuration schema definitions
-
-### Data ← → Web UI
-- Entity Framework context registered in Web DI
-- Repository pattern for data access
-- Automatic database creation and migration
-
-### Agent Adapters ← → SignalR
-- Agents communicate via SignalR hubs
-- Real-time status updates and message streaming
-- Agent lifecycle events broadcasted
-
-### SignalR ← → Web UI  
-- Blazor components subscribe to SignalR updates
-- Real-time UI updates without page refreshes
-- User interactions routed through SignalR
-
-### Saturn ← → Agent Adapters
-- Saturn embedded as library, not separate process
-- Agent adapters manage Saturn instances
-- Tool sharing between Saturn and Claude Code
-
 ## Development Guidelines
 
-### Packages with high severity vulnerability
-Nuget packages. If you see warnings of this type: 'System.Text.Json' 8.0.0 has a known high severity vulnerability, make sure to update to a version that does not have this vulnerability.
+### NuGet Package Management
+**CRITICAL**: When updating NuGet packages, always verify actual available versions:
+
+1. **Verify Existing Versions**: Use `dotnet list package --outdated`
+2. **Check Actual Versions**: Visit https://www.nuget.org/packages/[PackageName]
+3. **Apply Verified Versions**: Update all .csproj files with confirmed versions only
+4. **Eliminate NU1603 Warnings**: Find the actual latest available version
+
+#### Current Verified 8.0.x Package Versions:
+- **EntityFramework Core**: 8.0.19 (Design, Sqlite, InMemory, etc.)
+- **ASP.NET Core**: 8.0.19 (SignalR.Client, Mvc.Testing, TestHost)
+- **Extensions**: Mixed versions - verify each individually
 
 ### Code Standards
 - Use nullable reference types (`<Nullable>enable</Nullable>`)
-- Follow async/await patterns consistently  
+- Follow async/await patterns consistently
 - Implement IDisposable for resources
 - Use dependency injection for all services
 - Write unit tests for business logic
 
-### Testing Strategy
-- Unit tests for Core business logic
-- Integration tests for Data layer
-- Component tests for Blazor UI
-- Mock external dependencies (Claude API, etc.)
+#### Nullable Reference Type Patterns
+To avoid CS8618 compiler warnings with nullable reference types enabled:
+
+**String Properties - Always initialize non-nullable strings:**
+```csharp
+// ✅ CORRECT - Initialize with default value
+public string Name { get; set; } = string.Empty;
+public string Description { get; set; } = string.Empty;
+
+// ❌ INCORRECT - Will cause CS8618 warning
+public string Name { get; set; }
+
+// ✅ CORRECT - Use nullable if null is valid
+public string? OptionalName { get; set; }
+```
+
+**Array Properties - Initialize with empty arrays:**
+```csharp
+// ✅ CORRECT - Initialize with empty array
+public byte[] Content { get; set; } = Array.Empty<byte>();
+public string[] Tags { get; set; } = Array.Empty<string>();
+
+// ❌ INCORRECT - Will cause CS8618 warning  
+public byte[] Content { get; set; }
+```
+
+**Collection Properties - Initialize with empty collections:**
+```csharp
+// ✅ CORRECT - Initialize collections
+public List<string> Items { get; set; } = new();
+public Dictionary<string, object> Data { get; set; } = new();
+
+// ❌ INCORRECT - Will cause CS8618 warning
+public List<string> Items { get; set; }
+```
+
+**Constructor Parameters - Validate required parameters:**
+```csharp
+// ✅ CORRECT - Validate non-null parameters
+public MyClass(string requiredParam)
+{
+    RequiredProperty = requiredParam ?? throw new ArgumentNullException(nameof(requiredParam));
+}
+
+// ✅ CORRECT - Use nullable for optional parameters
+public MyClass(string? optionalParam = null)
+{
+    OptionalProperty = optionalParam;
+}
+```
+
+#### Async/Await Best Practices
+To avoid CS1998 compiler warnings (async methods without await expressions):
+
+**1. Only use async when you actually await something:**
+```csharp
+// ✅ CORRECT - Actually awaiting an operation
+public async Task<string> GetDataAsync()
+{
+    var result = await httpClient.GetStringAsync(url);
+    return result;
+}
+
+// ❌ INCORRECT - Will cause CS1998 warning
+public async Task<string> GetDataAsync()
+{
+    return "hardcoded result";
+}
+
+// ✅ CORRECT - Use Task.FromResult for sync operations
+public Task<string> GetDataAsync()
+{
+    return Task.FromResult("hardcoded result");
+}
+```
+
+**2. Interface implementation patterns:**
+```csharp
+// ✅ CORRECT - Interface requires async but no await needed
+public Task<bool> ValidateAsync(string input)
+{
+    bool isValid = input?.Length > 0;
+    return Task.FromResult(isValid);
+}
+
+// ❌ INCORRECT - Unnecessary async keyword
+public async Task<bool> ValidateAsync(string input)
+{
+    bool isValid = input?.Length > 0;
+    return isValid;
+}
+```
+
+**3. When to keep methods truly async:**
+```csharp
+// ✅ CORRECT - Future-proofing for async operations
+public async Task ProcessAsync()
+{
+    // Current synchronous work
+    ProcessSynchronously();
+    
+    // Placeholder for future async operations
+    await Task.CompletedTask;
+}
+
+// ✅ BETTER - Add the actual async operation when needed
+public async Task ProcessAsync()
+{
+    await DatabaseService.SaveAsync();
+    ProcessSynchronously();
+}
+```
+
+**4. Converting async to sync safely:**
+```csharp
+// BEFORE - Unnecessary async
+public async Task<int> CalculateAsync(int a, int b)
+{
+    return a + b;
+}
+
+// AFTER - Converted to sync (if callers can be updated)
+public int Calculate(int a, int b)
+{
+    return a + b;
+}
+
+// OR - Keep async interface but remove async keyword
+public Task<int> CalculateAsync(int a, int b)
+{
+    return Task.FromResult(a + b);
+}
+```
+
+**5. Decision tree for async patterns:**
+```csharp
+// Use this decision process:
+// 1. Does the method perform I/O operations? → Use async/await
+// 2. Does it call other async methods? → Use async/await
+// 3. Must it implement an async interface? → Use Task.FromResult()
+// 4. Is it purely computational? → Make it synchronous
+// 5. Future async operations planned? → Use await Task.CompletedTask
+
+// Example - Repository pattern with mixed operations
+public class SessionRepository : ISessionRepository
+{
+    // ✅ CORRECT - Actual database I/O
+    public async Task<Session> CreateSessionAsync(Session session)
+    {
+        await _dbContext.Sessions.AddAsync(session);
+        await _dbContext.SaveChangesAsync();
+        return session;
+    }
+    
+    // ✅ CORRECT - Interface requires async, use Task.FromResult
+    public Task<bool> IsValidSessionIdAsync(string sessionId)
+    {
+        bool isValid = !string.IsNullOrWhiteSpace(sessionId) && sessionId.Length == 36;
+        return Task.FromResult(isValid);
+    }
+    
+    // ✅ CORRECT - Synchronous method for simple operations
+    public bool IsValidSessionId(string sessionId)
+    {
+        return !string.IsNullOrWhiteSpace(sessionId) && sessionId.Length == 36;
+    }
+}
+```
+
+**6. Common CS1998 scenarios and fixes:**
+```csharp
+// SCENARIO: Event handlers
+// ❌ INCORRECT
+private async void OnButtonClick(object sender, EventArgs e)
+{
+    ProcessData();
+}
+
+// ✅ CORRECT
+private void OnButtonClick(object sender, EventArgs e)
+{
+    ProcessData();
+}
+
+// ✅ CORRECT - If async work is needed
+private async void OnButtonClick(object sender, EventArgs e)
+{
+    await ProcessDataAsync();
+}
+
+// SCENARIO: Property getters
+// ❌ INCORRECT
+public async Task<string> Status
+{
+    get { return "Ready"; }
+}
+
+// ✅ CORRECT
+public Task<string> Status
+{
+    get { return Task.FromResult("Ready"); }
+}
+
+// ✅ BETTER - Make it synchronous if possible
+public string Status => "Ready";
+```
+
+**7. Performance considerations:**
+```csharp
+// Unnecessary async creates state machines and allocations
+// ❌ AVOID - Creates unnecessary overhead
+public async Task<int> GetCountAsync()
+{
+    return items.Count;
+}
+
+// ✅ PREFER - No allocation, immediate completion
+public Task<int> GetCountAsync()
+{
+    return Task.FromResult(items.Count);
+}
+
+// ✅ BEST - Synchronous when appropriate
+public int GetCount()
+{
+    return items.Count;
+}
+```
+
+**8. Exception handling in async methods:**
+```csharp
+// ✅ CORRECT - Exceptions in Task.FromResult are wrapped properly
+public Task<string> ValidateInputAsync(string input)
+{
+    if (string.IsNullOrEmpty(input))
+        throw new ArgumentException("Input cannot be null or empty");
+    
+    return Task.FromResult(input.Trim());
+}
+
+// ✅ CORRECT - Using Task.FromException for expected exceptions
+public Task<string> ValidateInputAsync(string input)
+{
+    if (string.IsNullOrEmpty(input))
+        return Task.FromException<string>(new ArgumentException("Input cannot be null or empty"));
+    
+    return Task.FromResult(input.Trim());
+}
+```
+
+**9. Testing async methods without await:**
+```csharp
+// ✅ CORRECT - Testing Task.FromResult methods
+[Fact]
+public async Task ValidateAsync_WithValidInput_ReturnsTrue()
+{
+    // Arrange
+    var validator = new InputValidator();
+    
+    // Act
+    var result = await validator.ValidateAsync("valid input");
+    
+    // Assert
+    Assert.True(result);
+}
+
+// ✅ CORRECT - Testing synchronous result
+[Fact]
+public void ValidateAsync_WithValidInput_ReturnsCompletedTask()
+{
+    // Arrange
+    var validator = new InputValidator();
+    
+    // Act
+    var task = validator.ValidateAsync("valid input");
+    
+    // Assert
+    Assert.True(task.IsCompletedSuccessfully);
+    Assert.True(task.Result);
+}
+```
+
+**10. Troubleshooting CS1998 warnings:**
+```csharp
+// Common causes and fixes:
+
+// CAUSE: Method signature requires async but implementation doesn't need it
+// FIX: Use Task.FromResult() or remove async keyword
+
+// CAUSE: Future-proofing for async operations
+// FIX: Use await Task.CompletedTask as placeholder
+
+// CAUSE: Interface contract forces async signature
+// FIX: Implement with Task.FromResult() instead of async
+
+// CAUSE: Mixed sync/async operations in same class
+// FIX: Use consistent patterns - either all sync or all async
+
+// CAUSE: Property returning Task without await
+// FIX: Use Task.FromResult() or make property synchronous
+```
 
 ### Testing Standards
-- **DO NOT USE FluentAssertions** - Use standard xUnit or NUnit assertions only
+- **Use standard xUnit assertions only** (no FluentAssertions)
 - Use xUnit as the primary testing framework
 - Use NSubstitute or Moq for mocking dependencies
-- Keep tests simple and readable with standard assertions
-- Example:
-  ```csharp
-  // Use standard xUnit assertions
-  Assert.NotNull(result);
-  Assert.True(result.Success);
-  Assert.Equal("expected", result.Value);
-  
-  // NOT FluentAssertions
-  // result.Should().NotBeNull(); // Don't use this
-  ```
+- Keep tests simple and readable
 
-## Known Issues and Current Build Status
+Example:
+```csharp
+// Use standard xUnit assertions
+Assert.NotNull(result);
+Assert.True(result.Success);
+Assert.Equal("expected", result.Value);
 
-### ⚠️ Current Compilation Issues
-After the latest iteration, the following compilation errors remain:
-- **ISessionRepository ambiguity**: Exists in both Core and Data namespaces
-- **Missing model properties**:
-  - `SessionStatus.Cancelled` (enum value)
-  - `OrchestrationRequest.TimeoutMinutes`
-  - `SessionConfiguration.MaxParticipants`
-  - `AgentConfiguration.Type`
-  - `StepResult.StepName`, `Duration`, `StartTime`
-- **Method signature mismatches**:
-  - `ISessionManager.GetRecentSessionsAsync` vs `GetRecentSessions`
-  - `CreateSessionAsync` expects `CreateSessionRequest` not `SessionConfiguration`
+// NOT FluentAssertions
+// result.Should().NotBeNull(); // Don't use this
+```
 
-### Cross-Platform Compatibility
-- Primary target: Windows 10/11
-- Linux support for server deployment
-- macOS support for development
-
-### Performance Considerations
-- SignalR connection limits (default: 100 concurrent)
-- SQLite database size limits (practical limit: ~1TB)
-- Memory usage with multiple agent instances
-- WebSocket connection management
-
-### Security Requirements
-- JWT tokens for API authentication
-- Secure storage of API keys
+### Security Best Practices
+- Never introduce code that exposes or logs secrets
+- Use secure storage for API keys (encrypted)
 - Input validation and sanitization
 - Process isolation for agent execution
-
-### Resource Management
-- Agent process lifecycle management  
-- Database connection pooling
-- Memory cleanup for long-running sessions
-- Graceful shutdown handling
 
 ## Environment Requirements
 
@@ -528,15 +586,10 @@ After the latest iteration, the following compilation errors remain:
 - **Git**: Version control
 - **SQLite**: Included with .NET SDK
 
-### Optional Tools
-- **Docker**: For containerized deployment
-- **Curl**: API testing
-
 ### Environment Variables
 ```bash
-# Claude Code authentication
+# Claude Code authentication (OAuth preferred)
 CLAUDE_API_KEY=your_claude_api_key_here
-but we will focus on the Oauth solution 
 
 # OpenRouter for Saturn (if using)
 OPENROUTER_API_KEY=your_openrouter_key_here
@@ -547,49 +600,37 @@ GITHUB_TOKEN=your_github_token_here
 
 ## Important Files and Directories
 
-### Core Implementation
-- `src/OrchestratorChat.Core/` - All abstractions and interfaces
-- `src/OrchestratorChat.Data/` - Entity Framework data layer  
+### Project Structure
+- `src/OrchestratorChat.Core/` - Core abstractions and business logic
+- `src/OrchestratorChat.Data/` - Entity Framework data layer
 - `src/OrchestratorChat.Configuration/` - Settings and configuration
+- `src/OrchestratorChat.Agents/` - Agent adapter implementations
+- `src/OrchestratorChat.Saturn/` - Embedded Saturn library
+- `src/OrchestratorChat.SignalR/` - Real-time communication layer
+- `src/OrchestratorChat.Web/` - Blazor Server web application
 
-### Completed Projects
-- `src/OrchestratorChat.Agents/` - ✅ Agent adapter implementations (Track 2)
-- `src/OrchestratorChat.Saturn/` - ✅ Embedded Saturn library (Track 2)
-- `src/OrchestratorChat.Web/` - ✅ Blazor Server application (Track 3 fixes applied)
+### Available Pages and Routes
+- **`/` or `/dashboard`** - Main dashboard with agent status and overview
+- **`/sessions`** - **Sessions management page** with comprehensive session list, search, filtering, and navigation
+- **`/orchestrator`** - Multi-agent orchestration interface
+- **`/chat/{AgentId?}`** - Direct chat with specific agent
+- **`/session/{SessionId?}`** - View and continue specific session
+- **`/settings`** - Application configuration and settings
 
-### In Development
-- `src/OrchestratorChat.SignalR/` - Real-time communication (Track 4)
+### Sessions Page Features (`/sessions`)
+- **Grid-based session overview** with status badges and metadata
+- **Search functionality** by session name, content, or participants
+- **Filter options** by session status (Active, Paused, Completed, Cancelled)
+- **Sort options** by Last Activity, Created Date, Name, or Message Count  
+- **Quick actions** to open, delete, or create new sessions
+- **Responsive design** for desktop, tablet, and mobile devices
+- **Empty states** with helpful guidance for new users
 
 ### Supporting Files
 - `OrchestratorChat.sln` - Solution file with all projects
 - `docs/planning/` - Architecture and planning documentation
 - `tests/` - Unit and integration test projects
-
-### Database Files
 - `orchestrator.db` - SQLite database (created on first run)
-- `Migrations/` - Entity Framework migrations
-
-## Development Workflow for Teams
-
-### Parallel Development Approach
-The architecture supports parallel development across 4 tracks:
-
-1. **Track 1**: Core abstractions and data layer
-2. **Track 2**: Agent adapters and Saturn transformation  
-3. **Track 3**: Blazor web UI and components
-4. **Track 4**: SignalR hubs and orchestration engine
-
-### Integration Testing
-- Mock implementations available for each interface
-- Integration tests verify cross-project compatibility
-- Database migrations test end-to-end data flow
-
-### Code Reviews
-- Review focus areas by track:
-  - Track 1: Interface design and data model correctness
-  - Track 2: Agent protocol compliance and error handling
-  - Track 3: UI/UX and accessibility compliance  
-  - Track 4: Real-time performance and connection management
 
 ## Troubleshooting Common Issues
 
@@ -601,7 +642,7 @@ dotnet restore
 dotnet build
 ```
 
-### Database Issues  
+### Database Issues
 ```bash
 # Reset database if corruption occurs
 rm orchestrator.db
@@ -616,57 +657,61 @@ dotnet ef database update
 
 ### Claude Integration Issues
 - Verify Claude CLI is installed and in PATH
-- Check CLAUDE_API_KEY environment variable
+- Check authentication setup (OAuth preferred)
 - Test Claude CLI independently: `claude --version`
 
-## Next Steps
+## Key Integration Points
 
-### Immediate Priorities
-1. **Agent Adapters**: Complete Claude Code and Saturn integration
-2. **Web UI**: Implement core Blazor components  
-3. **SignalR**: Build real-time communication layer
-4. **Integration Testing**: Verify cross-project compatibility
+### Agent Communication Flow
+1. **User Input** → Blazor UI → SignalR Hub
+2. **Hub** → AgentFactory → Specific Agent (Claude/Saturn)
+3. **Agent** → Tool Execution → Results
+4. **Results** → EventBus → SignalR → Real-time UI Updates
 
-### Future Enhancements
-- Additional agent support (OpenAI GPT, Anthropic direct)
-- Advanced orchestration features (agent coordination, task delegation)
-- Plugin architecture for custom agents
-- Performance optimization and scaling
-- Mobile-responsive UI improvements
+### Data Flow
+1. **Sessions** managed by `SessionManager` via `ISessionRepository`
+2. **Messages** persisted through Entity Framework
+3. **Agent States** tracked and broadcasted via events
+4. **Real-time Updates** streamed through SignalR
 
-## Document Control
-- **Version**: 1.3
-- **Date**: 2025-08-30
-- **Last Updated**: Track 4 Complete with Integration Tests
-- **Status**: Active Development - All Tracks Complete
+### Authentication Flow
+- **Claude Code**: OAuth 2.0 with PKCE (preferred) or API key
+- **Saturn**: OpenRouter API key or Anthropic OAuth
+- **Secure Storage**: Cross-platform encrypted token storage
 
-### Latest Iteration Summary (Version 1.3)
-**Key Achievements in This Iteration**:
-1. ✅ **Track 4 SignalR**: 100% Complete with full real-time communication
-2. ✅ **Integration Tests**: 50+ tests covering all SignalR scenarios
-3. ✅ **Console Client**: Persistent SignalR client with HTTP API
-4. ✅ **Event System**: Complete event bus integration with SignalR
-5. ✅ **Message Routing**: Centralized routing with session isolation
+## Development Workflow
 
-**Track 4 Implementation Metrics**:
-- **SignalR Files**: 25+ files created/updated
-- **Integration Tests**: 50+ test cases across 11 test files
-- **Services Created**: MessageRouter, ConnectionManager, StreamManager
-- **Event Handlers**: Agent and Orchestration event processing
+### Getting Started
+1. Clone the repository
+2. Ensure .NET 8.0 SDK is installed
+3. Install Claude CLI and authenticate
+4. Set up environment variables
+5. Run `dotnet restore` and `dotnet build`
+6. Start with `dotnet run` from `src/OrchestratorChat.Web/`
 
-**Current Track Status**:
-- **Track 1 (Core & Data)**: ✅ 100% COMPLETED
-- **Track 2 (Agents)**: ✅ 100% COMPLETED
-- **Track 3 (Web UI)**: ✅ 100% COMPLETED (fixes applied)
-- **Track 4 (SignalR)**: ✅ 100% COMPLETED
+### Adding New Agents
+1. Implement `IAgent` interface
+2. Add agent type to `AgentType` enum
+3. Register in `AgentFactory`
+4. Add configuration support
+5. Implement health monitoring
+6. Add integration tests
 
-**Testing Standards Updated**:
-- Standard xUnit assertions only (no FluentAssertions)
-- Comprehensive integration test coverage
-- Mock implementations for predictable testing
+### Adding New Tools
+1. Implement `ITool` interface
+2. Add to appropriate agent's tool registry
+3. Implement approval handling if needed
+4. Add unit tests
+5. Document tool capabilities
 
-**Next Steps**:
-- System integration testing across all tracks
-- Performance optimization and load testing
-- Production deployment preparation
-- Documentation and user guides
+## Performance Considerations
+- SignalR connection limits (default: 100 concurrent)
+- SQLite database size limits (practical limit: ~1TB)
+- Memory usage with multiple agent instances
+- WebSocket connection management
+- Long-running agent processes
+
+## Cross-Platform Support
+- **Primary target**: Windows 10/11
+- **Linux support**: Server deployment
+- **macOS support**: Development environment

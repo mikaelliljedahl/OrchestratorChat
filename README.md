@@ -1,6 +1,6 @@
 # OrchestratorChat
 
-A multi-agent AI orchestration platform that coordinates multiple AI assistants (Claude, Saturn, etc.) to work together on complex tasks.
+A multi-agent AI orchestration platform that coordinates multiple AI assistants (Claude, Saturn, etc.) to work together on complex tasks, inspired by: https://github.com/baryhuang/claude-code-by-agents
 
 ## 🚀 Quick Start
 
@@ -145,7 +145,7 @@ This is an active development project. See [CLAUDE.md](CLAUDE.md) for detailed t
 
 ## 📚 Additional Resources
 
-- **Console Client**: Run `OrchestratorChat.ConsoleClient --help` for headless operation
+- **Console Client**: Run `OrchestratorChat.ConsoleClient --help` for headless operation to be used inside an interactive CLI session to hook up with the other agents
 - **Testing**: Run `dotnet test` to execute all integration tests
 - **API Documentation**: SignalR hubs available at `/hubs/orchestrator` and `/hubs/agent`
 

@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OrchestratorChat.Core\OrchestratorChat.Core.csproj" />
+    <ProjectReference Include="..\OrchestratorChat.Data\OrchestratorChat.Data.csproj" />
   </ItemGroup>
 
 </Project>

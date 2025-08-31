@@ -1,0 +1,191 @@
+@using OrchestratorChat.Core.Agents
+@using OrchestratorChat.Web.Models
+
+<MudDialog @bind-Visible="@IsVisible">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-3" />
+            Create New Agent
+        </MudText>
+    </TitleContent>
+    
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_agentName" 
+                             Label="Agent Name" 
+                             Variant="Variant.Outlined" 
+                             Required="true" 
+                             Error="@(!string.IsNullOrEmpty(_nameError))" 
+                             ErrorText="@_nameError" />
+            </MudItem>
+            
+            <MudItem xs="12">
+                <MudSelect @bind-Value="_selectedType" 
+                          Label="Agent Type" 
+                          Variant="Variant.Outlined" 
+                          Required="true">
+                    <MudSelectItem Value="AgentType.Claude">Claude</MudSelectItem>
+                    <MudSelectItem Value="AgentType.Saturn">Saturn</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_workingDirectory" 
+                             Label="Working Directory" 
+                             Variant="Variant.Outlined" 
+                             Placeholder="@Environment.CurrentDirectory" />
+            </MudItem>
+            
+            @if (_selectedType == AgentType.Saturn)
+            {
+                <MudItem xs="12">
+                    <MudSelect @bind-Value="_selectedModel" 
+                              Label="Model" 
+                              Variant="Variant.Outlined">
+                        <MudSelectItem Value="@("claude-sonnet-4-20250514")">Claude Sonnet 4</MudSelectItem>
+                        <MudSelectItem Value="@("claude-3-5-sonnet-20241022")">Claude 3.5 Sonnet</MudSelectItem>
+                        <MudSelectItem Value="@("gpt-4o")">GPT-4o</MudSelectItem>
+                        <MudSelectItem Value="@("gpt-4o-mini")">GPT-4o Mini</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                
+                <MudItem xs="12">
+                    <MudSelect @bind-Value="_selectedProvider" 
+                              Label="Provider" 
+                              Variant="Variant.Outlined">
+                        <MudSelectItem Value="@("OpenRouter")">OpenRouter</MudSelectItem>
+                        <MudSelectItem Value="@("Anthropic")">Anthropic</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+            }
+            
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_systemPrompt" 
+                             Label="System Prompt" 
+                             Variant="Variant.Outlined" 
+                             Lines="3" 
+                             Placeholder="Optional system prompt for the agent..." />
+            </MudItem>
+            
+            <MudItem xs="6">
+                <MudNumericField @bind-Value="_temperature" 
+                                Label="Temperature" 
+                                Variant="Variant.Outlined" 
+                                Min="0.0" 
+                                Max="2.0" 
+                                Step="0.1" />
+            </MudItem>
+            
+            <MudItem xs="6">
+                <MudNumericField @bind-Value="_maxTokens" 
+                                Label="Max Tokens" 
+                                Variant="Variant.Outlined" 
+                                Min="100" 
+                                Max="8000" 
+                                Step="100" />
+            </MudItem>
+            
+            <MudItem xs="12">
+                <MudCheckBox @bind-Value="_requireApproval" 
+                            Label="Require approval for tool execution" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" 
+                  Variant="Variant.Filled" 
+                  OnClick="CreateAgent" 
+                  Disabled="@_isCreating">
+            @if (_isCreating)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                <MudText Class="ms-2">Creating...</MudText>
+            }
+            else
+            {
+                <MudText>Create Agent</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback<bool> IsVisibleChanged { get; set; }
+    [Parameter] public EventCallback<AgentConfiguration> OnAgentCreated { get; set; }
+    
+    private string _agentName = string.Empty;
+    private AgentType _selectedType = AgentType.Claude;
+    private string _workingDirectory = string.Empty;
+    private string _selectedModel = "claude-sonnet-4-20250514";
+    private string _selectedProvider = "OpenRouter";
+    private string _systemPrompt = string.Empty;
+    private double _temperature = 0.7;
+    private int _maxTokens = 4096;
+    private bool _requireApproval = false;
+    
+    private bool _isCreating = false;
+    private string _nameError = string.Empty;
+    
+    private async Task Cancel()
+    {
+        IsVisible = false;
+        await IsVisibleChanged.InvokeAsync(false);
+    }
+    
+    private async Task CreateAgent()
+    {
+        _nameError = string.Empty;
+        
+        if (string.IsNullOrWhiteSpace(_agentName))
+        {
+            _nameError = "Agent name is required";
+            return;
+        }
+        
+        _isCreating = true;
+        StateHasChanged();
+        
+        try
+        {
+            var configuration = new AgentConfiguration
+            {
+                Name = _agentName.Trim(),
+                Type = _selectedType,
+                WorkingDirectory = string.IsNullOrWhiteSpace(_workingDirectory) ? Environment.CurrentDirectory : _workingDirectory.Trim(),
+                Model = _selectedModel,
+                Temperature = _temperature,
+                MaxTokens = _maxTokens,
+                SystemPrompt = _systemPrompt.Trim(),
+                RequireApproval = _requireApproval
+            };
+            
+            // Add provider setting for Saturn agents
+            if (_selectedType == AgentType.Saturn)
+            {
+                configuration.CustomSettings["Provider"] = _selectedProvider;
+            }
+            
+            // Close dialog and notify parent with the configuration
+            IsVisible = false;
+            await IsVisibleChanged.InvokeAsync(false);
+            
+            if (OnAgentCreated.HasDelegate)
+            {
+                await OnAgentCreated.InvokeAsync(configuration);
+            }
+        }
+        catch (Exception ex)
+        {
+            _nameError = $"Error creating agent: {ex.Message}";
+        }
+        finally
+        {
+            _isCreating = false;
+            StateHasChanged();
+        }
+    }
+}
