@@ -43,7 +43,7 @@ public class CreateAgentTool : ToolBase
         {
             Name = "model",
             Type = "string",
-            Description = "Model to use for the agent (e.g., claude-3-sonnet, gpt-4)",
+            Description = "Model to use. Accepts shortnames (sonnet4, opus4.1, gpt5) or full IDs (claude-sonnet-4-20250514, claude-opus-4-1-20250805, gpt-5)",
             Required = false
         },
         new ToolParameter
@@ -71,7 +71,7 @@ public class CreateAgentTool : ToolBase
         {
             Name = "provider_type",
             Type = "string",
-            Description = "Provider type (OpenRouter, Anthropic)",
+            Description = "Provider type (OpenRouter, Anthropic, OpenAI)",
             Required = false
         },
         new ToolParameter
@@ -89,7 +89,8 @@ public class CreateAgentTool : ToolBase
         {
             var agentName = call.Parameters.GetValueOrDefault("agent_name")?.ToString() ?? "SubAgent";
             var task = call.Parameters.GetValueOrDefault("task")?.ToString() ?? "";
-            var model = call.Parameters.GetValueOrDefault("model")?.ToString() ?? "claude-3-sonnet";
+            var model = call.Parameters.GetValueOrDefault("model")?.ToString() ?? "sonnet4";
+            model = NormalizeModelAlias(model);
             var maxIterations = Convert.ToInt32(call.Parameters.GetValueOrDefault("max_iterations") ?? 10);
             var providerType = Enum.TryParse<ProviderType>(call.Parameters.GetValueOrDefault("provider_type")?.ToString() ?? "OpenRouter", true, out var pt) ? pt : ProviderType.OpenRouter;
             var temperature = Convert.ToDouble(call.Parameters.GetValueOrDefault("temperature") ?? 0.7);
@@ -208,5 +209,18 @@ public class CreateAgentTool : ToolBase
                 Error = $"Failed to create agent: {ex.Message}"
             };
         }
+    }
+
+    private static string NormalizeModelAlias(string model)
+    {
+        if (string.IsNullOrWhiteSpace(model)) return model;
+        var m = model.Trim().ToLowerInvariant();
+        return m switch
+        {
+            "sonnet4" => "claude-sonnet-4-20250514",
+            "opus4.1" or "opus4_1" or "opus41" => "claude-opus-4-1-20250805",
+            "gpt5" => "gpt-5",
+            _ => model
+        };
     }
 }

@@ -1,3 +1,6 @@
+@namespace OrchestratorChat.Web.Components
+@inherits ComponentBase
+
 <div class="typing-indicator agent-message">
     <div class="typing-content">
         <MudText Typo="Typo.caption" Class="mr-2">@AgentName is thinking…</MudText>
@@ -8,7 +11,3 @@
         </div>
     </div>
 </div>
-
-@code {
-    [Parameter] public string AgentName { get; set; } = "Agent";
-}

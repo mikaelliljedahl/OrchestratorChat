@@ -3,6 +3,7 @@ using OrchestratorChat.Saturn.Providers.Streaming;
 using OrchestratorChat.Saturn.Providers.OpenRouter.Models;
 using OrchestratorChat.Saturn.Providers.Anthropic.Models;
 using OrchestratorChat.Saturn.Providers.Anthropic;
+using OrchestratorChat.Saturn.Providers.OpenAI;
 using System.Text.Json;
 using System.Text;
 using System.Runtime.CompilerServices;
@@ -79,11 +80,9 @@ public class OpenRouterProvider : LLMProviderBase
     public override ProviderType Type => ProviderType.OpenRouter;
     public override List<string> SupportedModels => new()
     {
-        "anthropic/claude-3.5-sonnet",
-        "openai/gpt-4o",
-        "google/gemini-pro-1.5",
-        "meta-llama/llama-3.1-70b-instruct",
-        "deepseek/deepseek-chat"
+        "anthropic/claude-4.0-sonnet",
+        "anthropic/claude-4.1-opus",
+        "openai/gpt-5"
     };
 
     private string? _apiKey;
@@ -210,10 +209,7 @@ public class AnthropicProvider : LLMProviderBase
     public override List<string> SupportedModels => new()
     {
         "claude-opus-4-1-20250805",
-        "claude-opus-4",
-        "claude-sonnet-4-20250514",
-        "claude-3.7-sonnet",
-        "claude-3.5-haiku"
+        "claude-sonnet-4-20250514"
     };
 
     private const string ClaudeCodeSystemPrompt = "You are Claude Code, Anthropic's official CLI for Claude.";

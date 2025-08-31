@@ -1,3 +1,5 @@
+using OrchestratorChat.Core.Handoffs;
+
 namespace OrchestratorChat.Core.Orchestration;
 
 /// <summary>
@@ -59,4 +61,39 @@ public class OrchestrationStep
     /// Expected duration for this step
     /// </summary>
     public TimeSpan ExpectedDuration { get; set; }
+    
+    /// <summary>
+    /// Tools that are allowed to be used during this step
+    /// </summary>
+    public List<string> AllowedTools { get; set; } = new();
+    
+    /// <summary>
+    /// Whether this step requires tool approval before execution
+    /// </summary>
+    public bool RequireToolApproval { get; set; } = false;
+    
+    /// <summary>
+    /// Additional execution context data for the agent
+    /// </summary>
+    public Dictionary<string, object> ExecutionContext { get; set; } = new();
+    
+    /// <summary>
+    /// Priority level for this step (higher values = higher priority)
+    /// </summary>
+    public int Priority { get; set; } = 0;
+    
+    /// <summary>
+    /// Maximum number of retry attempts if the step fails
+    /// </summary>
+    public int MaxRetries { get; set; } = 0;
+    
+    /// <summary>
+    /// ID of the agent currently owning this step (may differ from AssignedAgentId after handoffs)
+    /// </summary>
+    public string CurrentOwner { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// History of all handoffs for this step
+    /// </summary>
+    public List<IHandoff> HandoffHistory { get; set; } = new();
 }

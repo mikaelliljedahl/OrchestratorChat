@@ -75,6 +75,7 @@ builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<IProviderVerificationService, ProviderVerificationService>();
 builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
 builder.Services.AddScoped<TeamPlanService>();
+builder.Services.AddScoped<PlanMappingService>();
 
 // Add OAuth services
 builder.Services.AddScoped<IOAuthStateStore, OAuthStateStore>();
@@ -115,3 +116,6 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+// Make Program class accessible to tests
+public partial class Program { }

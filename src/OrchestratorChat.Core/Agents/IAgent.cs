@@ -1,3 +1,4 @@
+using OrchestratorChat.Core.Decisions;
 using OrchestratorChat.Core.Messages;
 using OrchestratorChat.Core.Tools;
 
@@ -73,6 +74,18 @@ public interface IAgent
     /// <returns>Result of the tool execution</returns>
     Task<ToolExecutionResult> ExecuteToolAsync(
         ToolCall toolCall, 
+        CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Propose a decision to the orchestration system
+    /// </summary>
+    /// <param name="proposal">The proposal text</param>
+    /// <param name="options">Available options for the decision</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The proposed decision</returns>
+    Task<IDecision> ProposeDecisionAsync(
+        string proposal,
+        IEnumerable<string> options,
         CancellationToken cancellationToken = default);
     
     /// <summary>

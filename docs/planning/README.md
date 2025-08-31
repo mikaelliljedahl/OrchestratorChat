@@ -2,6 +2,13 @@
 
 This is the canonical entry point for all planning docs. Use this index (not file names) as the source of truth. Older, legacy docs remain for reference and are explicitly marked below.
 
+Status at a glance
+- Milestone 1 (Saturn Anthropic OAuth UI): In Progress
+- Agent lifecycle (repo + registry unification): Complete
+- Claude CLI reliability on Windows: Complete
+- Team formation / plan editor / decisions & approvals UI: Planned
+- Data entities (team/decision/approval/handoff): Planned
+
 Status tags
 - [Current]: Actively used. Follow these.
 - [Roadmap]: Direction and scope. Inform execution.
@@ -18,7 +25,7 @@ Start Here (Read in order)
 4) [Orchestration Modes & Decision Policies] (Current)
    - docs/planning/03-orchestration-modes-and-decision-policies.md
 5) [Team Runbook & Scenarios] (Current)
-   - docs/planning/08-team-runbook-and-scenarios.md
+   - docs/planning/07-team-runbook-and-scenarios.md
 
 Roadmap & Execution
 - [Roadmap ‚Äî Milestones & Owners] (Roadmap)
@@ -30,34 +37,59 @@ Roadmap & Execution
 
 Provider & Agent System (Saturn/Claude)
 - [Saturn Anthropic OAuth ‚Äî Feature Spec] (Current)
-  - docs/planning/track3/06-saturn-anthropic-oauth-feature-spec.md
+  - docs/planning/done/track3/06-saturn-anthropic-oauth-feature-spec.md
 - [Provider Selection & Verification ‚Äî UX/Service Plan] (Current)
   - docs/planning/track3/07-provider-selection-and-verification-plan.md
 
-Gap Analysis (Use to align work to product goal)
-- [Product vs Implementation ‚Äî Gap Assessment] (Current)
-  - docs/planning/gap-analysis/10-product-vs-implementation-gap-assessment.md
-- [UI Gaps & Plans] (Current)
-  - docs/planning/gap-analysis/12-ui-gaps-and-plans.md
-- [Runtime Architecture ‚Äî Gaps & Plans] (Current)
-  - docs/planning/gap-analysis/13-runtime-architecture-gaps-and-plans.md
-- [Data Model & Persistence ‚Äî Gaps] (Current)
-  - docs/planning/gap-analysis/14-data-model-and-persistence-gaps.md
-- [Validation & Metrics ‚Äî Plan] (Current)
-  - docs/planning/gap-analysis/15-validation-and-metrics-plan.md
+Gap Analysis docs to scope and the Checklist to slice PRs.
 
-Legacy / Reference
-- Track 2 (reference only ‚Äî superseded where conflicts arise):
-  - docs/planning/track2/01-provider-implementation-plan.md (Legacy)
-  - docs/planning/track2/02-tools-implementation-plan.md (Legacy)
-  - docs/planning/track2/03-agent-system-plan.md (Legacy)
-  - docs/planning/track2/05-data-persistence-plan.md (Legacy)
-- General note: When in doubt, defer to the ‚ÄúStart Here‚Äù set and the Engineering Checklist.
-
-How to use this index
-- Newcomers should start with ‚ÄúStart Here‚Äù (top 5 docs), then consult the Roadmap and Engineering Checklist to pick up a workstream.
-- Implementers working on providers should follow the Saturn/Provider docs above.
-- For cross‚Äëcutting work (decisions/approvals/timeline), use the Gap Analysis docs to scope and the Checklist to slice PRs.
+## Implementation Order (Remaining Work)
+1) Blazor Service Architecture Refactor ó docs/planning/done/04-blazor-service-architecture-refactor.md
+2) Saturn Anthropic OAuth ó docs/planning/done/track3/06-saturn-anthropic-oauth-feature-spec.md
+3) Provider Selection & Verification ó docs/planning/track3/07-provider-selection-and-verification-plan.md
+4) Team & Plan skeleton wiring ó
+   - UI gaps: docs/planning/gap-analysis/12-ui-gaps-and-plans.md
+   - Runtime wiring: docs/planning/gap-analysis/13-runtime-architecture-gaps-and-plans.md
+   - Data gaps (if any): docs/planning/gap-analysis/14-data-model-and-persistence-gaps.md
+5) Decision protocol & ADRs ó
+   - Concepts: docs/planning/03-orchestration-modes-and-decision-policies.md
+   - Execution: docs/planning/gap-analysis/13-runtime-architecture-gaps-and-plans.md
+6) Tool approvals & safety ó docs/planning/gap-analysis/13-runtime-architecture-gaps-and-plans.md
+7) Timeline & observability polish ó docs/planning/gap-analysis/12-ui-gaps-and-plans.md, docs/planning/gap-analysis/15-validation-and-metrics-plan.md
 
 Last updated: This index is maintained alongside planning changes. If you add a new plan/spec, update this file to keep the canonical order intact.
+
+
+
+
+
+## Done
+- Chat SignalR wiring fix: docs/planning/done/05-chat-signalr-wiring-fix.md
+- Agent selection & defaulting fix: docs/planning/done/06-agent-selection-and-defaulting-fix.md
+- Legacy/reference: docs/planning/done/legacy/
+
+
+
+
+## Remaining Work (Pick Items)
+- Team & Plan skeleton wiring (high)
+  - Orchestrator page: add session scoping; call TeamPlanService.SaveTeamAsync/SavePlanAsync; add ìCommit Planî; display committed plan timeline
+  - TeamSetup: bind to real agents via AgentService; save members with real AgentId/Name/Type/Role
+  - PlanEditor: owners list from persisted Team; save PlanStep.Owner as AgentId; reload after save
+  - Tests: TeamPlanService round-trip; Orchestrator page persistence/render
+- Decision protocol foundations (medium)
+  - Add Decision/ADR entities + migrations; define SignalR decision contracts; stub ADR write on commit
+- Tool approvals scaffolding (medium)
+  - Add Approval entity + migrations; hub request/response; ToolExecutor policy hook (feature flag)
+- Timeline & observability polish (low)
+  - Render plan/commit entries; add basic metrics placeholder
+- ProviderFactory cleanup (small)
+  - Typed factory methods/interfaces; DI logging; unit test
+
+
+## Next Sprints (New Plans)
+- Continuous Orchestration Loop: docs/planning/08-continuous-orchestration-loop.md
+- Context Window Management: docs/planning/09-context-window-management.md
+- Role Prompt Library: docs/planning/10-role-prompt-library.md
+
 

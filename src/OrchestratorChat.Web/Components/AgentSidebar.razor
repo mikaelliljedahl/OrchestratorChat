@@ -11,12 +11,15 @@
                       title="Create New Agent" />
     </div>
     
-    <MudList T="object">
+    <MudList T="AgentInfo" Clickable="true">
         @foreach (var agent in Agents)
         {
-            <MudListItem T="object" @onclick="@(() => SelectAgent(agent))"
-                         Class="@(SelectedAgent?.Id == agent.Id ? "selected-agent" : "")"
-                         Style="cursor: pointer;">
+            <MudListItem T="AgentInfo" 
+                         Value="@agent"
+                         @onclick="@(() => SelectAgent(agent))"
+                         Class="@(SelectedAgent?.Id == agent.Id ? "selected-agent mud-selected-item" : "agent-list-item")"
+                         Style="cursor: pointer; border-radius: 8px; margin-bottom: 4px; padding: 12px;"
+                         Ripple="true">
                 <div class="d-flex align-center justify-space-between">
                     <div class="d-flex align-center">
                         <MudAvatar Size="Size.Small" 
@@ -26,7 +29,7 @@
                         </MudAvatar>
                         <div>
                             <div class="d-flex align-center">
-                                <MudText Typo="Typo.body1">@agent.Name</MudText>
+                                <MudText Typo="Typo.body1" Class="font-weight-medium">@agent.Name</MudText>
                                 @if (IsDefaultAgent(agent))
                                 {
                                     <MudIcon Icon="@Icons.Material.Filled.CheckCircle" 

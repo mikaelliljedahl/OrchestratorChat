@@ -87,6 +87,19 @@
         }
     }
 
+    @if (ValidationErrors.Any())
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">
+            <strong>Validation Errors:</strong>
+            <ul class="mt-2">
+                @foreach (var error in ValidationErrors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </MudAlert>
+    }
+
     <div class="d-flex justify-end gap-2 mt-4">
         <MudButton Variant="Variant.Outlined" OnClick="@OnCancel">
             Cancel
@@ -94,7 +107,7 @@
         <MudButton Variant="Variant.Filled" 
                    Color="Color.Primary"
                    OnClick="@SavePlan"
-                   Disabled="@(!_plan.Steps.Any() || string.IsNullOrWhiteSpace(_plan.Name))">
+                   Disabled="@(!_plan.Steps.Any() || string.IsNullOrWhiteSpace(_plan.Name) || ValidationErrors.Any())">
             Save Plan
         </MudButton>
     </div>
@@ -111,6 +124,7 @@
     [Parameter] public List<TeamMember> TeamMembers { get; set; } = new();
     [Parameter] public EventCallback<OrchestratorChat.Core.Orchestration.OrchestrationPlan> OnPlanSaved { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public List<string> ValidationErrors { get; set; } = new();
 
     private OrchestratorChat.Core.Orchestration.OrchestrationPlan _plan = new();
 

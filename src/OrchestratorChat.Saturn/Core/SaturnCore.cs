@@ -77,6 +77,12 @@ public class SaturnCore : ISaturnCore
             ProviderType.OpenRouter => new OpenRouterProvider(
                 settings.GetValueOrDefault("ApiKey")?.ToString() ?? string.Empty),
             ProviderType.Anthropic => new AnthropicProvider(settings),
+            // OpenAIProvider not yet implemented
+            // ProviderType.OpenAI => new OpenAIProvider(new Models.ProviderConfiguration
+            // {
+            //     ApiKey = settings.GetValueOrDefault("ApiKey")?.ToString() ?? string.Empty,
+            //     Settings = settings
+            // }),
             _ => throw new NotSupportedException($"Provider {type} not supported")
         };
 
@@ -97,10 +103,9 @@ public class SaturnCore : ISaturnCore
                 Type = ProviderType.OpenRouter,
                 SupportedModels = new List<string>
                 {
-                    "claude-3-sonnet",
-                    "claude-3-haiku",
-                    "gpt-4",
-                    "gpt-3.5-turbo"
+                    "sonnet-4.0",
+                    "opus-4.1",
+                    "gpt-5"
                 },
                 IsConfigured = _providers.ContainsKey("openrouter")
             },
@@ -115,6 +120,17 @@ public class SaturnCore : ISaturnCore
                     "claude-opus-4-1-20250805"
                 },
                 IsConfigured = _providers.ContainsKey("anthropic")
+            },
+            new()
+            {
+                Id = "openai",
+                Name = "OpenAI",
+                Type = ProviderType.OpenAI,
+                SupportedModels = new List<string>
+                {
+                    "gpt-5"
+                },
+                IsConfigured = _providers.ContainsKey("openai")
             }
         };
     }
@@ -142,7 +158,7 @@ public class SaturnCore : ISaturnCore
         {
             DefaultConfiguration = new SaturnAgentConfiguration
             {
-                Model = "claude-3-sonnet",
+                Model = "sonnet-4.0",
                 Temperature = 0.7,
                 MaxTokens = 4096,
                 EnableTools = true,

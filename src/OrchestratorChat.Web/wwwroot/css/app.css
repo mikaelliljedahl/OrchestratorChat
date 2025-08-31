@@ -89,6 +89,16 @@
 .selected-agent {
     background-color: var(--mud-palette-primary-lighten5);
     border-left: 3px solid var(--mud-palette-primary);
+    font-weight: 500;
+}
+
+.agent-list-item {
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.agent-list-item:hover {
+    background-color: var(--mud-palette-action-hover);
+    transform: translateX(2px);
 }
 
 /* Typing Indicator Styles */

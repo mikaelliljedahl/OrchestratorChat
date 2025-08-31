@@ -66,6 +66,21 @@ public class AgentService : IAgentService
         Console.WriteLine("AgentService.CreateAgentAsync: Persisting agent entity to database (pre-initialization)");
         await _agentRepository.AddAsync(agentEntity);
 
+        // Set as default if no default agent exists
+        try
+        {
+            var existingDefault = await _agentRepository.GetDefaultAgentAsync();
+            if (existingDefault == null)
+            {
+                await _agentRepository.SetDefaultAgentAsync(persistedId);
+                Console.WriteLine($"AgentService.CreateAgentAsync: Set agent '{agentEntity.Name}' as default (no existing default found)");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"AgentService.CreateAgentAsync: Warning - Failed to set agent as default: {ex.Message}");
+        }
+
         var result = await MapEntityToAgentInfo(agentEntity);
         Console.WriteLine($"AgentService.CreateAgentAsync: Returning AgentInfo for '{result.Name}' (Id: {result.Id})");
         return result;

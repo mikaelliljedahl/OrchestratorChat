@@ -1,0 +1,177 @@
+@page "/chat"
+@namespace OrchestratorChat.Web.Pages
+@inherits ComponentBase
+
+<PageTitle>Chat - OrchestratorChat</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large">
+    <MudText Typo="Typo.h4" Class="mb-4">Chat</MudText>
+    
+    <MudGrid>
+        <!-- Recent Sessions Section -->
+        <MudItem xs="12" md="6">
+            <MudText Typo="Typo.h6" Class="mb-3">Recent Sessions</MudText>
+            @if (_recentSessions.Any())
+            {
+                <MudStack Spacing="2">
+                    @foreach (var session in _recentSessions)
+                    {
+                        <MudCard Class="cursor-pointer hover-card" @onclick="@(() => ContinueSession(session.Id))">
+                            <MudCardContent>
+                                <div class="d-flex justify-space-between align-center">
+                                    <div>
+                                        <MudText Typo="Typo.subtitle1">@session.Name</MudText>
+                                        <MudText Typo="Typo.body2" Class="text-muted">
+                                            @GetRelativeTime(session.LastActivity) • @session.MessageCount messages
+                                        </MudText>
+                                    </div>
+                                    <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(session.Status)">
+                                        @session.Status
+                                    </MudChip>
+                                </div>
+                            </MudCardContent>
+                        </MudCard>
+                    }
+                </MudStack>
+                
+                <MudButton Variant="Variant.Text" 
+                          Color="Color.Primary" 
+                          StartIcon="@Icons.Material.Filled.History"
+                          OnClick="@ViewAllSessions"
+                          Class="mt-3">
+                    View All Sessions
+                </MudButton>
+            }
+            else
+            {
+                <MudPaper Class="pa-4 text-center">
+                    <MudIcon Icon="@Icons.Material.Filled.History" Size="Size.Large" Class="text-muted mb-2" />
+                    <MudText Typo="Typo.body1" Class="text-muted">No recent sessions</MudText>
+                    <MudText Typo="Typo.body2" Class="text-muted mb-3">Start a new chat with an agent below</MudText>
+                </MudPaper>
+            }
+        </MudItem>
+        
+        <!-- Available Agents Section -->
+        <MudItem xs="12" md="6">
+            <MudText Typo="Typo.h6" Class="mb-3">Available Agents</MudText>
+            @if (_loading)
+            {
+                <div class="d-flex justify-center pa-4">
+                    <MudProgressCircular Indeterminate="true" />
+                </div>
+            }
+            else if (_agents.Any())
+            {
+                <MudStack Spacing="2">
+                    @foreach (var agent in _agents)
+                    {
+                        <MudCard Class="cursor-pointer hover-card" @onclick="@(() => StartChatWithAgent(agent.Id))">
+                            <MudCardContent>
+                                <div class="d-flex justify-space-between align-center">
+                                    <div class="d-flex align-center gap-3">
+                                        <MudAvatar Size="Size.Medium" Color="@GetAgentColor(agent.Type)">
+                                            @agent.Name.Substring(0, 1).ToUpper()
+                                        </MudAvatar>
+                                        <div>
+                                            <MudText Typo="Typo.subtitle1">@agent.Name</MudText>
+                                            <MudText Typo="Typo.body2" Class="text-muted">
+                                                @agent.Type.ToString()
+                                            </MudText>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-center gap-2">
+                                        <MudChip T="string" Size="Size.Small" Color="@GetAgentStatusColor(agent.Status)">
+                                            @agent.Status
+                                        </MudChip>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Chat" 
+                                                      Size="Size.Small"
+                                                      Color="Color.Primary"
+                                                      title="Start Chat" />
+                                    </div>
+                                </div>
+                            </MudCardContent>
+                        </MudCard>
+                    }
+                </MudStack>
+                
+                <MudButton Variant="Variant.Outlined" 
+                          Color="Color.Primary" 
+                          StartIcon="@Icons.Material.Filled.Add"
+                          OnClick="@CreateNewAgent"
+                          Class="mt-3"
+                          FullWidth="true">
+                    Create New Agent
+                </MudButton>
+            }
+            else
+            {
+                <MudPaper Class="pa-4 text-center">
+                    <MudIcon Icon="@Icons.Material.Filled.SmartToy" Size="Size.Large" Class="text-muted mb-2" />
+                    <MudText Typo="Typo.body1" Class="text-muted">No agents configured</MudText>
+                    <MudText Typo="Typo.body2" Class="text-muted mb-3">Create your first agent to start chatting</MudText>
+                    <MudButton Variant="Variant.Filled" 
+                              Color="Color.Primary" 
+                              StartIcon="@Icons.Material.Filled.Add"
+                              OnClick="@CreateNewAgent">
+                        Create First Agent
+                    </MudButton>
+                </MudPaper>
+            }
+        </MudItem>
+    </MudGrid>
+    
+    <!-- Quick Actions -->
+    <MudPaper Class="pa-4 mt-6">
+        <MudText Typo="Typo.h6" Class="mb-3">Quick Actions</MudText>
+        <MudGrid>
+            <MudItem xs="12" sm="4">
+                <MudButton Variant="Variant.Outlined" 
+                          Color="Color.Primary" 
+                          StartIcon="@Icons.Material.Filled.AccountTree"
+                          OnClick="@StartOrchestrationSession"
+                          FullWidth="true">
+                    New Orchestrated Session
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudButton Variant="Variant.Outlined" 
+                          Color="Color.Secondary" 
+                          StartIcon="@Icons.Material.Filled.Group"
+                          OnClick="@StartTeamSession"
+                          FullWidth="true">
+                    New Team Session
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudButton Variant="Variant.Outlined" 
+                          Color="Color.Info" 
+                          StartIcon="@Icons.Material.Filled.Bolt"
+                          OnClick="@QuickChatWithDefault"
+                          FullWidth="true"
+                          Disabled="@(_defaultAgent == null)">
+                    Quick Chat @(_defaultAgent != null ? $"with {_defaultAgent.Name}" : "(No Default)")
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+</MudContainer>
+
+<CreateAgentDialog IsVisible="_showCreateAgentDialog" 
+                   IsVisibleChanged="@OnCreateAgentDialogVisibilityChanged" 
+                   OnAgentCreated="@OnAgentCreated" />
+
+<style>
+    .hover-card {
+        transition: all 0.2s ease-in-out;
+    }
+    
+    .hover-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .cursor-pointer {
+        cursor: pointer;
+    }
+</style>

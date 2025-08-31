@@ -7,7 +7,7 @@ namespace OrchestratorChat.Saturn.Models;
 /// </summary>
 public class SaturnAgentConfiguration
 {
-    public string Model { get; set; } = "claude-3-sonnet";
+    public string Model { get; set; } = "claude-sonnet-4-20250514";
     public double Temperature { get; set; } = 0.7;
     public int MaxTokens { get; set; } = 4096;
     public string SystemPrompt { get; set; } = string.Empty;
@@ -64,7 +64,8 @@ public class MultiAgentConfiguration
 public enum ProviderType
 {
     OpenRouter,
-    Anthropic
+    Anthropic,
+    OpenAI
 }
 
 /// <summary>

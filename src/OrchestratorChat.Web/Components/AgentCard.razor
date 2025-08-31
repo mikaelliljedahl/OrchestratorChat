@@ -1,6 +1,6 @@
-@using OrchestratorChat.Web.Models
+@namespace OrchestratorChat.Web.Components
+@inherits ComponentBase
 @using OrchestratorChat.Core.Agents
-@inject NavigationManager Navigation
 
 <MudCard Class="agent-card" @onclick="@OnClick">
     <MudCardContent>
@@ -49,25 +49,3 @@
                        OnClick="@OnClick" />
     </MudCardActions>
 </MudCard>
-
-@code {
-    [Parameter] public AgentInfo Agent { get; set; } = new();
-    [Parameter] public EventCallback OnClick { get; set; }
-    
-    private Color GetStatusColor()
-    {
-        return Agent.Status switch
-        {
-            AgentStatus.Ready => Color.Success,
-            AgentStatus.Busy => Color.Warning,
-            AgentStatus.Error => Color.Error,
-            AgentStatus.Initializing => Color.Info,
-            _ => Color.Default
-        };
-    }
-    
-    private void OnChatClick()
-    {
-        Navigation.NavigateTo($"/chat/{Agent.Id}");
-    }
-}

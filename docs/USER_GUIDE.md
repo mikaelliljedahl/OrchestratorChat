@@ -87,8 +87,8 @@ Anthropic (for Saturn)
 - “Nothing happens when I send a message”
   - Check Health panel for provider or connection issues; follow the single fix action
 
-- “I created a Saturn agent but Chat still uses Claude”
-  - This is addressed by the onboarding alignment work (see planning docs). If not yet deployed in your build, use Claude CLI path or follow `docs/planning/agent-session-integration-plan.md`.
+- "I created a Saturn agent but Chat still uses Claude"
+  - Chat routes to the stored agent via the shared registry. If you still see issues, ensure the agent exists in Dashboard and its provider is configured (OpenRouter key or Anthropic OAuth once available in UI).
 
 - SignalR connection issues
   - Check TLS/ports 5000/5001
@@ -107,7 +107,7 @@ Anthropic (for Saturn)
 
 ## Current Limitations
 
-- If the wiring changes in `docs/planning/agent-session-integration-plan.md` are not yet applied in your build, prefer the Claude path to avoid SignalR defaulting to Claude unexpectedly. The onboarding docs in `docs/planning/ux-onboarding` describe the intended fixes and UI.
+- Anthropic OAuth UI flow for Saturn is under development; until available, use OpenRouter for Saturn or use Claude CLI.
 
 ## More Docs
 

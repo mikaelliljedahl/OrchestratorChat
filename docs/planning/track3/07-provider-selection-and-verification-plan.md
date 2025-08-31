@@ -1,5 +1,7 @@
 # Provider Selection & Verification — UX/Service Plan
 
+Status: Current (implements gating/verification for Claude CLI, OpenRouter API key, and Anthropic OAuth)
+
 ## Problem
 - The current provider selection flow treats Saturn as OpenRouter-only, requiring an OpenRouter API key even when the user prefers Anthropic OAuth. Verification and gating logic do not account for Anthropic OAuth tokens.
 
@@ -65,4 +67,3 @@
 - Service: IProviderVerificationService, ProviderVerificationService
 - API: ProvidersController → `/api/providers/status` (aggregated)
 - TokenStore: used indirectly; do not expose in UI beyond status.
-

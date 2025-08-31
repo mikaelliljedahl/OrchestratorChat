@@ -1,7 +1,7 @@
+@namespace OrchestratorChat.Web.Components
+@inherits ComponentBase
 @using OrchestratorChat.Core.Teams
 @using OrchestratorChat.Core.Agents
-@using OrchestratorChat.Web.Services
-@inject IAgentService AgentService
 
 <MudPaper Class="pa-4 mb-4">
     <MudText Typo="Typo.h6" Class="mb-4">Team Setup</MudText>
@@ -85,73 +85,3 @@
         </MudButton>
     </div>
 </MudPaper>
-
-@code {
-    [Parameter] public Team Team { get; set; } = new();
-    [Parameter] public EventCallback<Team> OnTeamSaved { get; set; }
-    [Parameter] public EventCallback OnCancel { get; set; }
-
-    private Team _team = new();
-    private List<AgentInfo> _availableAgents = new();
-    private AgentInfo? _selectedAgent;
-    private string _selectedRole = "contributor";
-
-    protected override async Task OnInitializedAsync()
-    {
-        _team = Team ?? new Team();
-        
-        // Load available agents from AgentService
-        _availableAgents = await AgentService.GetConfiguredAgentsAsync();
-        
-        if (_availableAgents.Any())
-        {
-            _selectedAgent = _availableAgents.First();
-        }
-    }
-
-    private void AddTeamMember()
-    {
-        if (_selectedAgent == null || string.IsNullOrWhiteSpace(_selectedRole))
-            return;
-
-        // Check if agent already exists in team
-        if (_team.Members.Any(m => m.AgentId.Equals(_selectedAgent.Id, StringComparison.OrdinalIgnoreCase)))
-        {
-            // Could show a snackbar here in a real implementation
-            return;
-        }
-
-        var member = new TeamMember
-        {
-            TeamId = _team.Id,
-            AgentId = _selectedAgent.Id, // Use real agent ID
-            AgentType = _selectedAgent.Type,
-            AgentName = _selectedAgent.Name,
-            Role = _selectedRole,
-            JoinedAt = DateTime.UtcNow
-        };
-
-        _team.Members.Add(member);
-        
-        // Clear form
-        _selectedAgent = _availableAgents.FirstOrDefault();
-        _selectedRole = "contributor";
-        
-        StateHasChanged();
-    }
-
-    private void RemoveTeamMember(TeamMember member)
-    {
-        _team.Members.Remove(member);
-        StateHasChanged();
-    }
-
-    private async Task SaveTeam()
-    {
-        if (_team.Members.Any())
-        {
-            _team.UpdatedAt = DateTime.UtcNow;
-            await OnTeamSaved.InvokeAsync(_team);
-        }
-    }
-}

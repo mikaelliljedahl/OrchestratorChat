@@ -10,6 +10,7 @@
 @inject IAgentService AgentService
 @inject ISessionService SessionService
 @inject TeamPlanService TeamPlanService
+@inject PlanMappingService PlanMappingService
 
 <PageTitle>Multi-Agent Orchestrator</PageTitle>
 
@@ -52,85 +53,49 @@
     
     <MudTabs Elevation="2" Rounded="true" Class="mb-4">
         <MudTabPanel Text="Team Setup" Icon="@Icons.Material.Filled.Group">
-            <TeamSetup Team="@_currentTeam" 
-                      OnTeamSaved="@OnTeamSaved" 
-                      OnCancel="@(() => { /* Handle cancel */ })" />
+            @if (_currentSession == null)
+            {
+                <MudAlert Severity="Severity.Warning" Class="mb-4">
+                    Please create or load a session first using the buttons above.
+                </MudAlert>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Class="mb-4">
+                    <strong>Step 1:</strong> Add agents to your team before creating a plan. Each team member can be assigned as an owner for plan steps.
+                </MudAlert>
+                <TeamSetup Team="@_currentTeam" 
+                          OnTeamSaved="@OnTeamSaved" 
+                          OnCancel="@(() => { /* Handle cancel */ })" />
+            }
         </MudTabPanel>
         
         <MudTabPanel Text="Plan Editor" Icon="@Icons.Material.Filled.Assignment">
-            <PlanEditor Plan="@_currentPlan" 
-                       TeamMembers="@_currentTeam.Members"
-                       OnPlanSaved="@OnPlanSaved"
-                       OnCancel="@(() => { /* Handle cancel */ })" />
-        </MudTabPanel>
-        
-        <MudTabPanel Text="Legacy Planning" Icon="@Icons.Material.Filled.Settings">
-            <MudCard>
-                <MudCardContent>
-                    <MudText Typo="Typo.h5" Class="mb-3">Legacy Orchestration Planning</MudText>
-                
-                <MudTextField @bind-Value="_goal" 
-                            Label="Goal" 
-                            Variant="Variant.Outlined"
-                            Lines="3"
-                            HelperText="Describe what you want to accomplish" />
-                
-                <MudSelect @bind-Value="_strategy" 
-                         Label="Strategy" 
-                         Variant="Variant.Outlined"
-                         Class="mt-3">
-                    <MudSelectItem Value="Core.Orchestration.OrchestrationStrategy.Sequential">Sequential</MudSelectItem>
-                    <MudSelectItem Value="Core.Orchestration.OrchestrationStrategy.Parallel">Parallel</MudSelectItem>
-                    <MudSelectItem Value="Core.Orchestration.OrchestrationStrategy.Adaptive">Adaptive</MudSelectItem>
-                </MudSelect>
-                
-                <MudText Typo="Typo.subtitle1" Class="mt-3 mb-2">Select Agents</MudText>
-                <div class="d-flex flex-wrap gap-2">
-                    @foreach (var agent in _availableAgents)
-                    {
-                        <MudChip T="string" Value="@agent.Id" 
-                                Color="@(_selectedAgentIds.Contains(agent.Id) ? Color.Primary : Color.Default)" 
-                                Variant="Variant.Outlined"
-                                OnClick="@(() => ToggleAgent(agent.Id))">
-                            @agent.Name
-                        </MudChip>
-                    }
-                </div>
-                
-                <MudButton Variant="Variant.Filled" 
-                         Color="Color.Primary"
-                         OnClick="@CreatePlan"
-                         Disabled="@_isCreatingPlan"
-                         Class="mt-3">
-                    @if (_isCreatingPlan)
-                    {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
-                        <span class="ml-2">Creating Plan...</span>
-                    }
-                    else
-                    {
-                        <span>Create Plan</span>
-                    }
-                </MudButton>
-                </MudCardContent>
-            </MudCard>
-            
-            @if (_legacyPlan != null)
+            @if (_currentSession == null)
             {
-                <OrchestrationPlan Plan="@_legacyPlan" 
-                                  OnExecute="@ExecutePlan"
-                                  Progress="@_progress" />
+                <MudAlert Severity="Severity.Warning" Class="mb-4">
+                    Please create or load a session first using the buttons above.
+                </MudAlert>
+            }
+            else if (!_currentTeam.Members.Any())
+            {
+                <MudAlert Severity="Severity.Warning" Class="mb-4">
+                    <strong>No team members available!</strong> Please go to the "Team Setup" tab and add agents to your team first. Team members are required to assign ownership of plan steps.
+                </MudAlert>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Class="mb-4">
+                    <strong>Step 2:</strong> Create your plan and assign team members as owners for each step.
+                </MudAlert>
+                <PlanEditor Plan="@_currentPlan" 
+                           TeamMembers="@_currentTeam.Members"
+                           OnPlanSaved="@OnPlanSaved"
+                           ValidationErrors="@_planValidationErrors"
+                           OnCancel="@(() => { /* Handle cancel */ })" />
             }
         </MudTabPanel>
     </MudTabs>
-    
-    @if (_executedSteps.Any())
-    {
-        <MudPaper Class="pa-4">
-            <MudText Typo="Typo.h6" Class="mb-3">Execution Timeline</MudText>
-            <OrchestrationTimeline Steps="@_executedSteps" />
-        </MudPaper>
-    }
 </MudContainer>
 
 @code {
@@ -142,20 +107,10 @@
     
     // Plan Editor State
     private Core.Orchestration.OrchestrationPlan _currentPlan = new();
-    
-    // Legacy Planning State
-    private string _goal = "";
-    private Core.Orchestration.OrchestrationStrategy _strategy = Core.Orchestration.OrchestrationStrategy.Adaptive;
-    private List<AgentInfo> _availableAgents = new();
-    private HashSet<string> _selectedAgentIds = new();
-    private Core.Orchestration.OrchestrationPlan? _legacyPlan;
-    private OrchestratorChat.Web.Models.OrchestrationProgress? _progress;
-    private List<ExecutedStep> _executedSteps = new();
-    private bool _isCreatingPlan = false;
+    private List<string> _planValidationErrors = new();
     
     protected override async Task OnInitializedAsync()
     {
-        await LoadAvailableAgents();
         await InitializeSession();
     }
     
@@ -201,19 +156,8 @@
             var existingPlan = await TeamPlanService.GetPlanAsync(_currentSession.Id);
             if (existingPlan != null)
             {
-                // Map from Core.Plans.Plan to Core.Orchestration.OrchestrationPlan
-                _currentPlan = new Core.Orchestration.OrchestrationPlan
-                {
-                    Name = existingPlan.Name,
-                    Goal = existingPlan.Goal,
-                    Steps = existingPlan.Steps.Select(s => new Core.Orchestration.OrchestrationStep
-                    {
-                        Name = s.Title,
-                        Description = s.Description,
-                        AgentId = s.Owner,
-                        Order = s.StepOrder
-                    }).ToList()
-                };
+                // Use PlanMappingService to map from Core.Plans.Plan to Core.Orchestration.OrchestrationPlan
+                _currentPlan = PlanMappingService.MapToOrchestrationPlan(existingPlan);
             }
             
             StateHasChanged();
@@ -224,29 +168,6 @@
         }
     }
     
-    private async Task LoadAvailableAgents()
-    {
-        try
-        {
-            _availableAgents = await AgentService.GetConfiguredAgentsAsync();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading agents: {ex.Message}");
-        }
-    }
-    
-    private void ToggleAgent(string agentId)
-    {
-        if (_selectedAgentIds.Contains(agentId))
-        {
-            _selectedAgentIds.Remove(agentId);
-        }
-        else
-        {
-            _selectedAgentIds.Add(agentId);
-        }
-    }
     
     // Team Setup handlers
     private async Task OnTeamSaved(Team team)
@@ -257,7 +178,9 @@
         {
             _currentTeam = await TeamPlanService.SaveTeamAsync(_currentSession.Id, team);
             Console.WriteLine($"Team saved with {team.Members.Count} members for session {_currentSession.Id}");
-            StateHasChanged();
+            
+            // Force UI refresh to update PlanEditor with new team members
+            await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
         {
@@ -270,28 +193,24 @@
     {
         if (_currentSession == null) return;
         
+        // Validate plan before saving
+        _planValidationErrors = ValidatePlan(plan);
+        if (_planValidationErrors.Any())
+        {
+            StateHasChanged();
+            return;
+        }
+        
         try
         {
-            // Map from OrchestrationPlan to Core.Plans.Plan
-            var corePlan = new Core.Plans.Plan
-            {
-                SessionId = _currentSession.Id,
-                Name = plan.Name,
-                Goal = plan.Goal,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-                Steps = plan.Steps.Select(s => new Core.Plans.PlanStep
-                {
-                    StepOrder = s.Order,
-                    Title = s.Name,
-                    Description = s.Description,
-                    Owner = s.AgentId,
-                    AcceptanceCriteria = string.Empty // OrchestrationStep doesn't have acceptance criteria
-                }).ToList()
-            };
+            // Use PlanMappingService to map from OrchestrationPlan to Core.Plans.Plan
+            var corePlan = PlanMappingService.MapToCorePlan(plan, _currentSession.Id);
             
             var savedPlan = await TeamPlanService.SavePlanAsync(_currentSession.Id, corePlan);
             Console.WriteLine($"Plan saved: {savedPlan.Name} with {savedPlan.Steps.Count} steps for session {_currentSession.Id}");
+            
+            // Clear validation errors on successful save
+            _planValidationErrors.Clear();
             StateHasChanged();
         }
         catch (Exception ex)
@@ -300,64 +219,50 @@
         }
     }
     
-    // Legacy planning
-    private async Task CreatePlan()
+    /// <summary>
+    /// Validates a plan to ensure all step owners are valid team members
+    /// </summary>
+    /// <param name="plan">The plan to validate</param>
+    /// <returns>List of validation error messages</returns>
+    private List<string> ValidatePlan(Core.Orchestration.OrchestrationPlan plan)
     {
-        if (string.IsNullOrWhiteSpace(_goal) || _selectedAgentIds.Count == 0)
-            return;
-            
-        _isCreatingPlan = true;
+        var errors = new List<string>();
         
-        try
+        if (plan == null)
         {
-            var request = new Core.Orchestration.OrchestrationRequest
-            {
-                Goal = _goal,
-                Strategy = _strategy,
-                AvailableAgentIds = _selectedAgentIds.ToList(),
-                MaxSteps = 10,
-                TimeoutMinutes = 30
-            };
+            errors.Add("Plan cannot be null.");
+            return errors;
+        }
+        
+        if (string.IsNullOrWhiteSpace(plan.Name))
+        {
+            errors.Add("Plan name is required.");
+        }
+        
+        if (!plan.Steps.Any())
+        {
+            errors.Add("Plan must have at least one step.");
+        }
+        
+        // Get valid team member agent IDs
+        var validAgentIds = _currentTeam.Members.Select(m => m.AgentId).ToHashSet();
+        
+        // Check each step for valid owner
+        foreach (var step in plan.Steps)
+        {
+            var ownerId = !string.IsNullOrEmpty(step.AssignedAgentId) ? step.AssignedAgentId : step.AgentId;
             
-            _legacyPlan = await OrchestrationService.CreatePlanAsync(request);
+            if (string.IsNullOrEmpty(ownerId))
+            {
+                errors.Add($"Step '{step.Name}' (Step {step.Order}) must have an owner assigned.");
+            }
+            else if (!validAgentIds.Contains(ownerId))
+            {
+                errors.Add($"Step '{step.Name}' (Step {step.Order}) has an invalid owner. The owner must be a team member.");
+            }
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error creating plan: {ex.Message}");
-        }
-        finally
-        {
-            _isCreatingPlan = false;
-        }
+        
+        return errors;
     }
     
-    private async Task ExecutePlan()
-    {
-        if (_legacyPlan == null) return;
-        
-        try
-        {
-            var progress = new Progress<OrchestratorChat.Web.Models.OrchestrationProgress>(p =>
-            {
-                _progress = p;
-                InvokeAsync(StateHasChanged);
-            });
-            
-            var result = await OrchestrationService.ExecutePlanAsync(_legacyPlan, progress);
-            
-            // Update timeline with results
-            _executedSteps = result.StepResults.Select(r => new ExecutedStep
-            {
-                Name = r.StepName,
-                Status = r.Success ? "Success" : "Failed",
-                Duration = r.Duration,
-                Output = r.Output?.ToString() ?? "",
-                Timestamp = r.StartTime
-            }).ToList();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error executing plan: {ex.Message}");
-        }
-    }
 }
