@@ -2,6 +2,7 @@ using OrchestratorChat.Saturn.Models;
 using OrchestratorChat.Saturn.Providers.Streaming;
 using OrchestratorChat.Saturn.Providers.OpenRouter.Models;
 using OrchestratorChat.Saturn.Providers.Anthropic.Models;
+using OrchestratorChat.Saturn.Providers.Anthropic;
 using System.Text.Json;
 using System.Text;
 using System.Runtime.CompilerServices;
@@ -223,79 +224,171 @@ public class AnthropicProvider : LLMProviderBase
     private ProviderConfiguration? _configuration;
     private HttpClient? _httpClient;
     private readonly Dictionary<string, object> _settings;
+    private TokenStore? _tokenStore;
 
     public AnthropicProvider(ProviderConfiguration configuration)
     {
         _configuration = configuration;
         _settings = new Dictionary<string, object>();
+        _tokenStore = new TokenStore();
     }
 
     // Legacy constructor for backward compatibility
     public AnthropicProvider(Dictionary<string, object> settings)
     {
         _settings = settings;
+        _tokenStore = new TokenStore();
     }
 
     public override async Task InitializeAsync()
     {
-        // Try to get API key from environment or settings
+        _httpClient = new HttpClient();
+        _httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgent);
+        
+        // Attempt to load OAuth tokens first
+        try
+        {
+            var tokens = await _tokenStore!.LoadTokensAsync();
+            if (tokens != null && (!tokens.IsExpired || !string.IsNullOrEmpty(tokens.RefreshToken)))
+            {
+                // Handle token refresh if needed
+                if (tokens.NeedsRefresh && !string.IsNullOrEmpty(tokens.RefreshToken))
+                {
+                    var authService = new AnthropicAuthService();
+                    var refreshedTokens = await authService.RefreshTokensAsync(tokens.RefreshToken);
+                    if (refreshedTokens != null)
+                    {
+                        tokens = refreshedTokens;
+                    }
+                    authService.Dispose();
+                }
+                
+                // Use valid/refreshable OAuth tokens
+                if (!tokens.IsExpired && !string.IsNullOrEmpty(tokens.AccessToken))
+                {
+                    _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {tokens.AccessToken}");
+                    _oauthToken = tokens.AccessToken;
+                    IsInitialized = true;
+                    return;
+                }
+            }
+        }
+        catch
+        {
+            // OAuth token loading failed, fall back to API key
+        }
+        
+        // Fallback to API key authentication
         _apiKey = _settings.ContainsKey("ApiKey") ? _settings["ApiKey"]?.ToString() : null;
         _apiKey ??= Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
         
-        if (!string.IsNullOrEmpty(_apiKey) || !string.IsNullOrEmpty(_oauthToken))
+        if (!string.IsNullOrEmpty(_apiKey))
         {
-            _httpClient = new HttpClient();
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgent);
-            
-            if (!string.IsNullOrEmpty(_oauthToken))
-            {
-                // Use OAuth Bearer token (remove x-api-key header when using OAuth)
-                _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_oauthToken}");
-            }
-            else if (!string.IsNullOrEmpty(_apiKey))
-            {
-                // Use API key authentication
-                _httpClient.DefaultRequestHeaders.Add("x-api-key", _apiKey);
-            }
+            _httpClient.DefaultRequestHeaders.Add("x-api-key", _apiKey);
+            IsInitialized = true;
         }
-        
-        IsInitialized = !string.IsNullOrEmpty(_apiKey) || !string.IsNullOrEmpty(_oauthToken);
-        await Task.CompletedTask;
+        else
+        {
+            // Neither OAuth tokens nor API key available - graceful error
+            IsInitialized = false;
+        }
     }
 
     public override async Task InitializeAsync(ProviderConfiguration configuration)
     {
         _configuration = configuration;
-        _apiKey = configuration.ApiKey;
+        _httpClient = new HttpClient();
+        _httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgent);
         
-        // Check for OAuth token in settings
-        if (configuration.Settings.ContainsKey("OAuthToken"))
+        // Attempt to load OAuth tokens first
+        try
         {
-            _oauthToken = configuration.Settings["OAuthToken"]?.ToString();
+            var tokens = await _tokenStore!.LoadTokensAsync();
+            if (tokens != null && (!tokens.IsExpired || !string.IsNullOrEmpty(tokens.RefreshToken)))
+            {
+                // Handle token refresh if needed
+                if (tokens.NeedsRefresh && !string.IsNullOrEmpty(tokens.RefreshToken))
+                {
+                    var authService = new AnthropicAuthService();
+                    var refreshedTokens = await authService.RefreshTokensAsync(tokens.RefreshToken);
+                    if (refreshedTokens != null)
+                    {
+                        tokens = refreshedTokens;
+                    }
+                    authService.Dispose();
+                }
+                
+                // Use valid/refreshable OAuth tokens
+                if (!tokens.IsExpired && !string.IsNullOrEmpty(tokens.AccessToken))
+                {
+                    _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {tokens.AccessToken}");
+                    _oauthToken = tokens.AccessToken;
+                    IsInitialized = true;
+                    return;
+                }
+            }
+        }
+        catch
+        {
+            // OAuth token loading failed, fall back to API key
         }
         
-        // Fallback to environment variable if not in config
+        // Fallback to API key authentication
+        _apiKey = configuration.ApiKey;
         _apiKey ??= Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
         
-        if (!string.IsNullOrEmpty(_apiKey) || !string.IsNullOrEmpty(_oauthToken))
+        if (!string.IsNullOrEmpty(_apiKey))
         {
-            _httpClient = new HttpClient();
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgent);
-            
-            if (!string.IsNullOrEmpty(_oauthToken))
+            _httpClient.DefaultRequestHeaders.Add("x-api-key", _apiKey);
+            IsInitialized = true;
+        }
+        else
+        {
+            // Neither OAuth tokens nor API key available - graceful error
+            IsInitialized = false;
+        }
+    }
+
+    /// <summary>
+    /// Ensures OAuth tokens are valid before making requests, refreshing if necessary
+    /// </summary>
+    /// <returns>True if authentication is ready, false if credentials are missing</returns>
+    private async Task<bool> EnsureValidAuthenticationAsync()
+    {
+        // Skip token refresh if using API key authentication
+        if (!string.IsNullOrEmpty(_apiKey))
+        {
+            return true;
+        }
+        
+        // Check if OAuth token needs refresh
+        if (!string.IsNullOrEmpty(_oauthToken))
+        {
+            try
             {
-                // Use OAuth Bearer token (remove x-api-key header when using OAuth)
-                _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_oauthToken}");
+                var tokens = await _tokenStore!.LoadTokensAsync();
+                if (tokens != null && tokens.NeedsRefresh && !string.IsNullOrEmpty(tokens.RefreshToken))
+                {
+                    var authService = new AnthropicAuthService();
+                    var refreshedTokens = await authService.RefreshTokensAsync(tokens.RefreshToken);
+                    if (refreshedTokens != null)
+                    {
+                        // Update HTTP client headers with new token
+                        _httpClient!.DefaultRequestHeaders.Remove("Authorization");
+                        _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {refreshedTokens.AccessToken}");
+                        _oauthToken = refreshedTokens.AccessToken;
+                    }
+                    authService.Dispose();
+                }
+                return !string.IsNullOrEmpty(_oauthToken);
             }
-            else if (!string.IsNullOrEmpty(_apiKey))
+            catch
             {
-                // Use API key authentication
-                _httpClient.DefaultRequestHeaders.Add("x-api-key", _apiKey);
+                return false;
             }
         }
         
-        IsInitialized = !string.IsNullOrEmpty(_apiKey) || !string.IsNullOrEmpty(_oauthToken);
-        await Task.CompletedTask;
+        return false;
     }
 
     /// <summary>
@@ -340,6 +433,12 @@ public class AnthropicProvider : LLMProviderBase
         if (_httpClient == null || !IsInitialized)
         {
             throw new InvalidOperationException("Anthropic provider not initialized");
+        }
+
+        // Ensure valid authentication before making request
+        if (!await EnsureValidAuthenticationAsync())
+        {
+            throw new InvalidOperationException("Authentication failed - no valid credentials available");
         }
 
         var processedMessages = EnsureClaudeCodeSystemPrompt(messages);

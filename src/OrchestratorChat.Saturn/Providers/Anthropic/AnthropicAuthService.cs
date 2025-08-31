@@ -203,11 +203,11 @@ public class AnthropicAuthService : IDisposable
     /// <summary>
     /// Logs out by clearing stored tokens
     /// </summary>
-    public void Logout()
+    public async Task LogoutAsync()
     {
         try
         {
-            _tokenStore.DeleteTokens();
+            await _tokenStore.ClearTokensAsync();
             Console.WriteLine("Logged out successfully. Tokens cleared.");
         }
         catch (Exception ex)

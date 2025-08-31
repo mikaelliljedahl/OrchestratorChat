@@ -9,4 +9,6 @@ public interface IAgentRepository : IRepository<AgentEntity>
     Task<bool> UpdateConfigurationAsync(string agentId, AgentConfigurationEntity config);
     Task<AgentUsageStatistics?> GetUsageStatisticsAsync(string agentId, DateTime? from = null);
     Task IncrementUsageAsync(string agentId, int messageCount, long tokensUsed);
+    Task<AgentEntity?> GetDefaultAgentAsync();
+    Task<bool> SetDefaultAgentAsync(string agentId);
 }

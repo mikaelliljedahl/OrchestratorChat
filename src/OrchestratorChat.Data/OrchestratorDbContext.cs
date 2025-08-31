@@ -72,6 +72,7 @@ public class OrchestratorDbContext : DbContext
             entity.HasIndex(e => e.Name).IsUnique();
             entity.HasIndex(e => e.Type);
             entity.HasIndex(e => e.IsActive);
+            entity.HasIndex(e => e.IsDefault);
             
             entity.HasOne(e => e.Configuration)
                 .WithOne(c => c.Agent)

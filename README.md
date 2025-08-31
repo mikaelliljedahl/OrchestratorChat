@@ -19,12 +19,37 @@ dotnet run
 
 OrchestratorChat enables simultaneous coordination of multiple AI agents through a web interface. Think of it as a conductor for an orchestra of AI assistants - each playing their part to achieve complex goals.
 
-### Key Features
+## Product Vision & Operating Model
+
+This project follows a clear product vision and team operating model to enable practical multi-agent collaboration with human-in-the-loop controls, observability, and safety. See the full document: docs/planning/00-product-vision-and-team-operating-model.md
+
+- Vision: Specialized agents (coding, research, planning, QA) coordinate to deliver software with minimal supervision.
+- Guiding Principles: Autonomy with accountability, policy-driven approvals, least privilege, deterministic handoffs, observability first.
+- MVP Scope: Create a session, form a team, plan, execute, review, and wrap up with auditable artifacts.
+- Non-Goals (MVP): No production deployment, no cross-repo orchestration, no long-term memory beyond snapshots.
+
+### Current Features
 - **Multi-Agent Coordination**: Run multiple AI agents simultaneously
 - **Real-time Chat Interface**: Blazor-based web UI with live updates
 - **Session Management**: Track conversations and agent interactions
 - **Tool Execution**: Agents can use tools (file operations, web search, etc.)
 - **Orchestration Plans**: Define strategies for agent collaboration
+
+- **SignalR Streaming**: Real-time messaging and event routing
+- **Data Persistence**: Entity Framework Core with SQLite
+- **Console Client**: Headless operation via a standalone console client
+
+### Planned Features
+- **Collaboration Protocol Spec**: Formalize message types, routing, and state machine
+- **Roles & Capabilities Catalog**: Define agent roles and required tools/models
+- **Orchestration Modes & Policies**: Leader-led, round-robin, vote-based strategies
+- **Team Runbook**: SOPs, decision templates, and handoff patterns
+- **Decision Policies**: Propose/Deliberate/Commit with quorum and timeouts
+- **Safety & Governance**: Policy-driven approvals, budgets, sandboxing, red-flag detection
+- **Observability Enhancements**: Timeline details, health dashboards, and metrics
+- **Post-MVP Reach**: Production deployment, cross-repo orchestration, long-term memory
+
+Planning index (start here): docs/planning/README.md
 
 ## 🏗️ Architecture
 
@@ -150,6 +175,3 @@ This is an active development project. See [CLAUDE.md](CLAUDE.md) for detailed t
 - **API Documentation**: SignalR hubs available at `/hubs/orchestrator` and `/hubs/agent`
 
 ---
-
-*Last Updated: August 30, 2025*
-*Version: 1.3 (All Tracks Complete)*

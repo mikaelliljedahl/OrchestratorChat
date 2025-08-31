@@ -1,4 +1,8 @@
 @using OrchestratorChat.Core.Agents
+@using OrchestratorChat.Web.Models
+@using Microsoft.JSInterop
+@inject HttpClient HttpClient
+@inject IJSRuntime JSRuntime
 
 <MudDialog Visible="@IsVisible" VisibleChanged="@OnVisibilityChanged">
     <TitleContent>
@@ -36,26 +40,95 @@
                              Placeholder="@Environment.CurrentDirectory" />
             </MudItem>
             
-            @if (_selectedType == AgentType.Saturn)
-            {
-                <MudItem xs="12">
-                    <MudSelect @bind-Value="_selectedModel" 
-                              Label="Model" 
-                              Variant="Variant.Outlined">
+            <MudItem xs="12">
+                <MudSelect @bind-Value="_selectedModel" 
+                          Label="Model" 
+                          Variant="Variant.Outlined">
+                    @if (_selectedType == AgentType.Claude)
+                    {
+                        <MudSelectItem Value="@("claude-sonnet-4-20250514")">Claude Sonnet 4</MudSelectItem>
+                        <MudSelectItem Value="@("claude-3-5-sonnet-20241022")">Claude 3.5 Sonnet</MudSelectItem>
+                    }
+                    else if (_selectedType == AgentType.Saturn)
+                    {
                         <MudSelectItem Value="@("claude-sonnet-4-20250514")">Claude Sonnet 4</MudSelectItem>
                         <MudSelectItem Value="@("claude-3-5-sonnet-20241022")">Claude 3.5 Sonnet</MudSelectItem>
                         <MudSelectItem Value="@("gpt-4o")">GPT-4o</MudSelectItem>
                         <MudSelectItem Value="@("gpt-4o-mini")">GPT-4o Mini</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            
+            @if (_selectedType == AgentType.Saturn)
+            {
+                <MudItem xs="12">
+                    <MudSelect T="string" 
+                              Value="_selectedProvider" 
+                              ValueChanged="OnProviderChanged"
+                              Label="Provider" 
+                              Variant="Variant.Outlined">
+                        <MudSelectItem Value="@("OpenRouter")">OpenRouter (API Key)</MudSelectItem>
+                        <MudSelectItem Value="@("Anthropic")">Anthropic (OAuth)</MudSelectItem>
                     </MudSelect>
                 </MudItem>
                 
+                @if (_selectedProvider == "Anthropic")
+                {
+                    <MudItem xs="12">
+                        <MudPaper Class="pa-3" Outlined="true">
+                            <MudText Typo="Typo.subtitle2" Class="mb-2">Anthropic OAuth Authentication</MudText>
+                            
+                            @if (_anthropicOAuthStatus?.Connected == true)
+                            {
+                                <MudAlert Severity="Severity.Success" Class="mb-2">
+                                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                                        <span>Connected to Anthropic</span>
+                                        <MudButton Color="Color.Error" 
+                                                  Variant="Variant.Text" 
+                                                  Size="Size.Small" 
+                                                  OnClick="DisconnectAnthropicOAuth">
+                                            Disconnect
+                                        </MudButton>
+                                    </div>
+                                </MudAlert>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Warning" Class="mb-2">
+                                    Not connected to Anthropic.
+                                </MudAlert>
+                                
+                                <div class="d-flex gap-2 mb-2">
+                                    <a href="@GetAnthropicOAuthUrl()" target="_blank" class="mud-button mud-button-filled mud-button-filled-primary" style="text-decoration: none;">
+                                        Connect to Anthropic (Opens in new window)
+                                    </a>
+                                    
+                                    <MudButton Color="Color.Secondary" 
+                                              Variant="Variant.Outlined" 
+                                              OnClick="CheckAnthropicOAuthStatus">
+                                        <MudIcon Icon="@Icons.Material.Filled.Refresh" Class="mr-1" />
+                                        <MudText>Check Status</MudText>
+                                    </MudButton>
+                                </div>
+                                
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                                    This will open Anthropic OAuth in a new window. After completing OAuth, you can refresh or check connection status.
+                                </MudText>
+                                
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-1">
+                                    Note: You can create the agent without connecting. It will require OAuth setup before first use.
+                                </MudText>
+                            }
+                        </MudPaper>
+                    </MudItem>
+                }
+            }
+            else if (_selectedType == AgentType.Claude)
+            {
                 <MudItem xs="12">
-                    <MudSelect @bind-Value="_selectedProvider" 
-                              Label="Provider" 
-                              Variant="Variant.Outlined">
-                        <MudSelectItem Value="@("OpenRouter")">OpenRouter</MudSelectItem>
-                        <MudSelectItem Value="@("Anthropic")">Anthropic</MudSelectItem>
-                    </MudSelect>
+                    <MudAlert Severity="Severity.Info">
+                        Claude agents use the locally installed Claude CLI. Make sure you have Claude CLI installed and authenticated.
+                    </MudAlert>
                 </MudItem>
             }
             
@@ -146,6 +219,10 @@
     private bool _isCreating = false;
     private string _nameError = string.Empty;
     
+    // Anthropic OAuth state
+    private AnthropicOAuthStatus? _anthropicOAuthStatus = new AnthropicOAuthStatus { Connected = false, ExpiresAt = null, Scopes = Array.Empty<string>() };
+    private bool _oauthInProgress = false;
+    
     private async Task Cancel()
     {
         Console.WriteLine("CreateAgentDialog.Cancel: Cancelling dialog");
@@ -167,6 +244,10 @@
         _requireApproval = false;
         _nameError = string.Empty;
         _isCreating = false;
+        
+        // Reset OAuth state
+        _anthropicOAuthStatus = new AnthropicOAuthStatus { Connected = false, ExpiresAt = null, Scopes = Array.Empty<string>() };
+        _oauthInProgress = false;
     }
     
     private async Task CreateAgent()
@@ -180,6 +261,9 @@
             Console.WriteLine("CreateAgentDialog.CreateAgent: Agent name validation failed");
             return;
         }
+        
+        // Note: Don't block creation if disconnected - agent persists as "requires connect"
+        // This allows users to create the agent configuration even if OAuth is not set up
         
         Console.WriteLine($"CreateAgentDialog.CreateAgent: Creating agent '{_agentName}' of type '{_selectedType}'");
         _isCreating = true;
@@ -233,4 +317,87 @@
             StateHasChanged();
         }
     }
+    
+    private async Task OnProviderChanged(string provider)
+    {
+        _selectedProvider = provider;
+        StateHasChanged();
+    }
+    
+    protected override Task OnParametersSetAsync()
+    {
+        return Task.CompletedTask;
+    }
+    
+    private async Task CheckAnthropicOAuthStatus()
+    {
+        try
+        {
+            var response = await HttpClient.GetAsync("http://localhost:5000/api/providers/anthropic/status");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                _anthropicOAuthStatus = System.Text.Json.JsonSerializer.Deserialize<AnthropicOAuthStatus>(json, new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+            else
+            {
+                _anthropicOAuthStatus = new AnthropicOAuthStatus
+                {
+                    Connected = false,
+                    ExpiresAt = null,
+                    Scopes = Array.Empty<string>()
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to check Anthropic OAuth status: {ex.Message}");
+            _anthropicOAuthStatus = new AnthropicOAuthStatus
+            {
+                Connected = false,
+                ExpiresAt = null,
+                Scopes = Array.Empty<string>()
+            };
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+    
+    private string GetAnthropicOAuthUrl()
+    {
+        // Generate OAuth URL directly without HTTP call
+        const string CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
+        const string AUTH_URL = "https://claude.ai/oauth/authorize";
+        const string REDIRECT_URI = "https://console.anthropic.com/oauth/code/callback";
+        const string SCOPES = "org:create_api_key user:profile user:inference";
+        
+        // Generate PKCE challenge (simplified for direct link)
+        var state = Guid.NewGuid().ToString("N");
+        var codeChallenge = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(state)).TrimEnd('=');
+        
+        return $"{AUTH_URL}?client_id={CLIENT_ID}&response_type=code&redirect_uri={Uri.EscapeDataString(REDIRECT_URI)}&scope={Uri.EscapeDataString(SCOPES)}&state={state}&code_challenge={codeChallenge}&code_challenge_method=plain";
+    }
+    
+    
+    private async Task DisconnectAnthropicOAuth()
+    {
+        try
+        {
+            var response = await HttpClient.PostAsync("/api/providers/anthropic/logout", null);
+            if (response.IsSuccessStatusCode)
+            {
+                await CheckAnthropicOAuthStatus();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error disconnecting OAuth: {ex.Message}");
+        }
+    }
+    
 }

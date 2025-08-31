@@ -198,7 +198,7 @@ public class AgentIntegrationTests : IDisposable
         };
 
         // Act & Assert: Verify complex parameters
-        Assert.Equal(5, complexConfig.Parameters.Count);
+        Assert.Equal(7, complexConfig.Parameters.Count);
         Assert.True(complexConfig.Parameters.ContainsKey("provider_settings"));
         Assert.True(complexConfig.Parameters.ContainsKey("enabled_tools"));
         

@@ -18,12 +18,28 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
+builder.Services.AddControllers();
 
 // Add MudBlazor services
 builder.Services.AddMudServices();
 
 // Add SignalR
 builder.Services.AddSignalR();
+
+// Add HttpClient
+builder.Services.AddHttpClient();
+
+// Add session support for OAuth flows
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
+
+// Add MemoryCache for PKCE/state storage
+builder.Services.AddMemoryCache();
 
 // Add Entity Framework
 builder.Services.AddDbContext<OrchestratorDbContext>(options =>
@@ -40,7 +56,7 @@ builder.Services.AddScoped<ISessionManager, SessionManager>();
 builder.Services.AddScoped<IOrchestrator, Orchestrator>();
 
 // Add Saturn services
-builder.Services.AddScoped<OrchestratorChat.Agents.Saturn.ISaturnCore, OrchestratorChat.Agents.Saturn.SaturnCore>();
+builder.Services.AddScoped<OrchestratorChat.Saturn.Core.ISaturnCore, OrchestratorChat.Saturn.Core.SaturnCore>();
 
 // Add agent services
 builder.Services.AddScoped<IAgentFactory, AgentFactory>();
@@ -53,6 +69,8 @@ builder.Services.AddScoped<IAgentService, AgentService>();
 builder.Services.AddScoped<IOrchestrationService, OrchestrationService>();
 builder.Services.AddScoped<IHubConnectionManager, HubConnectionManager>();
 builder.Services.AddScoped<ISessionService, SessionService>();
+builder.Services.AddScoped<IProviderVerificationService, ProviderVerificationService>();
+builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
 
 // Add logging
 builder.Services.AddLogging();
@@ -69,10 +87,12 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
+app.UseSession();
 app.UseRouting();
 
 app.MapRazorPages();
 app.MapBlazorHub();
+app.MapControllers();
 app.MapFallbackToPage("/_Host");
 
 // Map SignalR hubs

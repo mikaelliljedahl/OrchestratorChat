@@ -1,5 +1,6 @@
 @using OrchestratorChat.Web.Models
 @using OrchestratorChat.Core.Agents
+@inject NavigationManager Navigation
 
 <MudCard Class="agent-card" @onclick="@OnClick">
     <MudCardContent>
@@ -34,6 +35,19 @@
             </MudText>
         </div>
     </MudCardContent>
+    
+    <MudCardActions>
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary" 
+                   Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Chat"
+                   OnClick="@OnChatClick">
+            Chat
+        </MudButton>
+        <MudIconButton Icon="@Icons.Material.Filled.MoreVert" 
+                       Size="Size.Small"
+                       OnClick="@OnClick" />
+    </MudCardActions>
 </MudCard>
 
 @code {
@@ -50,5 +64,10 @@
             AgentStatus.Initializing => Color.Info,
             _ => Color.Default
         };
+    }
+    
+    private void OnChatClick()
+    {
+        Navigation.NavigateTo($"/chat/{Agent.Id}");
     }
 }

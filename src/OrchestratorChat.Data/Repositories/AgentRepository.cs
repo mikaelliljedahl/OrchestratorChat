@@ -99,4 +99,34 @@ public class AgentRepository : Repository<AgentEntity>, IAgentRepository
         
         await UpdateAsync(agent);
     }
+    
+    public async Task<AgentEntity?> GetDefaultAgentAsync()
+    {
+        return await _dbSet
+            .Include(a => a.Configuration)
+            .FirstOrDefaultAsync(a => a.IsDefault && a.IsActive);
+    }
+    
+    public async Task<bool> SetDefaultAgentAsync(string agentId)
+    {
+        // First, clear any existing default agent
+        var currentDefault = await _dbSet
+            .FirstOrDefaultAsync(a => a.IsDefault);
+        
+        if (currentDefault != null)
+        {
+            currentDefault.IsDefault = false;
+            _context.Update(currentDefault);
+        }
+        
+        // Set the new default agent
+        var newDefault = await GetByIdAsync(agentId);
+        if (newDefault == null) return false;
+        
+        newDefault.IsDefault = true;
+        _context.Update(newDefault);
+        
+        await _context.SaveChangesAsync();
+        return true;
+    }
 }

@@ -11,4 +11,6 @@ public interface IAgentService
     Task UpdateAgentAsync(AgentInfo agent);
     Task DeleteAgentAsync(string agentId);
     Task<bool> IsAgentAvailableAsync(string agentId);
+    Task<AgentInfo?> GetDefaultAgentAsync();
+    Task<bool> SetDefaultAgentAsync(string agentId);
 }

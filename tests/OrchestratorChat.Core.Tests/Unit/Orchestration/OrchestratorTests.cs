@@ -15,6 +15,7 @@ namespace OrchestratorChat.Core.Tests.Unit.Orchestration;
 public class OrchestratorTests : IDisposable
 {
     private readonly IAgentFactory _mockAgentFactory;
+    private readonly IAgentRegistry _mockAgentRegistry;
     private readonly IEventBus _mockEventBus;
     private readonly ILogger<Orchestrator> _mockLogger;
     private readonly Orchestrator _orchestrator;
@@ -25,9 +26,10 @@ public class OrchestratorTests : IDisposable
     public OrchestratorTests()
     {
         _mockAgentFactory = Substitute.For<IAgentFactory>();
+        _mockAgentRegistry = Substitute.For<IAgentRegistry>();
         _mockEventBus = Substitute.For<IEventBus>();
         _mockLogger = Substitute.For<ILogger<Orchestrator>>();
-        _orchestrator = new Orchestrator(_mockAgentFactory, _mockEventBus, _mockLogger);
+        _orchestrator = new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, _mockLogger);
 
         // Create mock agents
         _mockAgent1 = Substitute.For<IAgent>();
@@ -867,15 +869,23 @@ public class OrchestratorTests : IDisposable
     public void Constructor_NullAgentFactory_ThrowsArgumentNullException()
     {
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(null!, _mockEventBus, _mockLogger));
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(null!, _mockAgentRegistry, _mockEventBus, _mockLogger));
         Assert.Contains("agentFactory", ex.Message);
+    }
+
+    [Fact]
+    public void Constructor_NullAgentRegistry_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, null!, _mockEventBus, _mockLogger));
+        Assert.Contains("agentRegistry", ex.Message);
     }
 
     [Fact]
     public void Constructor_NullEventBus_ThrowsArgumentNullException()
     {
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, null!, _mockLogger));
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, null!, _mockLogger));
         Assert.Contains("eventBus", ex.Message);
     }
 
@@ -883,7 +893,7 @@ public class OrchestratorTests : IDisposable
     public void Constructor_NullLogger_ThrowsArgumentNullException()
     {
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockEventBus, null!));
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, null!));
         Assert.Contains("logger", ex.Message);
     }
 

@@ -2,6 +2,38 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Documentation Navigation (Start Here)
+
+For coding agents, use this path to find the right specs quickly:
+
+- Canonical index: docs/planning/README.md (source of truth for planning). Follow this index, not file names.
+- Start Here (read in order):
+  - docs/planning/00-product-vision-and-team-operating-model.md
+  - docs/planning/01-multi-agent-collaboration-protocol.md
+  - docs/planning/02-agent-roles-and-capabilities-catalog.md
+  - docs/planning/03-orchestration-modes-and-decision-policies.md
+  - docs/planning/08-team-runbook-and-scenarios.md
+- Execute work:
+  - Roadmap: docs/planning/gap-analysis/11-roadmap-milestones-and-owners.md
+  - Engineering Checklist (PR slices, DoD): docs/planning/gap-analysis/16-engineering-checklist.md
+  - Acceptance test scenarios (what to verify): docs/planning/gap-analysis/17-acceptance-test-scenarios.md
+- Providers (Saturn/Claude):
+  - Anthropic OAuth spec: docs/planning/track3/06-saturn-anthropic-oauth-feature-spec.md
+  - Provider selection/verification UX: docs/planning/track3/07-provider-selection-and-verification-plan.md
+- Gap assessments (align to product goal): files under docs/planning/gap-analysis/* (see the index for which to read).
+- Legacy docs: docs/planning/track2/* are reference only. If they conflict with the index or newer specs, follow the index/specs above.
+
+Quick triage map:
+- “Saturn should support Anthropic OAuth in UI” → track3/06 + 07, checklist section 1.
+- “Decisions/approvals/timeline missing” → Start Here docs + gap-analysis/12, 13; checklist sections 4–6.
+- “Team/plan UI and orchestration tie-in” → Start Here docs + checklist section 3.
+
+Before coding checklist:
+- Confirm the spec in the planning index that governs your change.
+- If a new spec is needed, add it under docs/planning, then link it in docs/planning/README.md.
+- Use acceptance scenarios to define done; add tests where appropriate.
+- Keep changes surgical; do not rely on legacy docs without cross‑checking the index.
+
 ## Build and Development Commands
 
 ### Building the Project

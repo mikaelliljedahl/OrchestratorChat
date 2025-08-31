@@ -10,6 +10,7 @@ using OrchestratorChat.Core.Orchestration;
 using OrchestratorChat.Core.Events;
 using OrchestratorChat.SignalR.Services;
 using OrchestratorChat.SignalR.IntegrationTests.Helpers;
+using OrchestratorChat.Data.Repositories;
 using Moq;
 
 namespace OrchestratorChat.SignalR.IntegrationTests.Fixtures
@@ -26,6 +27,8 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Fixtures
         public Mock<ISessionManager> MockSessionManager { get; }
         public MockAgentFactory MockAgentFactory { get; }
         public Mock<IEventBus> MockEventBus { get; }
+        public Mock<IAgentRegistry> MockAgentRegistry { get; }
+        public Mock<IAgentRepository> MockAgentRepository { get; }
         
         public SignalRTestFixture()
         {
@@ -34,6 +37,8 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Fixtures
             MockSessionManager = new Mock<ISessionManager>();
             MockAgentFactory = new MockAgentFactory();
             MockEventBus = new Mock<IEventBus>();
+            MockAgentRegistry = new Mock<IAgentRegistry>();
+            MockAgentRepository = new Mock<IAgentRepository>();
             
             // Create test web application
             Factory = new TestWebApplicationFactory();
@@ -41,11 +46,21 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Fixtures
             // Configure test services
             Factory.ConfigureTestServices(services =>
             {
-                // Replace real services with mocks
-                services.AddSingleton(MockOrchestrator.Object);
-                services.AddSingleton(MockSessionManager.Object);
-                services.AddSingleton(MockAgentFactory.Object);
-                services.AddSingleton(MockEventBus.Object);
+                // Remove existing service registrations and replace with mocks
+                RemoveService<IOrchestrator>(services);
+                RemoveService<ISessionManager>(services);
+                RemoveService<IAgentFactory>(services);
+                RemoveService<IEventBus>(services);
+                RemoveService<IAgentRegistry>(services);
+                RemoveService<IAgentRepository>(services);
+                
+                // Add mocks with same lifetime as original registrations
+                services.AddScoped<IOrchestrator>(provider => MockOrchestrator.Object);
+                services.AddScoped<ISessionManager>(provider => MockSessionManager.Object);
+                services.AddScoped<IAgentFactory>(provider => MockAgentFactory.Object);
+                services.AddScoped<IEventBus>(provider => MockEventBus.Object);
+                services.AddScoped<IAgentRegistry>(provider => MockAgentRegistry.Object);
+                services.AddScoped<IAgentRepository>(provider => MockAgentRepository.Object);
                 
                 // Add test-specific services
                 services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Debug));
@@ -82,7 +97,7 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Fixtures
         public async Task<SignalRTestClient> CreateAgentClientAsync()
         {
             var connection = new HubConnectionBuilder()
-                .WithUrl(Factory.Server.BaseAddress + "hubs/agents", options =>
+                .WithUrl(Factory.Server.BaseAddress + "hubs/agent", options =>
                 {
                     options.HttpMessageHandlerFactory = _ => Factory.Server.CreateHandler();
                 })
@@ -106,6 +121,18 @@ namespace OrchestratorChat.SignalR.IntegrationTests.Fixtures
             MockAgentFactory.Reset();
             MockAgentFactory.Clear();
             MockEventBus.Reset();
+            MockAgentRegistry.Reset();
+            MockAgentRepository.Reset();
+        }
+        
+        /// <summary>
+        /// Helper method to remove a service from the collection
+        /// </summary>
+        private static void RemoveService<T>(IServiceCollection services)
+        {
+            var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(T));
+            if (descriptor != null)
+                services.Remove(descriptor);
         }
         
         public async ValueTask DisposeAsync()

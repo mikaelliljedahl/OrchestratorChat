@@ -1,0 +1,835 @@
+@using OrchestratorChat.Core.Agents
+@using OrchestratorChat.Web.Models
+@using OrchestratorChat.Web.Services
+@using Microsoft.JSInterop
+@inject IProviderVerificationService ProviderVerificationService
+@inject IAgentService AgentService
+@inject NavigationManager Navigation
+@inject HttpClient HttpClient
+@inject IJSRuntime JSRuntime
+
+<MudDialog Visible="@IsVisible" VisibleChanged="@OnVisibilityChanged" MaxWidth="MaxWidth.Medium" DisableBackdropClick="true">
+    <TitleContent>
+        <MudText Typo="Typo.h5">
+            <MudIcon Icon="@Icons.Material.Filled.Rocket" Class="mr-3" />
+            Set up your first agent
+        </MudText>
+    </TitleContent>
+    
+    <DialogContent>
+        <MudStepper @ref="_stepper" Color="Color.Primary" Variant="Variant.Filled" Linear="true" ActiveIndex="@_currentStep">
+            <!-- Step 1: Choose Provider -->
+            <MudStep Title="Choose a provider">
+                @if (_currentStep == 0)
+                {
+                <MudText Typo="Typo.body1" Class="mb-4">Select your preferred AI provider to get started.</MudText>
+                
+                <MudGrid>
+                    <MudItem xs="12" sm="4">
+                        <MudCard Outlined="true" Class="@GetProviderCardClass(ProviderType.ClaudeCli)" @onclick="@(() => SelectProvider(ProviderType.ClaudeCli))">
+                            <MudCardContent Class="text-center pa-4">
+                                <MudIcon Icon="@Icons.Material.Filled.Code" Size="Size.Large" Class="mb-2" />
+                                <MudText Typo="Typo.h6" Class="mb-1">Claude CLI</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    Fastest path if Claude CLI is installed
+                                </MudText>
+                                <MudChip T="string" Color="@GetProviderStatusColor(_providerStatus.ClaudeCli)" 
+                                        Text="@GetProviderStatusText(_providerStatus.ClaudeCli)" 
+                                        Size="Size.Small" />
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                    
+                    <MudItem xs="12" sm="4">
+                        <MudCard Outlined="true" Class="@GetProviderCardClass(ProviderType.SaturnOpenRouter)" @onclick="@(() => SelectProvider(ProviderType.SaturnOpenRouter))">
+                            <MudCardContent Class="text-center pa-4">
+                                <MudIcon Icon="@Icons.Material.Filled.Key" Size="Size.Large" Class="mb-2" />
+                                <MudText Typo="Typo.h6" Class="mb-1">Saturn → OpenRouter</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    Use Saturn with your OpenRouter API key
+                                </MudText>
+                                <MudChip T="string" Color="@GetProviderStatusColor(_providerStatus.OpenRouterKey)" 
+                                        Text="@GetProviderStatusText(_providerStatus.OpenRouterKey)" 
+                                        Size="Size.Small" />
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                    
+                    <MudItem xs="12" sm="4">
+                        <MudCard Outlined="true" Class="@GetProviderCardClass(ProviderType.SaturnAnthropic)" @onclick="@(() => SelectProvider(ProviderType.SaturnAnthropic))">
+                            <MudCardContent Class="text-center pa-4">
+                                <MudIcon Icon="@Icons.Material.Filled.Security" Size="Size.Large" Class="mb-2" />
+                                <MudText Typo="Typo.h6" Class="mb-1">Saturn → Anthropic OAuth</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    Use Saturn with Anthropic OAuth
+                                </MudText>
+                                <MudChip T="string" Color="@GetProviderStatusColor(_providerStatus.AnthropicOAuth)" 
+                                        Text="@GetProviderStatusText(_providerStatus.AnthropicOAuth)" 
+                                        Size="Size.Small" />
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                </MudGrid>
+                }
+            </MudStep>
+            
+            <!-- Step 2: Verify Provider -->
+            <MudStep Title="Verify provider">
+            
+            <!-- Step 3: Name & Defaults -->
+                @if (_currentStep == 1)
+                {
+                @if (_selectedProvider == ProviderType.ClaudeCli)
+                {
+                    <MudText Typo="Typo.body1" Class="mb-3">Verifying Claude CLI installation...</MudText>
+                    
+                    @if (_claudeVerificationLoading)
+                    {
+                        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-3" />
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Checking Claude CLI...</MudText>
+                    }
+                    else if (_claudeVerified.HasValue)
+                    {
+                        @if (_claudeVerified.Value)
+                        {
+                            <MudAlert Severity="Severity.Success" Class="mb-3">Claude CLI is detected.</MudAlert>
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Error" Class="mb-3">
+                                Not detected. Install from claude.ai/cli or switch to Saturn.
+                                <MudButton Href="https://claude.ai/cli" Target="_blank" Color="Color.Primary" Variant="Variant.Text" Class="ml-2">
+                                    Install Claude CLI
+                                </MudButton>
+                            </MudAlert>
+                            
+                            <MudAlert Severity="Severity.Info" Class="mb-3">
+                                <MudButton Color="Color.Secondary" Variant="Variant.Text" OnClick="@(() => _showSkipWarning = !_showSkipWarning)">
+                                    Skip (Advanced Users)
+                                </MudButton>
+                                @if (_showSkipWarning)
+                                {
+                                    <div class="mt-2">
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                            Warning: Skipping without Claude CLI will create an agent that requires installation later.
+                                        </MudText>
+                                    </div>
+                                }
+                            </MudAlert>
+                        }
+                    }
+                }
+                else if (_selectedProvider == ProviderType.SaturnOpenRouter)
+                {
+                    <MudText Typo="Typo.body1" Class="mb-3">Enter your OpenRouter API key to continue.</MudText>
+                    
+                    @if (_hasExistingOpenRouterKey)
+                    {
+                        <MudAlert Severity="Severity.Info" Class="mb-3">
+                            OpenRouter API key is already configured. Leave blank to use existing key or enter new key to override.
+                        </MudAlert>
+                    }
+                    
+                    <MudTextField @bind-Value="_openRouterApiKey" 
+                                  Label="OpenRouter API key" 
+                                  Variant="Variant.Outlined" 
+                                  InputType="InputType.Password"
+                                  Placeholder="@(_hasExistingOpenRouterKey ? "Already set - enter new key to override" : "Enter your OpenRouter API key")"
+                                  Class="mb-3" />
+                    
+                    <MudButton Color="Color.Primary" 
+                               Variant="Variant.Filled" 
+                               OnClick="@ValidateOpenRouterKey"
+                               Disabled="@(string.IsNullOrWhiteSpace(_openRouterApiKey) || _openRouterValidationLoading)">
+                        @if (_openRouterValidationLoading)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                            <MudText Class="ms-2">Validating...</MudText>
+                        }
+                        else
+                        {
+                            <MudText>Validate</MudText>
+                        }
+                    </MudButton>
+                    
+                    @if (_openRouterValidationResult != null)
+                    {
+                        <MudAlert Severity="@(_openRouterValidationResult.IsValid ? Severity.Success : Severity.Error)" Class="mt-3">
+                            @(_openRouterValidationResult.IsValid ? "API key is valid and saved." : _openRouterValidationResult.ErrorMessage ?? "API key missing. Enter your key to continue or switch to Anthropic.")
+                        </MudAlert>
+                    }
+                    else if (!_hasExistingOpenRouterKey)
+                    {
+                        <MudAlert Severity="Severity.Warning" Class="mt-3">
+                            API key missing. Enter your key to continue or switch to Anthropic.
+                        </MudAlert>
+                        <MudAlert Severity="Severity.Info" Class="mb-3">
+                            <MudButton Color="Color.Secondary" Variant="Variant.Text" OnClick="@(() => _showSkipWarning = !_showSkipWarning)">
+                                Skip (Advanced Users)
+                            </MudButton>
+                            @if (_showSkipWarning)
+                            {
+                                <div class="mt-2">
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                        Warning: Skipping without API key will create an agent that requires configuration later.
+                                    </MudText>
+                                </div>
+                            }
+                        </MudAlert>
+                    }
+                }
+                else if (_selectedProvider == ProviderType.SaturnAnthropic)
+                {
+                    <MudText Typo="Typo.body1" Class="mb-3">Connect your Anthropic account using OAuth.</MudText>
+                    
+                    @if (_anthropicOAuthStatus?.IsValid == true)
+                    {
+                        <MudAlert Severity="Severity.Success" Class="mb-3">
+                            Connected to Anthropic successfully.
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Warning" Class="mb-3">
+                            Not connected to Anthropic.
+                        </MudAlert>
+                        
+                        <div class="d-flex gap-2 mb-2">
+                            <MudButton Color="Color.Primary" 
+                                       Variant="Variant.Filled" 
+                                       OnClick="@StartAnthropicOAuth"
+                                       Disabled="@_anthropicOAuthLoading">
+                                @if (_anthropicOAuthLoading)
+                                {
+                                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                    <MudText Class="ms-2">Opening OAuth...</MudText>
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Security" Class="mr-2" />
+                                    <MudText>Connect with Anthropic</MudText>
+                                }
+                            </MudButton>
+                            
+                            <MudButton Color="Color.Secondary" 
+                                      Variant="Variant.Outlined" 
+                                      OnClick="@CheckAnthropicOAuthStatus">
+                                <MudIcon Icon="@Icons.Material.Filled.Refresh" Class="mr-1" />
+                                <MudText>Check Status</MudText>
+                            </MudButton>
+                        </div>
+                        
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                            This will open Anthropic OAuth in a new window. After completing OAuth, return here and continue.
+                        </MudText>
+                        
+                        @if (_anthropicOAuthError != null)
+                        {
+                            <MudAlert Severity="Severity.Error" Class="mt-3">
+                                @_anthropicOAuthError
+                            </MudAlert>
+                        }
+                        
+                        <MudAlert Severity="Severity.Info" Class="mb-3">
+                            <MudButton Color="Color.Secondary" Variant="Variant.Text" OnClick="@(() => _showSkipWarning = !_showSkipWarning)">
+                                Skip (Advanced Users)
+                            </MudButton>
+                            @if (_showSkipWarning)
+                            {
+                                <div class="mt-2">
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                        Warning: Skipping without OAuth connection will create an agent that requires connection later.
+                                    </MudText>
+                                </div>
+                            }
+                        </MudAlert>
+                    }
+                }
+                }
+            </MudStep>
+            
+            <MudStep Title="Name & defaults">
+                @if (_currentStep == 2)
+                {
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_agentName" 
+                                      Label="Agent name" 
+                                      Variant="Variant.Outlined" 
+                                      Required="true"
+                                      Error="@(!string.IsNullOrEmpty(_agentNameError))"
+                                      ErrorText="@_agentNameError" />
+                    </MudItem>
+                    
+                    <MudItem xs="12">
+                        <MudSelect @bind-Value="_selectedModel" 
+                                  Label="Model (recommended default)" 
+                                  Variant="Variant.Outlined">
+                            @foreach (var model in GetAvailableModels())
+                            {
+                                <MudSelectItem Value="@model.Value">@model.Key</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    
+                    <MudItem xs="12">
+                        <MudCheckBox @bind-Value="_setAsDefault" 
+                                    Label="Set as default agent" />
+                    </MudItem>
+                    
+                    <MudItem xs="12">
+                        <MudExpansionPanels Elevation="0">
+                            <MudExpansionPanel Text="Advanced settings" MaxHeight="300">
+                                <MudGrid>
+                                    <MudItem xs="12" sm="6">
+                                        <MudNumericField @bind-Value="_temperature" 
+                                                        Label="Temperature" 
+                                                        Variant="Variant.Outlined" 
+                                                        Min="0.0" 
+                                                        Max="2.0" 
+                                                        Step="0.1" />
+                                    </MudItem>
+                                    
+                                    <MudItem xs="12" sm="6">
+                                        <MudNumericField @bind-Value="_maxTokens" 
+                                                        Label="Max tokens" 
+                                                        Variant="Variant.Outlined" 
+                                                        Min="100" 
+                                                        Max="8000" 
+                                                        Step="100" />
+                                    </MudItem>
+                                    
+                                    <MudItem xs="12">
+                                        <MudTextField @bind-Value="_workingDirectory" 
+                                                      Label="Working directory" 
+                                                      Variant="Variant.Outlined" 
+                                                      Placeholder="@Environment.CurrentDirectory" />
+                                    </MudItem>
+                                </MudGrid>
+                            </MudExpansionPanel>
+                        </MudExpansionPanels>
+                    </MudItem>
+                </MudGrid>
+                }
+            </MudStep>
+            
+            <!-- Step 4: Create & Test -->
+            <MudStep Title="Create & test">
+                @if (_currentStep == 3)
+                {
+                @if (_creationStep == CreationStep.Creating)
+                {
+                    <MudText Typo="Typo.body1" Class="mb-3">Creating agent...</MudText>
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-3" />
+                }
+                else if (_creationStep == CreationStep.Testing)
+                {
+                    <MudText Typo="Typo.body1" Class="mb-3">Testing a quick message...</MudText>
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-3" />
+                    
+                    @if (_testMessages.Any())
+                    {
+                        <MudPaper Class="pa-3 mb-3" Elevation="1">
+                            @foreach (var message in _testMessages)
+                            {
+                                <MudText Typo="Typo.body2" Class="mb-1">@message</MudText>
+                            }
+                        </MudPaper>
+                    }
+                }
+                else if (_creationStep == CreationStep.Success)
+                {
+                    <MudAlert Severity="Severity.Success" Class="mb-3">
+                        All set! Start chatting.
+                    </MudAlert>
+                    
+                    @if (_testMessages.Any())
+                    {
+                        <MudPaper Class="pa-3 mb-3" Elevation="1">
+                            <MudText Typo="Typo.subtitle2" Class="mb-2">Test Response:</MudText>
+                            @foreach (var message in _testMessages)
+                            {
+                                <MudText Typo="Typo.body2" Class="mb-1">@message</MudText>
+                            }
+                        </MudPaper>
+                    }
+                }
+                else if (_creationStep == CreationStep.Error)
+                {
+                    <MudAlert Severity="Severity.Error" Class="mb-3">
+                        @_creationError
+                        @if (!string.IsNullOrEmpty(_creationFixAction))
+                        {
+                            <MudButton Color="Color.Error" Variant="Variant.Text" Class="ml-2" OnClick="@RetryCreation">
+                                @_creationFixAction
+                            </MudButton>
+                        }
+                    </MudAlert>
+                }
+                }
+            </MudStep>
+        </MudStepper>
+    </DialogContent>
+    
+    <DialogActions>
+        <MudButton OnClick="@(() => OnVisibilityChanged(false))" Disabled="@_isProcessing">Cancel</MudButton>
+        <MudSpacer />
+        <MudButton Color="Color.Primary" 
+                   Variant="Variant.Filled" 
+                   OnClick="@HandlePrimaryAction"
+                   Disabled="@(!CanProceed() || _isProcessing)">
+            @GetPrimaryActionText()
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback<bool> IsVisibleChanged { get; set; }
+    [Parameter] public EventCallback<string> OnAgentCreated { get; set; }
+    
+    private enum ProviderType { None, ClaudeCli, SaturnOpenRouter, SaturnAnthropic }
+    private enum CreationStep { None, Creating, Testing, Success, Error }
+    
+    private MudStepper _stepper = null!;
+    private int _currentStep = 0;
+    private ProviderStatusResponse _providerStatus = new();
+    private ProviderType _selectedProvider = ProviderType.None;
+    private bool _showSkipWarning = false;
+    
+    // Step 1 state
+    private bool _step1Valid => _selectedProvider != ProviderType.None;
+    
+    // Step 2 state (Verification)
+    private bool _claudeVerificationLoading = false;
+    private bool? _claudeVerified = null;
+    private string _openRouterApiKey = string.Empty;
+    private bool _openRouterValidationLoading = false;
+    private ValidationResult? _openRouterValidationResult = null;
+    private bool _hasExistingOpenRouterKey = false;
+    private AnthropicOAuthStatus? _anthropicOAuthStatus = new AnthropicOAuthStatus();
+    private bool _anthropicOAuthLoading = false;
+    private string? _anthropicOAuthError = null;
+    private bool _step2Valid => (_selectedProvider == ProviderType.ClaudeCli && (_claudeVerified == true || _showSkipWarning)) ||
+                                (_selectedProvider == ProviderType.SaturnOpenRouter && (_openRouterValidationResult?.IsValid == true || _hasExistingOpenRouterKey || _showSkipWarning)) ||
+                                (_selectedProvider == ProviderType.SaturnAnthropic && (_anthropicOAuthStatus?.IsValid == true || _showSkipWarning));
+    
+    // Step 3 state (Name & Defaults)
+    private string _agentName = string.Empty;
+    private string _selectedModel = string.Empty;
+    private bool _setAsDefault = true;
+    private double _temperature = 0.7;
+    private int _maxTokens = 4096;
+    private string _workingDirectory = string.Empty;
+    private string _agentNameError = string.Empty;
+    private bool _step3Valid => !string.IsNullOrWhiteSpace(_agentName) && !string.IsNullOrWhiteSpace(_selectedModel);
+    
+    // Step 4 state (Create & Test)
+    private CreationStep _creationStep = CreationStep.None;
+    private string _creationError = string.Empty;
+    private string _creationFixAction = string.Empty;
+    private List<string> _testMessages = new();
+    private string? _createdAgentId = null;
+    private bool _step4Valid => _creationStep == CreationStep.Success;
+    
+    // General state
+    private bool _isProcessing = false;
+    
+    private async Task OnVisibilityChanged(bool isVisible)
+    {
+        IsVisible = isVisible;
+        
+        if (isVisible)
+        {
+            await InitializeWizard();
+        }
+        else
+        {
+            ResetWizard();
+        }
+        
+        if (IsVisibleChanged.HasDelegate)
+        {
+            await IsVisibleChanged.InvokeAsync(isVisible);
+        }
+    }
+    
+    private async Task InitializeWizard()
+    {
+        // Load provider status
+        _providerStatus = await ProviderVerificationService.GetProviderStatusAsync();
+        _hasExistingOpenRouterKey = _providerStatus.OpenRouterKey == ProviderStatus.Present;
+        StateHasChanged();
+    }
+    
+    private void ResetWizard()
+    {
+        _currentStep = 0;
+        _selectedProvider = ProviderType.None;
+        _showSkipWarning = false;
+        _claudeVerified = null;
+        _claudeVerificationLoading = false;
+        _openRouterApiKey = string.Empty;
+        _openRouterValidationLoading = false;
+        _openRouterValidationResult = null;
+        _anthropicOAuthStatus = new AnthropicOAuthStatus();
+        _anthropicOAuthLoading = false;
+        _anthropicOAuthError = null;
+        _agentName = string.Empty;
+        _selectedModel = string.Empty;
+        _setAsDefault = true;
+        _temperature = 0.7;
+        _maxTokens = 4096;
+        _workingDirectory = string.Empty;
+        _agentNameError = string.Empty;
+        _creationStep = CreationStep.None;
+        _creationError = string.Empty;
+        _creationFixAction = string.Empty;
+        _testMessages.Clear();
+        _createdAgentId = null;
+        _isProcessing = false;
+    }
+    
+    private void SelectProvider(ProviderType provider)
+    {
+        _selectedProvider = provider;
+        _showSkipWarning = false;
+        
+        // Set default agent name and model based on provider
+        if (provider == ProviderType.ClaudeCli)
+        {
+            _agentName = "Claude (Local)";
+            _selectedModel = "claude-sonnet-4-20250514";
+        }
+        else if (provider == ProviderType.SaturnOpenRouter)
+        {
+            _agentName = "Saturn (OpenRouter)";
+            _selectedModel = "claude-sonnet-4-20250514";
+        }
+        else if (provider == ProviderType.SaturnAnthropic)
+        {
+            _agentName = "Saturn (Anthropic)";
+            _selectedModel = "claude-sonnet-4-20250514";
+        }
+        
+        StateHasChanged();
+    }
+    
+    
+    private string GetProviderCardClass(ProviderType provider)
+    {
+        var baseClass = "cursor-pointer transition-all";
+        if (_selectedProvider == provider)
+        {
+            return $"{baseClass} mud-elevation-4 mud-primary-text";
+        }
+        return $"{baseClass} hover:mud-elevation-2";
+    }
+    
+    
+    private Color GetProviderStatusColor(ProviderStatus status)
+    {
+        return status switch
+        {
+            ProviderStatus.Detected or ProviderStatus.Present => Color.Success,
+            ProviderStatus.NotFound or ProviderStatus.Missing => Color.Warning,
+            _ => Color.Default
+        };
+    }
+    
+    private string GetProviderStatusText(ProviderStatus status)
+    {
+        return status switch
+        {
+            ProviderStatus.Detected => "Detected",
+            ProviderStatus.NotFound => "Not found",
+            ProviderStatus.Present => "Key set",
+            ProviderStatus.Missing => "Not set",
+            _ => "Unknown"
+        };
+    }
+    
+    private Dictionary<string, string> GetAvailableModels()
+    {
+        if (_selectedProvider == ProviderType.ClaudeCli)
+        {
+            return new Dictionary<string, string>
+            {
+                { "Claude Sonnet 4", "claude-sonnet-4-20250514" },
+                { "Claude 3.5 Sonnet", "claude-3-5-sonnet-20241022" }
+            };
+        }
+        else if (_selectedProvider == ProviderType.SaturnOpenRouter || _selectedProvider == ProviderType.SaturnAnthropic)
+        {
+            return new Dictionary<string, string>
+            {
+                { "Claude Sonnet 4", "claude-sonnet-4-20250514" },
+                { "Claude 3.5 Sonnet", "claude-3-5-sonnet-20241022" },
+                { "GPT-4o", "gpt-4o" },
+                { "GPT-4o Mini", "gpt-4o-mini" }
+            };
+        }
+        
+        return new Dictionary<string, string>();
+    }
+    
+    private async Task HandlePrimaryAction()
+    {
+        _isProcessing = true;
+        
+        try
+        {
+            switch (_currentStep)
+            {
+                case 0: // Step 1 -> Step 2 (Provider Selection -> Verification)
+                    await AdvanceFromStep1();
+                    break;
+                case 1: // Step 2 -> Step 3 (Verification -> Name & Defaults)
+                    _currentStep = 2;
+                    break;
+                case 2: // Step 3 -> Step 4 (Name & Defaults -> Create & Test)
+                    await AdvanceToStep4();
+                    break;
+                case 3: // Step 4 -> Complete (Create & Test -> Complete)
+                    await CompleteWizard();
+                    break;
+            }
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+    
+    private async Task AdvanceFromStep1()
+    {
+        _currentStep = 1;
+        
+        // Auto-verify based on selected provider
+        if (_selectedProvider == ProviderType.ClaudeCli)
+        {
+            await VerifyClaudeCli();
+        }
+    }
+    
+    
+    private async Task VerifyClaudeCli()
+    {
+        _claudeVerificationLoading = true;
+        StateHasChanged();
+        
+        try
+        {
+            var status = await ProviderVerificationService.DetectClaudeCliAsync();
+            _claudeVerified = status == ProviderStatus.Detected;
+        }
+        finally
+        {
+            _claudeVerificationLoading = false;
+            StateHasChanged();
+        }
+    }
+    
+    private async Task CheckAnthropicOAuthStatus()
+    {
+        try
+        {
+            var response = await HttpClient.GetAsync("/api/providers/anthropic/status");
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                _anthropicOAuthStatus = System.Text.Json.JsonSerializer.Deserialize<AnthropicOAuthStatus>(content, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+            else
+            {
+                _anthropicOAuthStatus = new AnthropicOAuthStatus();
+            }
+        }
+        catch (Exception ex)
+        {
+            _anthropicOAuthError = $"Failed to check OAuth status: {ex.Message}";
+            _anthropicOAuthStatus = new AnthropicOAuthStatus();
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+    
+    private async Task StartAnthropicOAuth()
+    {
+        _anthropicOAuthLoading = true;
+        _anthropicOAuthError = null;
+        StateHasChanged();
+        
+        try
+        {
+            var response = await HttpClient.PostAsync("/api/providers/anthropic/start", null);
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                var result = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(content);
+                var authUrl = result.GetProperty("authUrl").GetString();
+                
+                if (!string.IsNullOrEmpty(authUrl))
+                {
+                    // Open OAuth URL in new window/tab
+                    await JSRuntime.InvokeAsync<object>("window.open", authUrl, "_blank");
+                    
+                    Console.WriteLine("OAuth window opened. User can continue after completing OAuth in the new window.");
+                }
+            }
+            else
+            {
+                _anthropicOAuthError = "Failed to start OAuth flow";
+            }
+        }
+        catch (Exception ex)
+        {
+            _anthropicOAuthError = $"OAuth error: {ex.Message}";
+        }
+        finally
+        {
+            _anthropicOAuthLoading = false;
+            StateHasChanged();
+        }
+    }
+    
+    
+    private async Task ValidateOpenRouterKey()
+    {
+        if (string.IsNullOrWhiteSpace(_openRouterApiKey))
+            return;
+        
+        _openRouterValidationLoading = true;
+        StateHasChanged();
+        
+        try
+        {
+            _openRouterValidationResult = await ProviderVerificationService.ValidateOpenRouterKeyAsync(_openRouterApiKey);
+        }
+        finally
+        {
+            _openRouterValidationLoading = false;
+            StateHasChanged();
+        }
+    }
+    
+    private async Task AdvanceToStep4()
+    {
+        // Validate step 3
+        _agentNameError = string.Empty;
+        
+        if (string.IsNullOrWhiteSpace(_agentName))
+        {
+            _agentNameError = "Agent name is required";
+            return;
+        }
+        
+        _currentStep = 3;
+        await CreateAndTestAgent();
+    }
+    
+    private async Task CreateAndTestAgent()
+    {
+        _creationStep = CreationStep.Creating;
+        _testMessages.Clear();
+        StateHasChanged();
+        
+        try
+        {
+            // Create agent configuration
+            var configuration = new AgentConfiguration
+            {
+                Name = _agentName.Trim(),
+                Type = _selectedProvider == ProviderType.ClaudeCli ? AgentType.Claude : AgentType.Saturn,
+                WorkingDirectory = string.IsNullOrWhiteSpace(_workingDirectory) ? Environment.CurrentDirectory : _workingDirectory.Trim(),
+                Model = _selectedModel,
+                Temperature = _temperature,
+                MaxTokens = _maxTokens,
+                SystemPrompt = string.Empty,
+                RequireApproval = false
+            };
+            
+            // Add provider setting for Saturn agents
+            if (_selectedProvider == ProviderType.SaturnOpenRouter)
+            {
+                configuration.CustomSettings["Provider"] = "OpenRouter";
+            }
+            else if (_selectedProvider == ProviderType.SaturnAnthropic)
+            {
+                configuration.CustomSettings["Provider"] = "Anthropic";
+            }
+            
+            // Create the agent
+            var agentInfo = await AgentService.CreateAgentAsync(configuration.Type, configuration);
+            _createdAgentId = agentInfo.Id;
+            
+            // Move to testing step
+            _creationStep = CreationStep.Testing;
+            StateHasChanged();
+            
+            // Simulate test message (in a real implementation, this would send a message to the agent)
+            await Task.Delay(1000); // Simulate processing time
+            _testMessages.Add("Hello! I'm your new AI assistant.");
+            _testMessages.Add("I'm ready to help you with your tasks.");
+            StateHasChanged();
+            
+            await Task.Delay(500); // Brief delay before success
+            _creationStep = CreationStep.Success;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _creationStep = CreationStep.Error;
+            _creationError = $"Error creating agent: {ex.Message}";
+            _creationFixAction = "Retry initialization";
+            StateHasChanged();
+        }
+    }
+    
+    private async Task RetryCreation()
+    {
+        await CreateAndTestAgent();
+    }
+    
+    private async Task CompleteWizard()
+    {
+        if (_createdAgentId != null && OnAgentCreated.HasDelegate)
+        {
+            await OnAgentCreated.InvokeAsync(_createdAgentId);
+        }
+        
+        await OnVisibilityChanged(false);
+        
+        // Navigate to chat with the created agent
+        if (_createdAgentId != null)
+        {
+            Navigation.NavigateTo($"/chat/{_createdAgentId}");
+        }
+    }
+    
+    private bool CanProceed()
+    {
+        return _currentStep switch
+        {
+            0 => _step1Valid,
+            1 => _step2Valid,
+            2 => _step3Valid,
+            3 => _step4Valid,
+            _ => false
+        };
+    }
+    
+    private string GetPrimaryActionText()
+    {
+        return _currentStep switch
+        {
+            0 => "Next",
+            1 => (_selectedProvider == ProviderType.SaturnOpenRouter && _openRouterValidationResult == null && !_hasExistingOpenRouterKey) ? "Validate" : "Next",
+            2 => "Create",
+            3 => "Start Chat",
+            _ => "Next"
+        };
+    }
+}

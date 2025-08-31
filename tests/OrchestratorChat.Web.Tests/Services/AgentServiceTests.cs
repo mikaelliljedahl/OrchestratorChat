@@ -13,13 +13,15 @@ public class AgentServiceTests
 {
     private readonly IAgentFactory _mockAgentFactory;
     private readonly IAgentRepository _mockAgentRepository;
+    private readonly IAgentRegistry _mockAgentRegistry;
     private readonly AgentService _service;
 
     public AgentServiceTests()
     {
         _mockAgentFactory = Substitute.For<IAgentFactory>();
         _mockAgentRepository = Substitute.For<IAgentRepository>();
-        _service = new AgentService(_mockAgentFactory, _mockAgentRepository);
+        _mockAgentRegistry = Substitute.For<IAgentRegistry>();
+        _service = new AgentService(_mockAgentFactory, _mockAgentRepository, _mockAgentRegistry);
     }
 
     [Fact]

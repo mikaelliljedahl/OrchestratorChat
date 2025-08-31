@@ -89,18 +89,26 @@ public class ClaudeAgent : IAgent, IDisposable
     {
         try
         {
-            var process = new Process
+            var baseCmd = GetClaudeBaseCommand();
+            var startInfo = new ProcessStartInfo
             {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = _configuration.ClaudeExecutablePath ?? "claude",
-                    Arguments = "--version",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true
-                }
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                CreateNoWindow = true
             };
 
+            if (OperatingSystem.IsWindows())
+            {
+                startInfo.FileName = "cmd.exe";
+                startInfo.Arguments = $"/c {baseCmd} --version";
+            }
+            else
+            {
+                startInfo.FileName = baseCmd;
+                startInfo.Arguments = "--version";
+            }
+
+            var process = new Process { StartInfo = startInfo };
             process.Start();
             await process.WaitForExitAsync();
             return process.ExitCode == 0;
@@ -184,20 +192,29 @@ public class ClaudeAgent : IAgent, IDisposable
         
         _logger.LogDebug("Starting Claude process with arguments: {Arguments}", arguments);
 
-        _process = new Process
+        var baseCmd = GetClaudeBaseCommand();
+        var startInfo = new ProcessStartInfo
         {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = _configuration.ClaudeExecutablePath ?? "claude",
-                Arguments = arguments,
-                WorkingDirectory = WorkingDirectory,
-                UseShellExecute = false,
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            }
+            WorkingDirectory = WorkingDirectory,
+            UseShellExecute = false,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
         };
+
+        if (OperatingSystem.IsWindows())
+        {
+            startInfo.FileName = "cmd.exe";
+            startInfo.Arguments = $"/c {baseCmd} {arguments}";
+        }
+        else
+        {
+            startInfo.FileName = baseCmd;
+            startInfo.Arguments = arguments;
+        }
+
+        _process = new Process { StartInfo = startInfo };
         
         // Set default environment variables
         _process.StartInfo.Environment["CLAUDE_OUTPUT_FORMAT"] = "json-stream";
@@ -226,6 +243,18 @@ public class ClaudeAgent : IAgent, IDisposable
 
         // Start output monitoring
         _ = Task.Run(() => MonitorOutputAsync(_processCts.Token));
+    }
+
+    private string GetClaudeBaseCommand()
+    {
+        // Allow override via environment variable if set
+        var envPath = Environment.GetEnvironmentVariable("CLAUDE_PATH");
+        if (!string.IsNullOrWhiteSpace(envPath))
+        {
+            return envPath.Trim();
+        }
+
+        return _configuration.ClaudeExecutablePath ?? "claude";
     }
 
     private string BuildClaudeArguments(AgentConfiguration config)

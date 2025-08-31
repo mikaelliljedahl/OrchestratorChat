@@ -4,11 +4,13 @@
     <div class="d-flex align-end gap-2">
         <MudTextField @bind-Value="_currentMessage" 
                       @onkeypress="@OnKeyPress"
-                      Placeholder="Type your message..." 
+                      Placeholder="@GetPlaceholderText()" 
                       Variant="Variant.Outlined"
                       Lines="@_lines"
                       MaxLines="5"
                       Disabled="@(!IsEnabled)"
+                      Error="@(!string.IsNullOrEmpty(ErrorMessage))"
+                      ErrorText="@ErrorMessage"
                       Class="flex-grow-1"
                       @ref="_textField" />
         
@@ -52,6 +54,8 @@
     [Parameter] public EventCallback<string> OnSendMessage { get; set; }
     [Parameter] public EventCallback OnAttach { get; set; }
     [Parameter] public bool IsEnabled { get; set; } = true;
+    [Parameter] public string? ErrorMessage { get; set; }
+    [Parameter] public string? ErrorAction { get; set; }
     
     private string _currentMessage = "";
     private int _lines = 1;
@@ -120,5 +124,14 @@
             _attachments.Add(filePath);
             StateHasChanged();
         }
+    }
+    
+    private string GetPlaceholderText()
+    {
+        if (!IsEnabled && !string.IsNullOrEmpty(ErrorMessage))
+        {
+            return $"Can't send yet — {ErrorMessage}";
+        }
+        return "Send a message…";
     }
 }

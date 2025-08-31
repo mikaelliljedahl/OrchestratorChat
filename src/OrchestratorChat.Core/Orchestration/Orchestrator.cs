@@ -12,6 +12,7 @@ namespace OrchestratorChat.Core.Orchestration;
 public class Orchestrator : IOrchestrator
 {
     private readonly IAgentFactory _agentFactory;
+    private readonly IAgentRegistry _agentRegistry;
     private readonly IEventBus _eventBus;
     private readonly ILogger<Orchestrator> _logger;
     private readonly ConcurrentDictionary<string, OrchestrationExecution> _activeExecutions;
@@ -20,14 +21,17 @@ public class Orchestrator : IOrchestrator
     /// Initializes a new instance of the Orchestrator
     /// </summary>
     /// <param name="agentFactory">Factory for creating and managing agents</param>
+    /// <param name="agentRegistry">Registry for managing active agent instances</param>
     /// <param name="eventBus">Event bus for publishing events</param>
     /// <param name="logger">Logger for recording orchestration activities</param>
     public Orchestrator(
         IAgentFactory agentFactory,
+        IAgentRegistry agentRegistry,
         IEventBus eventBus,
         ILogger<Orchestrator> logger)
     {
         _agentFactory = agentFactory ?? throw new ArgumentNullException(nameof(agentFactory));
+        _agentRegistry = agentRegistry ?? throw new ArgumentNullException(nameof(agentRegistry));
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _activeExecutions = new ConcurrentDictionary<string, OrchestrationExecution>();
@@ -607,7 +611,7 @@ public class Orchestrator : IOrchestrator
             }
 
             // Get the agent to execute the step
-            var agent = await _agentFactory.GetAgentAsync(step.AssignedAgentId);
+            var agent = await _agentRegistry.FindAsync(step.AssignedAgentId);
             if (agent == null)
             {
                 _logger.LogError("Agent {AgentId} not found for step {StepOrder}", 

@@ -10,6 +10,7 @@ public class AgentEntity
     public string Description { get; set; } = string.Empty;
     public string WorkingDirectory { get; set; } = string.Empty;
     public bool IsActive { get; set; }
+    public bool IsDefault { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? LastUsedAt { get; set; }
     

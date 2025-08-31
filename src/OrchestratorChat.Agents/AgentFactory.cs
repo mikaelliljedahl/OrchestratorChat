@@ -12,7 +12,7 @@ public class AgentFactory : IAgentFactory
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<AgentFactory> _logger;
-    private readonly ConcurrentDictionary<string, IAgent> _agentRegistry = new();
+    private readonly ConcurrentDictionary<string, IAgent> _activeAgents = new();
 
     public AgentFactory(
         IServiceProvider serviceProvider,
@@ -42,8 +42,8 @@ public class AgentFactory : IAgentFactory
             throw new AgentException($"Failed to initialize {type} agent: {result.ErrorMessage}", agent.Id);
         }
 
-        // Register the created agent
-        RegisterAgent(agent.Id, agent);
+        // Track the created agent
+        _activeAgents[agent.Id] = agent;
 
         return agent;
     }
@@ -55,48 +55,6 @@ public class AgentFactory : IAgentFactory
             .ToList();
     }
 
-    public Task<List<AgentInfo>> GetConfiguredAgents()
-    {
-        var agentInfos = new List<AgentInfo>();
-        
-        foreach (var kvp in _agentRegistry)
-        {
-            var agent = kvp.Value;
-            var agentInfo = new AgentInfo
-            {
-                Id = agent.Id,
-                Name = agent.Name,
-                Type = Enum.TryParse<AgentType>(agent.GetType().Name.Replace("Agent", ""), out var type) ? type : AgentType.Custom,
-                Description = $"Agent with {(agent.Capabilities?.AvailableTools.Count ?? 0)} tools and {(agent.Capabilities?.SupportedModels.Count ?? 0)} models",
-                Status = agent.Status,
-                Capabilities = agent.Capabilities,
-                LastActive = DateTime.UtcNow, // TODO: Track actual last active time
-                WorkingDirectory = agent.WorkingDirectory,
-                Configuration = new Dictionary<string, object>() // TODO: Add actual configuration data
-            };
-            
-            agentInfos.Add(agentInfo);
-        }
-        
-        return Task.FromResult(agentInfos);
-    }
-
-    public Task<IAgent?> GetAgentAsync(string agentId)
-    {
-        _agentRegistry.TryGetValue(agentId, out var agent);
-        return Task.FromResult(agent);
-    }
-
-    public void RegisterAgent(string agentId, IAgent agent)
-    {
-        _agentRegistry.AddOrUpdate(agentId, agent, (key, oldValue) =>
-        {
-            _logger.LogWarning("Agent with ID {AgentId} already exists. Replacing with new agent.", agentId);
-            return agent;
-        });
-        
-        _logger.LogInformation("Registered agent {AgentId} of type {AgentType}", agentId, agent.GetType().Name);
-    }
 
     public Task<IEnumerable<AgentType>> GetAvailableAgentTypesAsync(CancellationToken cancellationToken = default)
     {
@@ -104,54 +62,43 @@ public class AgentFactory : IAgentFactory
         var availableTypes = new List<AgentType>
         {
             AgentType.Claude,
-            AgentType.Saturn,
-            AgentType.GPT4
+            AgentType.Saturn
         };
         
         return Task.FromResult<IEnumerable<AgentType>>(availableTypes);
     }
 
+    public Task<IAgent?> GetAgentAsync(string agentId)
+    {
+        _activeAgents.TryGetValue(agentId, out var agent);
+        return Task.FromResult(agent);
+    }
+
     public async Task DisposeAgentAsync(string agentId, CancellationToken cancellationToken = default)
     {
-        if (_agentRegistry.TryRemove(agentId, out var agent))
+        if (_activeAgents.TryRemove(agentId, out var agent))
         {
-            _logger.LogInformation("Disposing agent {AgentId}", agentId);
-            
-            // Handle disposal for agents that implement IDisposable or IAsyncDisposable
             try
             {
-                if (agent is IAsyncDisposable asyncDisposable)
+                if (agent is IDisposable disposableAgent)
                 {
-                    await asyncDisposable.DisposeAsync();
+                    disposableAgent.Dispose();
                 }
-                else if (agent is IDisposable disposable)
+                else if (agent is IAsyncDisposable asyncDisposableAgent)
                 {
-                    disposable.Dispose();
+                    await asyncDisposableAgent.DisposeAsync();
                 }
-                
-                _logger.LogInformation("Successfully disposed agent {AgentId}", agentId);
+                else
+                {
+                    // If agent doesn't implement disposal interfaces, try to shutdown gracefully
+                    await agent.ShutdownAsync();
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error disposing agent {AgentId}: {Error}", agentId, ex.Message);
-                throw;
+                _logger.LogWarning(ex, "Error disposing agent {AgentId}", agentId);
             }
-        }
-        else
-        {
-            _logger.LogWarning("Attempted to dispose agent {AgentId} that does not exist", agentId);
         }
     }
 
-    public async Task<AgentStatus> GetAgentStatusAsync(string agentId, CancellationToken cancellationToken = default)
-    {
-        var agent = await GetAgentAsync(agentId);
-        if (agent == null)
-        {
-            _logger.LogWarning("Agent {AgentId} not found when requesting status", agentId);
-            return AgentStatus.Unknown;
-        }
-        
-        return agent.Status;
-    }
 }

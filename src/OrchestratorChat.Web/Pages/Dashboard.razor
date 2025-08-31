@@ -11,32 +11,57 @@
 
 <MudText Typo="Typo.h4" Class="mb-4">Agent Dashboard</MudText>
 
-<MudGrid>
-    <MudItem xs="12">
-        <MudPaper Class="pa-4">
-            <MudButton Variant="Variant.Filled" 
-                       Color="Color.Primary" 
-                       StartIcon="@Icons.Material.Filled.Add"
-                       OnClick="@ShowNewSessionDialog">
-                New Session
-            </MudButton>
-            <MudButton Variant="Variant.Outlined" 
-                       Color="Color.Secondary" 
-                       StartIcon="@Icons.Material.Filled.GroupAdd"
-                       OnClick="@ShowAddAgentDialog"
-                       Class="ml-2">
-                Add Agent
-            </MudButton>
-        </MudPaper>
-    </MudItem>
-    
-    @foreach (var agent in _agents)
-    {
-        <MudItem xs="12" sm="6" md="4" lg="3">
-            <AgentCard Agent="@agent" OnClick="@(() => OpenAgentChat(agent))" />
+@if (!_agents.Any() && !_showFirstRunWizard)
+{
+    <!-- Empty state - show first-run wizard automatically -->
+    <MudGrid>
+        <MudItem xs="12">
+            <MudPaper Class="pa-8 text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Rocket" Size="Size.Large" Color="Color.Primary" Class="mb-3" />
+                <MudText Typo="Typo.h5" Class="mb-2">Welcome to OrchestratorChat!</MudText>
+                <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+                    Let's set up your first AI agent to get started.
+                </MudText>
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           Size="Size.Large"
+                           StartIcon="@Icons.Material.Filled.Rocket"
+                           OnClick="@ShowFirstRunWizard">
+                    Get Started
+                </MudButton>
+            </MudPaper>
         </MudItem>
-    }
-</MudGrid>
+    </MudGrid>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12">
+            <MudPaper Class="pa-4">
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="@HandleNewChatClick">
+                    New Chat
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" 
+                           Color="Color.Secondary" 
+                           StartIcon="@Icons.Material.Filled.GroupAdd"
+                           OnClick="@ShowAddAgentDialog"
+                           Class="ml-2">
+                    Add Agent
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+        
+        @foreach (var agent in _agents)
+        {
+            <MudItem xs="12" sm="6" md="4" lg="3">
+                <AgentCard Agent="@agent" OnClick="@(() => OpenAgentChat(agent))" />
+            </MudItem>
+        }
+    </MudGrid>
+}
 
 <MudDialog @bind-Visible="_showNewSessionDialog">
     <DialogContent>
@@ -79,10 +104,15 @@
     </DialogActions>
 </MudDialog>
 
+<FirstRunWizard IsVisible="@_showFirstRunWizard" 
+                IsVisibleChanged="@OnFirstRunWizardVisibilityChanged"
+                OnAgentCreated="@OnAgentCreatedFromWizard" />
+
 @code {
     private List<AgentInfo> _agents = new();
     private bool _showNewSessionDialog = false;
     private bool _showAddAgentDialog = false;
+    private bool _showFirstRunWizard = false;
     private string _newSessionName = "";
     private Core.Sessions.SessionType _newSessionType = Core.Sessions.SessionType.SingleAgent;
     private string _newAgentName = "";
@@ -104,6 +134,60 @@
         {
             // Handle error - could show snackbar
             Console.WriteLine($"Error loading agents: {ex.Message}");
+        }
+    }
+    
+    private void ShowFirstRunWizard()
+    {
+        _showFirstRunWizard = true;
+    }
+    
+    private async Task OnFirstRunWizardVisibilityChanged(bool isVisible)
+    {
+        _showFirstRunWizard = isVisible;
+        
+        if (!isVisible)
+        {
+            // Reload agents in case a new one was created
+            await LoadAgents();
+        }
+    }
+    
+    private async Task OnAgentCreatedFromWizard(string agentId)
+    {
+        // Reload agents to show the new one
+        await LoadAgents();
+        StateHasChanged();
+    }
+    
+    private async Task HandleNewChatClick()
+    {
+        // Check if there's a default agent or show wizard if no agents exist
+        if (!_agents.Any())
+        {
+            ShowFirstRunWizard();
+        }
+        else
+        {
+            try
+            {
+                var defaultAgent = await AgentService.GetDefaultAgentAsync();
+                if (defaultAgent != null)
+                {
+                    // Navigate directly to chat with default agent
+                    Navigation.NavigateTo($"/chat/{defaultAgent.Id}");
+                }
+                else
+                {
+                    // No default agent set - show first-run wizard
+                    ShowFirstRunWizard();
+                }
+            }
+            catch (Exception)
+            {
+                // Fallback to first-run wizard on any error
+                ShowFirstRunWizard();
+            }
         }
     }
     

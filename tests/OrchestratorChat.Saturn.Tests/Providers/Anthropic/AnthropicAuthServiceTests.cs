@@ -124,13 +124,13 @@ public class AnthropicAuthServiceTests : IDisposable
     }
 
     [Fact]
-    public void Logout_ClearsStoredTokens()
+    public async Task Logout_ClearsStoredTokens()
     {
         // This test verifies the logout method doesn't throw
         // The actual token clearing is tested in TokenStoreTests
         
         // Act & Assert - should not throw
-        _authService.Logout();
+        await _authService.LogoutAsync();
     }
 
     public void Dispose()

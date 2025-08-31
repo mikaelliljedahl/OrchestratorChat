@@ -157,9 +157,9 @@ public class AnthropicClient : IDisposable
     /// <summary>
     /// Logs out by clearing stored tokens
     /// </summary>
-    public void Logout()
+    public async Task LogoutAsync()
     {
-        _authService.Logout();
+        await _authService.LogoutAsync();
     }
 
     /// <summary>

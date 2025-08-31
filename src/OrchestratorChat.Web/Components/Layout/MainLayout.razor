@@ -2,6 +2,7 @@
 @inject NavigationManager Navigation
 @using OrchestratorChat.Web.Services
 @inject ISessionManager SessionManager
+@inject IAgentService AgentService
 
 <MudThemeProvider Theme="@_theme" />
 <MudPopoverProvider />
@@ -16,6 +17,13 @@
                        OnClick="@DrawerToggle" />
         <MudText Typo="Typo.h5" Class="ml-3">OrchestratorChat</MudText>
         <MudSpacer />
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Secondary" 
+                   StartIcon="@Icons.Material.Filled.Chat"
+                   OnClick="@HandleNewChatClick"
+                   Class="mr-3">
+            New Chat
+        </MudButton>
         <SessionIndicator />
         <MudIconButton Icon="@Icons.Material.Filled.Settings" 
                        Color="Color.Inherit" 
@@ -53,5 +61,28 @@
     void OpenSettings()
     {
         Navigation.NavigateTo("/settings");
+    }
+    
+    private async Task HandleNewChatClick()
+    {
+        try
+        {
+            var defaultAgent = await AgentService.GetDefaultAgentAsync();
+            if (defaultAgent != null)
+            {
+                // Navigate directly to chat with default agent
+                Navigation.NavigateTo($"/chat/{defaultAgent.Id}");
+            }
+            else
+            {
+                // No default agent - navigate to dashboard which will show first-run wizard
+                Navigation.NavigateTo("/dashboard");
+            }
+        }
+        catch (Exception)
+        {
+            // Fallback to dashboard on any error
+            Navigation.NavigateTo("/dashboard");
+        }
     }
 }

@@ -13,6 +13,7 @@ using OrchestratorChat.Core.Tools;
 using OrchestratorChat.Core.Messages;
 using OrchestratorChat.Saturn.Core;
 using SaturnAgentConfiguration = OrchestratorChat.Saturn.Models.SaturnAgentConfiguration;
+using SaturnConfiguration = OrchestratorChat.Saturn.Models.SaturnConfiguration;
 using SaturnAgentMessage = OrchestratorChat.Saturn.Models.AgentMessage;
 using SaturnAgentResponse = OrchestratorChat.Saturn.Models.AgentResponse;
 using SaturnToolCall = OrchestratorChat.Saturn.Models.ToolCall;
@@ -291,7 +292,7 @@ public class SaturnAgent : IAgent
             SupportsTools = true,
             SupportsFileOperations = true,
             SupportsWebSearch = false,
-            SupportedModels = _configuration.SupportedModels,
+            SupportedModels = new List<string> { "claude-sonnet-4-20250514", "claude-opus-4-1-20250805", "claude-3-sonnet", "claude-3-haiku" },
             AvailableTools = tools.Select(t => new ToolDefinition
             {
                 Name = t.Name,

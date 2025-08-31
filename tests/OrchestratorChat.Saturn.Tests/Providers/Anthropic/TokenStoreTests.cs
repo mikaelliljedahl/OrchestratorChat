@@ -68,7 +68,7 @@ public class TokenStoreTests : IDisposable
         Assert.True(_tokenStore.TokenFileExists());
 
         // Act
-        _tokenStore.DeleteTokens();
+        await _tokenStore.ClearTokensAsync();
 
         // Assert
         Assert.False(_tokenStore.TokenFileExists());
@@ -277,7 +277,7 @@ public class TokenStoreTests : IDisposable
         Assert.True(_tokenStore.TokenFileExists());
 
         // Act
-        _tokenStore.DeleteTokens();
+        await _tokenStore.ClearTokensAsync();
 
         // Assert
         Assert.False(_tokenStore.TokenFileExists());

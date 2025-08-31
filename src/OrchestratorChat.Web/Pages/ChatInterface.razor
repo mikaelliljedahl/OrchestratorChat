@@ -4,11 +4,14 @@
 @using OrchestratorChat.Web.Models
 @using OrchestratorChat.Web.Services
 @using OrchestratorChat.Web.Components
+@using SignalRResponses = OrchestratorChat.SignalR.Contracts.Responses
+@using SignalRRequests = OrchestratorChat.SignalR.Contracts.Requests
 @implements IAsyncDisposable
 @inject IJSRuntime JSRuntime
 @inject IAgentService AgentService
 @inject ISessionManager SessionManager
 @inject NavigationManager Navigation
+@inject ILogger<ChatInterface> Logger
 
 <PageTitle>Chat - @_sessionName</PageTitle>
 
@@ -23,7 +26,24 @@
     <MudItem xs="12" md="9">
         <MudPaper Class="chat-panel">
             <MudToolBar>
-                <MudText Typo="Typo.h6">@(_selectedAgent?.Name ?? "Select an agent")</MudText>
+                <div class="d-flex align-center">
+                    <MudText Typo="Typo.h6" Class="mr-3">@(_selectedAgent?.Name ?? "Select an agent")</MudText>
+                    @if (_selectedAgent != null)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="@GetAgentStatusColor(_selectedAgent.Status)">
+                            @_selectedAgent.Status
+                        </MudChip>
+                    }
+                    <div class="ml-3">
+                        <HealthPanel OrchestratorHub="@_orchestratorHub"
+                                   AgentHub="@_agentHub"
+                                   SelectedAgentId="@_selectedAgent?.Id"
+                                   ShowDiagnostics="@_showHealthDiagnostics"
+                                   OnReconnectRequested="@ReconnectHubs"
+                                   OnAgentRetryRequested="@RetryAgentInitialization"
+                                   OnHealthUpdated="@OnHealthUpdated" />
+                    </div>
+                </div>
                 <MudSpacer />
                 <MudIconButton Icon="@Icons.Material.Filled.History" 
                               OnClick="@ShowHistory" />
@@ -44,12 +64,55 @@
                     {
                         <TypingIndicator AgentName="@(_selectedAgent?.Name ?? "Agent")" />
                     }
+                    
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <MudAlert Severity="Severity.Error" 
+                                  Class="ma-3"
+                                  ShowCloseIcon="true"
+                                  CloseIconClicked="@(() => _errorMessage = null)">
+                            <div>
+                                <strong>Error:</strong> @_errorMessage
+                            </div>
+                            @if (_errorMessage.Contains("Claude CLI") || _errorMessage.Contains("not found"))
+                            {
+                                <div class="mt-2">
+                                    <MudText Typo="Typo.caption">
+                                        Recommendation: Install Claude CLI and ensure it's authenticated.
+                                    </MudText>
+                                </div>
+                            }
+                            else if (_errorMessage.Contains("API key"))
+                            {
+                                <div class="mt-2">
+                                    <MudText Typo="Typo.caption">
+                                        Recommendation: Check your API key configuration in Settings.
+                                    </MudText>
+                                </div>
+                            }
+                        </MudAlert>
+                    }
                 </CascadingValue>
             </div>
             
             <MessageInput OnSendMessage="@SendMessage" 
                          IsEnabled="@(!_isProcessing && _selectedAgent != null)"
+                         ErrorMessage="@_errorMessage"
                          OnAttach="@(() => AttachFile())" />
+            
+            @if (_showHealthDiagnostics)
+            {
+                <div class="mt-2">
+                    <HealthPanel OrchestratorHub="@_orchestratorHub"
+                               AgentHub="@_agentHub"
+                               SelectedAgentId="@_selectedAgent?.Id"
+                               ShowDiagnostics="true"
+                               ShowOpenRouterStatus="@(_selectedAgent?.Type == Core.Agents.AgentType.Saturn)"
+                               OnReconnectRequested="@ReconnectHubs"
+                               OnAgentRetryRequested="@RetryAgentInitialization"
+                               OnHealthUpdated="@OnHealthUpdated" />
+                </div>
+            }
         </MudPaper>
     </MudItem>
 </MudGrid>
@@ -65,6 +128,7 @@
     [Parameter] public string? SessionId { get; set; }
     
     private HubConnection? _agentHub;
+    private HubConnection? _orchestratorHub;
     private List<AgentInfo> _agents = new();
     private AgentInfo? _selectedAgent;
     private Core.Sessions.Session? _currentSession;
@@ -75,28 +139,34 @@
     private bool _showHistory = false;
     private bool _showCreateAgentDialog = false;
     private ElementReference _messagesContainer;
+    private string? _errorMessage;
+    private bool _showHealthDiagnostics = false;
     
     protected override async Task OnInitializedAsync()
     {
-        await InitializeHub();
-        await LoadSession();
+        await InitializeHubs();
         await LoadAgents();
         
         if (!string.IsNullOrEmpty(AgentId))
         {
             _selectedAgent = _agents.FirstOrDefault(a => a.Id == AgentId);
         }
+        
+        await LoadOrCreateSession();
     }
     
-    private async Task InitializeHub()
+    private async Task InitializeHubs()
     {
+        // Initialize Agent Hub
         _agentHub = new HubConnectionBuilder()
             .WithUrl(Navigation.ToAbsoluteUri("/hubs/agent"))
             .Build();
             
-        _agentHub.On<AgentResponseDto>("ReceiveAgentResponse", async (response) =>
+        _agentHub.On<SignalRResponses.AgentResponseDto>("ReceiveAgentResponse", async (response) =>
         {
             _isTyping = false;
+            _errorMessage = null;
+            _showHealthDiagnostics = false; // Hide diagnostics on successful response
             
             if (response.Response.Type == Core.Messages.ResponseType.Text)
             {
@@ -122,32 +192,131 @@
             }
         });
         
+        _agentHub.On<SignalRResponses.ErrorResponse>("ReceiveError", async (error) =>
+        {
+            _isTyping = false;
+            _isProcessing = false;
+            _errorMessage = error.Error;
+            _showHealthDiagnostics = true; // Show diagnostics when errors occur
+            await InvokeAsync(StateHasChanged);
+        });
+        
+        // Initialize Orchestrator Hub
+        _orchestratorHub = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/hubs/orchestrator"))
+            .Build();
+            
+        _orchestratorHub.On<Core.Sessions.Session>("SessionCreated", async (session) =>
+        {
+            _currentSession = session;
+            _sessionName = session.Name;
+            await InvokeAsync(StateHasChanged);
+        });
+        
         await _agentHub.StartAsync();
+        await _orchestratorHub.StartAsync();
     }
     
-    private async Task LoadSession()
+    private async Task LoadOrCreateSession()
     {
         try
         {
             if (!string.IsNullOrEmpty(SessionId))
             {
+                // Load specific session
                 _currentSession = await SessionManager.GetSessionAsync(SessionId);
-            }
-            else
-            {
-                _currentSession = await SessionManager.GetCurrentSessionAsync();
+                if (_currentSession != null)
+                {
+                    _sessionName = _currentSession.Name;
+                    await LoadMessages();
+                    await JoinSessionGroups();
+                    return;
+                }
             }
             
-            _sessionName = _currentSession?.Name ?? "Chat";
-            
+            // Check for current session
+            _currentSession = await SessionManager.GetCurrentSessionAsync();
             if (_currentSession != null)
             {
+                _sessionName = _currentSession.Name;
                 await LoadMessages();
+                await JoinSessionGroups();
+                return;
+            }
+            
+            // No session exists and we have a selected agent - create implicit session
+            if (_selectedAgent != null)
+            {
+                await CreateImplicitSession();
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading session: {ex.Message}");
+            Logger.LogError(ex, "Error loading or creating session");
+            _errorMessage = $"Error setting up chat session: {ex.Message}";
+        }
+    }
+    
+    private async Task CreateImplicitSession()
+    {
+        if (_selectedAgent == null || _orchestratorHub == null) return;
+        
+        try
+        {
+            var sessionName = $"Chat with {_selectedAgent.Name}";
+            var createRequest = new Core.Sessions.CreateSessionRequest
+            {
+                Name = sessionName,
+                Type = Core.Sessions.SessionType.SingleAgent,
+                AgentIds = new List<string> { _selectedAgent.Id },
+                WorkingDirectory = Directory.GetCurrentDirectory()
+            };
+            
+            var response = await _orchestratorHub.InvokeAsync<SignalRResponses.SessionCreatedResponse>("CreateSession", createRequest);
+            if (response.Success && response.Session != null)
+            {
+                _currentSession = response.Session;
+                _sessionName = response.Session.Name;
+                
+                // Subscribe to agent updates
+                if (_agentHub != null)
+                {
+                    await _agentHub.InvokeAsync("SubscribeToAgent", _selectedAgent.Id);
+                }
+                
+                Logger.LogInformation("Implicit session created: {SessionId}", _currentSession.Id);
+            }
+            else
+            {
+                _errorMessage = response.Error ?? "Failed to create session";
+                Logger.LogError("Failed to create implicit session: {Error}", _errorMessage);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error creating implicit session");
+            _errorMessage = $"Failed to create chat session: {ex.Message}";
+        }
+    }
+    
+    private async Task JoinSessionGroups()
+    {
+        if (_currentSession == null || _orchestratorHub == null || _agentHub == null) return;
+        
+        try
+        {
+            // Join session group in orchestrator hub
+            await _orchestratorHub.InvokeAsync("JoinSession", _currentSession.Id);
+            
+            // Subscribe to agent updates for each agent in session
+            foreach (var agentId in _currentSession.ParticipantAgentIds ?? new List<string>())
+            {
+                await _agentHub.InvokeAsync("SubscribeToAgent", agentId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error joining session groups");
         }
     }
     
@@ -200,6 +369,22 @@
             
         _isProcessing = true;
         _isTyping = true;
+        _errorMessage = null;
+        
+        // Ensure we have a session before sending
+        if (_currentSession == null)
+        {
+            await CreateImplicitSession();
+            if (_currentSession == null)
+            {
+                _isProcessing = false;
+                _isTyping = false;
+                _errorMessage = "Unable to create chat session. Please try again.";
+                _showHealthDiagnostics = true;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+        }
         
         // Add user message
         var userMessage = new ChatMessage
@@ -214,10 +399,10 @@
         try
         {
             // Send to agent via SignalR
-            var request = new AgentMessageRequest
+            var request = new SignalRRequests.AgentMessageRequest
             {
                 AgentId = _selectedAgent.Id,
-                SessionId = _currentSession?.Id ?? Guid.NewGuid().ToString(),
+                SessionId = _currentSession.Id,
                 Content = content
             };
             
@@ -225,7 +410,9 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error sending message: {ex.Message}");
+            Logger.LogError(ex, "Error sending message to agent {AgentId}", _selectedAgent.Id);
+            _errorMessage = $"Failed to send message: {ex.Message}";
+            _showHealthDiagnostics = true;
             _isTyping = false;
         }
         
@@ -301,11 +488,84 @@
         return Task.CompletedTask;
     }
     
+    private Color GetAgentStatusColor(AgentStatus status)
+    {
+        return status switch
+        {
+            AgentStatus.Ready => Color.Success,
+            AgentStatus.Busy => Color.Warning,
+            AgentStatus.Processing => Color.Warning,
+            AgentStatus.Error => Color.Error,
+            AgentStatus.Initializing => Color.Info,
+            AgentStatus.Shutdown => Color.Default,
+            AgentStatus.Uninitialized => Color.Secondary,
+            AgentStatus.Unknown => Color.Default,
+            _ => Color.Default
+        };
+    }
+    
+    // Health panel methods
+    private async Task ReconnectHubs()
+    {
+        try
+        {
+            if (_agentHub?.State != HubConnectionState.Connected)
+            {
+                await _agentHub?.StartAsync()!;
+            }
+            
+            if (_orchestratorHub?.State != HubConnectionState.Connected)
+            {
+                await _orchestratorHub?.StartAsync()!;
+            }
+            
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error reconnecting hubs");
+            _errorMessage = $"Failed to reconnect: {ex.Message}";
+        }
+    }
+    
+    private async Task RetryAgentInitialization(string agentId)
+    {
+        try
+        {
+            // Reload agents to refresh status
+            await LoadAgents();
+            _selectedAgent = _agents.FirstOrDefault(a => a.Id == agentId);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error retrying agent initialization for {AgentId}", agentId);
+            _errorMessage = $"Failed to retry agent initialization: {ex.Message}";
+        }
+    }
+    
+    private async Task OnHealthUpdated()
+    {
+        // Auto-show diagnostics panel when there are blocking errors
+        // Hide when everything is OK or user manually dismissed
+        if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            _showHealthDiagnostics = true;
+        }
+        
+        await InvokeAsync(StateHasChanged);
+    }
+    
     public async ValueTask DisposeAsync()
     {
         if (_agentHub is not null)
         {
             await _agentHub.DisposeAsync();
+        }
+        
+        if (_orchestratorHub is not null)
+        {
+            await _orchestratorHub.DisposeAsync();
         }
     }
 }

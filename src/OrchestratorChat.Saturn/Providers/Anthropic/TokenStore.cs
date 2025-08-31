@@ -10,6 +10,7 @@ public class TokenStore
     private readonly string _tokenPath;
     private readonly string _keyPath;
     private readonly string _saltPath;
+    private StoredTokens? _cachedTokens;
     
     // Encryption parameters
     private const int KeySize = 256 / 8;  // 256-bit key
@@ -48,10 +49,16 @@ public class TokenStore
         }
         
         await File.WriteAllTextAsync(_tokenPath, encryptedData);
+        _cachedTokens = tokens;
     }
     
     public async Task<StoredTokens?> LoadTokensAsync()
     {
+        if (_cachedTokens != null)
+        {
+            return _cachedTokens;
+        }
+        
         if (!File.Exists(_tokenPath))
         {
             return null;
@@ -71,20 +78,38 @@ public class TokenStore
                 decryptedJson = await DecryptWithAesAsync(encryptedData);
             }
             
-            return JsonSerializer.Deserialize<StoredTokens>(decryptedJson);
+            _cachedTokens = JsonSerializer.Deserialize<StoredTokens>(decryptedJson);
+            return _cachedTokens;
         }
         catch
         {
             // If decryption fails, try to migrate from legacy format
-            return await MigrateLegacyTokens();
+            _cachedTokens = await MigrateLegacyTokens();
+            return _cachedTokens;
         }
     }
     
-    public void DeleteTokens()
+    public async Task ClearTokensAsync()
     {
-        SecureDeleteFile(_tokenPath);
-        SecureDeleteFile(_keyPath);
-        SecureDeleteFile(_saltPath);
+        _cachedTokens = null;
+        await Task.Run(() =>
+        {
+            SecureDeleteFile(_tokenPath);
+            SecureDeleteFile(_keyPath);
+            SecureDeleteFile(_saltPath);
+        });
+    }
+    
+    public bool NeedsRefresh
+    {
+        get
+        {
+            if (_cachedTokens == null)
+            {
+                return false;
+            }
+            return _cachedTokens.NeedsRefresh;
+        }
     }
     
     private async Task<string> EncryptWithDpapiAsync(string plainText)
@@ -226,7 +251,7 @@ public class TokenStore
                         await SaveTokensAsync(tokens);
                         
                         // Securely delete legacy file
-                        SecureDeleteFile(legacyPath);
+                        await Task.Run(() => SecureDeleteFile(legacyPath));
                         
                         return tokens;
                     }

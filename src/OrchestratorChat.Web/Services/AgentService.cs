@@ -12,47 +12,15 @@ public class AgentService : IAgentService
 {
     private readonly IAgentFactory _agentFactory;
     private readonly IAgentRepository _agentRepository;
-    private readonly Dictionary<string, IAgent> _agents = new();
+    private readonly IAgentRegistry _agentRegistry;
 
-    public AgentService(IAgentFactory agentFactory, IAgentRepository agentRepository)
+    public AgentService(IAgentFactory agentFactory, IAgentRepository agentRepository, IAgentRegistry agentRegistry)
     {
         _agentFactory = agentFactory;
         _agentRepository = agentRepository;
-        
-        // Initialize agents from database on startup
-        _ = Task.Run(InitializeAgentsFromDatabaseAsync);
+        _agentRegistry = agentRegistry;
     }
 
-    private async Task InitializeAgentsFromDatabaseAsync()
-    {
-        try
-        {
-            var activeAgents = await _agentRepository.GetActiveAgentsAsync();
-            foreach (var agentEntity in activeAgents)
-            {
-                try
-                {
-                    // Recreate agent configuration from entity
-                    var configuration = MapEntityToConfiguration(agentEntity);
-                    
-                    // Create agent instance
-                    var agent = await _agentFactory.CreateAgentAsync(agentEntity.Type, configuration);
-                    _agents[agent.Id] = agent;
-                }
-                catch (Exception ex)
-                {
-                    // Log error but continue with other agents
-                    // Consider logging this in a real application
-                    Console.WriteLine($"Failed to initialize agent {agentEntity.Id}: {ex.Message}");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            // Log initialization failure
-            Console.WriteLine($"Failed to initialize agents from database: {ex.Message}");
-        }
-    }
 
     public async Task<List<AgentInfo>> GetConfiguredAgentsAsync()
     {
@@ -79,42 +47,28 @@ public class AgentService : IAgentService
     public async Task<AgentInfo> CreateAgentAsync(AgentType type, AgentConfiguration configuration)
     {
         Console.WriteLine($"AgentService.CreateAgentAsync: Method called with type '{type}' and configuration for '{configuration.Name}'");
-        
-        try
-        {
-            Console.WriteLine($"AgentService.CreateAgentAsync: Calling AgentFactory.CreateAgentAsync");
-            var agent = await _agentFactory.CreateAgentAsync(type, configuration);
-            Console.WriteLine($"AgentService.CreateAgentAsync: Agent created with ID '{agent.Id}'");
-            
-            _agents[agent.Id] = agent;
 
-            // Create entity and persist to database
-            var agentEntity = new AgentEntity
-            {
-                Id = agent.Id,
-                Name = agent.Name,
-                Type = type,
-                Description = $"{type} Agent",
-                WorkingDirectory = agent.WorkingDirectory ?? string.Empty,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                LastUsedAt = DateTime.UtcNow,
-                Configuration = MapConfigurationToEntity(configuration, agent.Id)
-            };
-
-            Console.WriteLine($"AgentService.CreateAgentAsync: Persisting agent entity to database");
-            await _agentRepository.AddAsync(agentEntity);
-            
-            var result = await MapEntityToAgentInfo(agentEntity);
-            Console.WriteLine($"AgentService.CreateAgentAsync: Method completed successfully, returning AgentInfo for '{result.Name}'");
-            return result;
-        }
-        catch (Exception ex)
+        // Always persist the agent first so it shows up in the UI, even if runtime init fails
+        var persistedId = Guid.NewGuid().ToString();
+        var agentEntity = new AgentEntity
         {
-            Console.WriteLine($"AgentService.CreateAgentAsync: Exception occurred: {ex.Message}");
-            Console.WriteLine($"AgentService.CreateAgentAsync: Exception details: {ex}");
-            throw;
-        }
+            Id = persistedId,
+            Name = configuration.Name ?? $"{type} Agent",
+            Type = type,
+            Description = $"{type} Agent",
+            WorkingDirectory = configuration.WorkingDirectory ?? string.Empty,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            LastUsedAt = DateTime.UtcNow,
+            Configuration = MapConfigurationToEntity(configuration, persistedId)
+        };
+
+        Console.WriteLine("AgentService.CreateAgentAsync: Persisting agent entity to database (pre-initialization)");
+        await _agentRepository.AddAsync(agentEntity);
+
+        var result = await MapEntityToAgentInfo(agentEntity);
+        Console.WriteLine($"AgentService.CreateAgentAsync: Returning AgentInfo for '{result.Name}' (Id: {result.Id})");
+        return result;
     }
 
     public async Task UpdateAgentAsync(AgentInfo agentInfo)
@@ -135,8 +89,9 @@ public class AgentService : IAgentService
 
         await _agentRepository.UpdateAsync(agentEntity);
 
-        // Update in-memory agent if exists
-        if (_agents.TryGetValue(agentInfo.Id, out var agent))
+        // Update in-memory agent if exists in registry
+        var agent = await _agentRegistry.FindAsync(agentInfo.Id);
+        if (agent != null)
         {
             agent.Name = agentInfo.Name;
             agent.WorkingDirectory = agentInfo.WorkingDirectory;
@@ -152,17 +107,15 @@ public class AgentService : IAgentService
             await _agentRepository.UpdateAsync(agentEntity);
         }
 
-        if (_agents.TryGetValue(agentId, out var agent))
-        {
-            // await agent.DisposeAsync(); // TODO: Add cleanup when available
-            _agents.Remove(agentId);
-        }
+        // Remove from registry and dispose properly
+        await _agentRegistry.RemoveAsync(agentId);
     }
 
     public async Task<bool> IsAgentAvailableAsync(string agentId)
     {
-        // Check in-memory agents first for active status
-        if (_agents.TryGetValue(agentId, out var agent))
+        // Check registry first for active runtime status
+        var agent = await _agentRegistry.FindAsync(agentId);
+        if (agent != null)
         {
             return agent.Status == AgentStatus.Ready;
         }
@@ -182,7 +135,7 @@ public class AgentService : IAgentService
         };
     }
 
-    private Task<AgentInfo> MapEntityToAgentInfo(AgentEntity entity)
+    private async Task<AgentInfo> MapEntityToAgentInfo(AgentEntity entity)
     {
         var agentInfo = new AgentInfo
         {
@@ -194,15 +147,16 @@ public class AgentService : IAgentService
             LastActive = entity.LastUsedAt ?? entity.CreatedAt
         };
 
-        // Get status from in-memory agent if available, otherwise use Ready for active agents
-        if (_agents.TryGetValue(entity.Id, out var agent))
+        // Get status from registry if available, otherwise use Initializing for active agents without runtime instance
+        var agent = await _agentRegistry.FindAsync(entity.Id);
+        if (agent != null)
         {
             agentInfo.Status = agent.Status;
             agentInfo.Capabilities = agent.Capabilities;
         }
         else
         {
-            agentInfo.Status = entity.IsActive ? AgentStatus.Ready : AgentStatus.Shutdown;
+            agentInfo.Status = entity.IsActive ? AgentStatus.Initializing : AgentStatus.Shutdown;
         }
 
         // Deserialize custom settings from configuration
@@ -219,7 +173,7 @@ public class AgentService : IAgentService
             }
         }
 
-        return Task.FromResult(agentInfo);
+        return agentInfo;
     }
 
     private static AgentConfigurationEntity MapConfigurationToEntity(AgentConfiguration configuration, string agentId)
@@ -285,5 +239,18 @@ public class AgentService : IAgentService
         }
 
         return configuration;
+    }
+
+    public async Task<AgentInfo?> GetDefaultAgentAsync()
+    {
+        var defaultAgent = await _agentRepository.GetDefaultAgentAsync();
+        if (defaultAgent == null) return null;
+
+        return await MapEntityToAgentInfo(defaultAgent);
+    }
+
+    public async Task<bool> SetDefaultAgentAsync(string agentId)
+    {
+        return await _agentRepository.SetDefaultAgentAsync(agentId);
     }
 }

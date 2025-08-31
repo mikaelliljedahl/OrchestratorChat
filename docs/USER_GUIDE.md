@@ -10,7 +10,7 @@ OrchestratorChat is a .NET 8 multi‑agent orchestration platform with:
 - Agent adapters: Claude (via Claude CLI) and Saturn (embedded, via OpenRouter/Anthropic)
 - EF Core + SQLite persistence for sessions/messages (agents persistence is partially wired)
 
-If you’re new, start with the web app and the Claude path (fastest to validate). Saturn works headlessly provided you configure an API key.
+If you’re new, start with the First‑Run Wizard in the web app. Pick Claude (if you have the CLI) or Saturn (OpenRouter). The wizard verifies your setup and leads you straight into a chat.
 
 ## Prerequisites
 
@@ -36,24 +36,22 @@ Optional environment variables (set per your shell):
 - `dotnet run`
 - Open: `https://localhost:5001` (or `http://localhost:5000`)
 
-3) Add an agent
-- Go to “Dashboard” (home page)
-- Click “Add Agent”
-- Choose “Claude” for the most reliable path now
-  - Make sure `claude` CLI is installed and authenticated
-- Name your agent and Create
+3) First‑Run Wizard (first launch)
+- The app opens a short wizard:
+  - Choose a provider: Claude CLI or Saturn (OpenRouter)
+  - Verify provider: auto‑detect Claude CLI or paste/validate OpenRouter API key
+  - Name & defaults: prefilled sensible options
+  - Create & test: agent is created and a quick test runs in the background
 
-4) Start a session
-- From “Dashboard”, click “New Session”
-- Enter a session name, choose the type (Single Agent is fine)
-- Create → you’ll be navigated to the session view
+4) Start Chat
+- Click “Start Chat” at the end of the wizard (or use “New Chat” from the top bar later)
+- A session is created automatically; you land in Chat ready to send a message
 
 5) Chat with an agent
-- From “Dashboard” click an agent card to open Chat, or go to the “Chat” page and select your agent from the sidebar
 - Type a message and send — you should see streaming responses
 
 Notes:
-- The chat pipeline currently instantiates a Claude agent by default when sending messages via SignalR. If you don’t have the Claude CLI installed, sending messages will fail. Saturn support exists but requires follow‑up wiring (see Limitations and Planning below).
+- The setup wizard verifies your provider before chat. If anything is missing (e.g., Claude CLI or OpenRouter key), the UI shows a single fix action.
 
 ## Using the Console Client (optional)
 
@@ -68,13 +66,13 @@ This will connect to the SignalR hubs, create/join a session, and listen for HTT
 ## Provider Configuration
 
 Claude (CLI)
-- Install the Claude CLI and sign in (OAuth is preferred)
+- Install the Claude CLI and sign in (OAuth preferred)
 - Verify with `claude --version`
-- No other configuration required for the fast path
+- The wizard auto‑detects it and guides you if not found
 
 Saturn (OpenRouter)
-- Export `OPENROUTER_API_KEY`
-- Saturn agent configuration can read `CustomSettings` such as `Provider = OpenRouter` and `ApiKey` but will also fall back to `OPENROUTER_API_KEY` from the environment
+- Paste your `OPENROUTER_API_KEY` in the wizard (or export it beforehand)
+- Saturn will also fall back to the environment variable if present
 
 Anthropic (for Saturn)
 - See CLAUDE.md → “Environment Requirements” and “Anthropic Provider” sections
@@ -83,17 +81,14 @@ Anthropic (for Saturn)
 ## Troubleshooting
 
 - “Claude CLI not found or not authenticated”
-  - Ensure `claude` is installed and on PATH
-  - Run `claude --version`, and sign in if needed
-  - Restart the web app after installing/signing in
+  - Click the “Install Claude CLI” fix in the Health panel
+  - Ensure `claude` is on PATH; verify with `claude --version`
 
 - “Nothing happens when I send a message”
-  - The current SignalR AgentHub creates a Claude agent by default for new agent IDs
-  - If Claude CLI isn’t installed, message handling fails silently/with errors in server logs
+  - Check Health panel for provider or connection issues; follow the single fix action
 
 - “I created a Saturn agent but Chat still uses Claude”
-  - Known limitation: Chat/SignalR path doesn’t yet use the persisted/selected agent type
-  - Use the Claude path for now, or see the planning doc linked below for the integration work
+  - This is addressed by the onboarding alignment work (see planning docs). If not yet deployed in your build, use Claude CLI path or follow `docs/planning/agent-session-integration-plan.md`.
 
 - SignalR connection issues
   - Check TLS/ports 5000/5001
@@ -104,18 +99,17 @@ Anthropic (for Saturn)
   - The SQLite DB is created on first run
   - If broken, delete `orchestrator.db` and restart (dev only)
 
-## Current Limitations (and Workarounds)
+## Health & Diagnostics Panel
 
-- The UI’s “Add Agent” stores agents in memory; the SignalR AgentHub maintains a separate in‑memory cache and, when needed, creates a Claude agent by default for message handling.
-- Because of this mismatch:
-  - The Chat page can list an agent you created, but SignalR may create a different runtime agent (Claude) when you send a message
-  - To use Chat today reliably, install and sign in to the Claude CLI
-  - Saturn can stream responses via its providers but requires the integration fixes described below
+- Chat header shows compact status badges for provider, hubs, and agent state
+- Expandable panel appears when an error blocks sending; it offers exactly one primary fix action
+- Once resolved, the panel collapses automatically
 
-See: `docs/planning/agent-session-integration-plan.md` for the concrete wiring plan to align persistence, SignalR, and agent creation so Saturn/Claude are selected correctly.
+## Current Limitations
+
+- If the wiring changes in `docs/planning/agent-session-integration-plan.md` are not yet applied in your build, prefer the Claude path to avoid SignalR defaulting to Claude unexpectedly. The onboarding docs in `docs/planning/ux-onboarding` describe the intended fixes and UI.
 
 ## More Docs
 
 - Technical deep‑dive and development guidance: `CLAUDE.md`
 - Planning docs (agents/tools/providers/persistence): `docs/planning/`
-
