@@ -2,16 +2,72 @@
 @using OrchestratorChat.Web.Models
 @using OrchestratorChat.Web.Services
 @using OrchestratorChat.Web.Components
+@using OrchestratorChat.Core.Teams
+@using OrchestratorChat.Core.Agents
+@using OrchestratorChat.Core.Sessions
+@using OrchestratorChat.Core.Plans
 @inject IOrchestrationService OrchestrationService
 @inject IAgentService AgentService
+@inject ISessionService SessionService
+@inject TeamPlanService TeamPlanService
 
 <PageTitle>Multi-Agent Orchestrator</PageTitle>
 
-<MudGrid>
-    <MudItem xs="12" md="8">
-        <MudCard>
-            <MudCardContent>
-                <MudText Typo="Typo.h5" Class="mb-3">Orchestration Planning</MudText>
+<MudContainer MaxWidth="MaxWidth.Large">
+    <MudText Typo="Typo.h4" Class="mb-4">Multi-Agent Orchestrator</MudText>
+    
+    <!-- Session Management -->
+    <MudCard Class="mb-4">
+        <MudCardContent>
+            <MudGrid align-items="Center">
+                <MudItem xs="12" sm="6">
+                    @if (_currentSession != null)
+                    {
+                        <MudText Typo="Typo.h6">Current Session: @_currentSession.Name</MudText>
+                        <MudText Typo="Typo.body2" Class="text-muted">Session ID: @_currentSession.Id</MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.h6" Class="text-muted">No active session</MudText>
+                    }
+                </MudItem>
+                <MudItem xs="12" sm="6" Class="d-flex justify-end gap-2">
+                    <MudButton Variant="Variant.Outlined" 
+                             Color="Color.Primary" 
+                             OnClick="@CreateNewSession"
+                             StartIcon="@Icons.Material.Filled.Add">
+                        New Session
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" 
+                             Color="Color.Secondary" 
+                             OnClick="@LoadSessionData"
+                             Disabled="@(_currentSession == null)"
+                             StartIcon="@Icons.Material.Filled.Refresh">
+                        Reload
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+    
+    <MudTabs Elevation="2" Rounded="true" Class="mb-4">
+        <MudTabPanel Text="Team Setup" Icon="@Icons.Material.Filled.Group">
+            <TeamSetup Team="@_currentTeam" 
+                      OnTeamSaved="@OnTeamSaved" 
+                      OnCancel="@(() => { /* Handle cancel */ })" />
+        </MudTabPanel>
+        
+        <MudTabPanel Text="Plan Editor" Icon="@Icons.Material.Filled.Assignment">
+            <PlanEditor Plan="@_currentPlan" 
+                       TeamMembers="@_currentTeam.Members"
+                       OnPlanSaved="@OnPlanSaved"
+                       OnCancel="@(() => { /* Handle cancel */ })" />
+        </MudTabPanel>
+        
+        <MudTabPanel Text="Legacy Planning" Icon="@Icons.Material.Filled.Settings">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h5" Class="mb-3">Legacy Orchestration Planning</MudText>
                 
                 <MudTextField @bind-Value="_goal" 
                             Label="Goal" 
@@ -56,28 +112,43 @@
                         <span>Create Plan</span>
                     }
                 </MudButton>
-            </MudCardContent>
-        </MudCard>
-        
-        @if (_currentPlan != null)
-        {
-            <OrchestrationPlan Plan="@_currentPlan" 
-                              OnExecute="@ExecutePlan"
-                              Progress="@_progress" />
-        }
-    </MudItem>
+                </MudCardContent>
+            </MudCard>
+            
+            @if (_legacyPlan != null)
+            {
+                <OrchestrationPlan Plan="@_legacyPlan" 
+                                  OnExecute="@ExecutePlan"
+                                  Progress="@_progress" />
+            }
+        </MudTabPanel>
+    </MudTabs>
     
-    <MudItem xs="12" md="4">
-        <OrchestrationTimeline Steps="@_executedSteps" />
-    </MudItem>
-</MudGrid>
+    @if (_executedSteps.Any())
+    {
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Execution Timeline</MudText>
+            <OrchestrationTimeline Steps="@_executedSteps" />
+        </MudPaper>
+    }
+</MudContainer>
 
 @code {
+    // Session State
+    private Session? _currentSession;
+    
+    // Team Setup State
+    private Team _currentTeam = new();
+    
+    // Plan Editor State
+    private Core.Orchestration.OrchestrationPlan _currentPlan = new();
+    
+    // Legacy Planning State
     private string _goal = "";
     private Core.Orchestration.OrchestrationStrategy _strategy = Core.Orchestration.OrchestrationStrategy.Adaptive;
     private List<AgentInfo> _availableAgents = new();
     private HashSet<string> _selectedAgentIds = new();
-    private Core.Orchestration.OrchestrationPlan? _currentPlan;
+    private Core.Orchestration.OrchestrationPlan? _legacyPlan;
     private OrchestratorChat.Web.Models.OrchestrationProgress? _progress;
     private List<ExecutedStep> _executedSteps = new();
     private bool _isCreatingPlan = false;
@@ -85,6 +156,72 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadAvailableAgents();
+        await InitializeSession();
+    }
+    
+    private async Task InitializeSession()
+    {
+        // Get or create a current session
+        _currentSession = await SessionService.GetCurrentSessionAsync();
+        if (_currentSession == null)
+        {
+            _currentSession = await SessionService.CreateSessionAsync("Orchestrator Session", "Multi-agent orchestration session");
+        }
+        
+        // Load existing team and plan data for this session
+        await LoadSessionData();
+    }
+    
+    private async Task CreateNewSession()
+    {
+        var sessionName = $"Orchestrator Session {DateTime.Now:yyyy-MM-dd HH:mm}";
+        _currentSession = await SessionService.CreateSessionAsync(sessionName, "Multi-agent orchestration session");
+        
+        // Reset current team and plan
+        _currentTeam = new Team();
+        _currentPlan = new Core.Orchestration.OrchestrationPlan();
+        
+        StateHasChanged();
+    }
+    
+    private async Task LoadSessionData()
+    {
+        if (_currentSession == null) return;
+        
+        try
+        {
+            // Load existing team for this session
+            var existingTeam = await TeamPlanService.GetTeamAsync(_currentSession.Id);
+            if (existingTeam != null)
+            {
+                _currentTeam = existingTeam;
+            }
+            
+            // Load existing plan for this session
+            var existingPlan = await TeamPlanService.GetPlanAsync(_currentSession.Id);
+            if (existingPlan != null)
+            {
+                // Map from Core.Plans.Plan to Core.Orchestration.OrchestrationPlan
+                _currentPlan = new Core.Orchestration.OrchestrationPlan
+                {
+                    Name = existingPlan.Name,
+                    Goal = existingPlan.Goal,
+                    Steps = existingPlan.Steps.Select(s => new Core.Orchestration.OrchestrationStep
+                    {
+                        Name = s.Title,
+                        Description = s.Description,
+                        AgentId = s.Owner,
+                        Order = s.StepOrder
+                    }).ToList()
+                };
+            }
+            
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading session data: {ex.Message}");
+        }
     }
     
     private async Task LoadAvailableAgents()
@@ -111,6 +248,59 @@
         }
     }
     
+    // Team Setup handlers
+    private async Task OnTeamSaved(Team team)
+    {
+        if (_currentSession == null) return;
+        
+        try
+        {
+            _currentTeam = await TeamPlanService.SaveTeamAsync(_currentSession.Id, team);
+            Console.WriteLine($"Team saved with {team.Members.Count} members for session {_currentSession.Id}");
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving team: {ex.Message}");
+        }
+    }
+    
+    // Plan Editor handlers
+    private async Task OnPlanSaved(OrchestratorChat.Core.Orchestration.OrchestrationPlan plan)
+    {
+        if (_currentSession == null) return;
+        
+        try
+        {
+            // Map from OrchestrationPlan to Core.Plans.Plan
+            var corePlan = new Core.Plans.Plan
+            {
+                SessionId = _currentSession.Id,
+                Name = plan.Name,
+                Goal = plan.Goal,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                Steps = plan.Steps.Select(s => new Core.Plans.PlanStep
+                {
+                    StepOrder = s.Order,
+                    Title = s.Name,
+                    Description = s.Description,
+                    Owner = s.AgentId,
+                    AcceptanceCriteria = string.Empty // OrchestrationStep doesn't have acceptance criteria
+                }).ToList()
+            };
+            
+            var savedPlan = await TeamPlanService.SavePlanAsync(_currentSession.Id, corePlan);
+            Console.WriteLine($"Plan saved: {savedPlan.Name} with {savedPlan.Steps.Count} steps for session {_currentSession.Id}");
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving plan: {ex.Message}");
+        }
+    }
+    
+    // Legacy planning
     private async Task CreatePlan()
     {
         if (string.IsNullOrWhiteSpace(_goal) || _selectedAgentIds.Count == 0)
@@ -129,7 +319,7 @@
                 TimeoutMinutes = 30
             };
             
-            _currentPlan = await OrchestrationService.CreatePlanAsync(request);
+            _legacyPlan = await OrchestrationService.CreatePlanAsync(request);
         }
         catch (Exception ex)
         {
@@ -143,7 +333,7 @@
     
     private async Task ExecutePlan()
     {
-        if (_currentPlan == null) return;
+        if (_legacyPlan == null) return;
         
         try
         {
@@ -153,7 +343,7 @@
                 InvokeAsync(StateHasChanged);
             });
             
-            var result = await OrchestrationService.ExecutePlanAsync(_currentPlan, progress);
+            var result = await OrchestrationService.ExecutePlanAsync(_legacyPlan, progress);
             
             // Update timeline with results
             _executedSteps = result.StepResults.Select(r => new ExecutedStep

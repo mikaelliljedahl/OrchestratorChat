@@ -1,0 +1,173 @@
+@using OrchestratorChat.Core.Teams
+
+<MudPaper Class="pa-4 mb-4">
+    <MudText Typo="Typo.h6" Class="mb-4">Plan Editor</MudText>
+    
+    <div class="mb-4">
+        <MudTextField @bind-Value="_plan.Name"
+                      Label="Plan Name"
+                      Variant="Variant.Outlined"
+                      Class="mb-3" />
+        
+        <MudTextField @bind-Value="_plan.Goal"
+                      Label="Goal"
+                      Variant="Variant.Outlined"
+                      Lines="2"
+                      Placeholder="Describe what this plan aims to achieve" />
+    </div>
+
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.subtitle2">Steps (@_plan.Steps.Count)</MudText>
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="@AddStep"
+                   Size="Size.Small">
+            Add Step
+        </MudButton>
+    </div>
+
+    @if (!_plan.Steps.Any())
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4">
+            No steps added yet. Click "Add Step" to create your first step.
+        </MudAlert>
+    }
+    else
+    {
+        @foreach (var step in _plan.Steps.OrderBy(s => s.Order))
+        {
+            <MudCard Class="mb-3" Elevation="1">
+                <MudCardContent>
+                    <div class="d-flex justify-space-between align-start mb-3">
+                        <MudText Typo="Typo.subtitle1" Class="flex-grow-1">
+                            Step @step.Order: @(string.IsNullOrEmpty(step.Name) ? "Untitled" : step.Name)
+                        </MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Size="Size.Small"
+                                       Color="Color.Error"
+                                       OnClick="@(() => RemoveStep(step))"
+                                       title="Remove step" />
+                    </div>
+                    
+                    <div class="d-flex gap-3 mb-3">
+                        <MudTextField @bind-Value="@step.Name"
+                                      Label="Step Name"
+                                      Variant="Variant.Outlined"
+                                      Class="flex-grow-1" />
+                        
+                        <MudSelect T="string" @bind-Value="@step.AssignedAgentId"
+                                   Label="Owner"
+                                   Variant="Variant.Outlined"
+                                   Class="min-width-200">
+                            <MudSelectItem T="string" Value="@("")">Select Owner</MudSelectItem>
+                            @foreach (var member in TeamMembers)
+                            {
+                                <MudSelectItem T="string" Value="@member.AgentId">
+                                    @member.AgentName (@member.Role)
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    </div>
+                    
+                    <MudTextField @bind-Value="@step.Description"
+                                  Label="Description"
+                                  Variant="Variant.Outlined"
+                                  Lines="2"
+                                  Placeholder="Describe what this step involves"
+                                  Class="mb-3" />
+                                  
+                    <MudTextField @bind-Value="@step.Task"
+                                  Label="Acceptance Criteria"
+                                  Variant="Variant.Outlined"
+                                  Lines="2"
+                                  Placeholder="Define what success looks like for this step" />
+                </MudCardContent>
+            </MudCard>
+        }
+    }
+
+    <div class="d-flex justify-end gap-2 mt-4">
+        <MudButton Variant="Variant.Outlined" OnClick="@OnCancel">
+            Cancel
+        </MudButton>
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary"
+                   OnClick="@SavePlan"
+                   Disabled="@(!_plan.Steps.Any() || string.IsNullOrWhiteSpace(_plan.Name))">
+            Save Plan
+        </MudButton>
+    </div>
+</MudPaper>
+
+<style>
+    .min-width-200 {
+        min-width: 200px;
+    }
+</style>
+
+@code {
+    [Parameter] public OrchestratorChat.Core.Orchestration.OrchestrationPlan Plan { get; set; } = new();
+    [Parameter] public List<TeamMember> TeamMembers { get; set; } = new();
+    [Parameter] public EventCallback<OrchestratorChat.Core.Orchestration.OrchestrationPlan> OnPlanSaved { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private OrchestratorChat.Core.Orchestration.OrchestrationPlan _plan = new();
+
+    protected override Task OnInitializedAsync()
+    {
+        _plan = Plan ?? new OrchestratorChat.Core.Orchestration.OrchestrationPlan();
+        return Task.CompletedTask;
+    }
+
+    private void AddStep()
+    {
+        var step = new OrchestratorChat.Core.Orchestration.OrchestrationStep
+        {
+            Order = _plan.Steps.Count + 1,
+            Name = $"Step {_plan.Steps.Count + 1}",
+            Description = "",
+            Task = "",
+            AssignedAgentId = "",
+            Timeout = TimeSpan.FromMinutes(30),
+            ExpectedDuration = TimeSpan.FromMinutes(15)
+        };
+
+        _plan.Steps.Add(step);
+        StateHasChanged();
+    }
+
+    private void RemoveStep(OrchestratorChat.Core.Orchestration.OrchestrationStep step)
+    {
+        _plan.Steps.Remove(step);
+        
+        // Reorder remaining steps
+        var remainingSteps = _plan.Steps.OrderBy(s => s.Order).ToList();
+        for (int i = 0; i < remainingSteps.Count; i++)
+        {
+            remainingSteps[i].Order = i + 1;
+            if (string.IsNullOrEmpty(remainingSteps[i].Name) || 
+                remainingSteps[i].Name.StartsWith("Step "))
+            {
+                remainingSteps[i].Name = $"Step {i + 1}";
+            }
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task SavePlan()
+    {
+        if (_plan.Steps.Any() && !string.IsNullOrWhiteSpace(_plan.Name))
+        {
+            // Set required agents based on assigned owners
+            _plan.RequiredAgents = _plan.Steps
+                .Where(s => !string.IsNullOrEmpty(s.AssignedAgentId))
+                .Select(s => s.AssignedAgentId)
+                .Distinct()
+                .ToList();
+
+            await OnPlanSaved.InvokeAsync(_plan);
+        }
+    }
+}

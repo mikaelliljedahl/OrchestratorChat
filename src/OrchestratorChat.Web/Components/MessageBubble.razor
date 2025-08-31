@@ -1,6 +1,6 @@
-@using OrchestratorChat.Web.Models
+@namespace OrchestratorChat.Web.Components
+@inherits ComponentBase
 @using OrchestratorChat.Core.Messages
-@using OrchestratorChat.Core.Sessions
 
 <div class="message-bubble @GetMessageClass()">
     <div class="message-header">
@@ -37,22 +37,3 @@
         </div>
     }
 </div>
-
-@code {
-    [Parameter] public ChatMessage Message { get; set; } = new();
-    [CascadingParameter] public Session? CurrentSession { get; set; }
-    
-    private string GetMessageClass()
-    {
-        return Message.Role == MessageRole.User ? "user-message" : "agent-message";
-    }
-    
-    private string GetSenderName()
-    {
-        if (Message.Role == MessageRole.User)
-            return "You";
-            
-        var agentId = CurrentSession?.ParticipantAgentIds?.FirstOrDefault(id => id == Message.AgentId);
-        return agentId ?? "Agent";
-    }
-}

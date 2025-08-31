@@ -10,7 +10,7 @@ namespace OrchestratorChat.Saturn.Providers.Anthropic;
 /// <summary>
 /// Anthropic API client with OAuth 2.0 support and Messages API implementation
 /// </summary>
-public class AnthropicClient : IDisposable
+public class AnthropicClient : ILLMClient
 {
     // API Configuration
     private const string API_URL = "https://api.anthropic.com/v1/messages";
@@ -130,9 +130,9 @@ public class AnthropicClient : IDisposable
     /// Gets the list of available Anthropic models
     /// </summary>
     /// <returns>List of model information</returns>
-    public Task<List<ModelInfo>> GetAvailableModelsAsync()
+    public Task<List<LLMModelInfo>> GetAvailableModelsAsync()
     {
-        var models = new List<ModelInfo>
+        var models = new List<LLMModelInfo>
         {
             new() { Id = "claude-opus-4-1-20250805", Name = "Claude Opus 4.1", Provider = "Anthropic" },
             new() { Id = "claude-opus-4", Name = "Claude Opus 4", Provider = "Anthropic" },
@@ -312,12 +312,3 @@ public class AnthropicClient : IDisposable
     }
 }
 
-/// <summary>
-/// Model information for available models
-/// </summary>
-public class ModelInfo
-{
-    public string Id { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string Provider { get; set; } = string.Empty;
-}

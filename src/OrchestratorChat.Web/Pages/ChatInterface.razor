@@ -142,17 +142,37 @@
     private string? _errorMessage;
     private bool _showHealthDiagnostics = false;
     
+    // Subscription tracking for proper cleanup
+    private readonly HashSet<string> _subscribedAgentIds = new();
+    private string? _joinedSessionId;
+    
     protected override async Task OnInitializedAsync()
     {
         await InitializeHubs();
         await LoadAgents();
         
-        if (!string.IsNullOrEmpty(AgentId))
-        {
-            _selectedAgent = _agents.FirstOrDefault(a => a.Id == AgentId);
-        }
+        // Handle initial parameters
+        await HandleRouteParameters();
         
         await LoadOrCreateSession();
+    }
+    
+    protected override async Task OnParametersSetAsync()
+    {
+        // Handle parameter changes during navigation
+        await HandleRouteParameters();
+    }
+    
+    private async Task HandleRouteParameters()
+    {
+        if (!string.IsNullOrEmpty(AgentId))
+        {
+            var targetAgent = _agents.FirstOrDefault(a => a.Id == AgentId);
+            if (targetAgent != null && _selectedAgent?.Id != AgentId)
+            {
+                await SelectAgent(targetAgent);
+            }
+        }
     }
     
     private async Task InitializeHubs()
@@ -279,10 +299,7 @@
                 _sessionName = response.Session.Name;
                 
                 // Subscribe to agent updates
-                if (_agentHub != null)
-                {
-                    await _agentHub.InvokeAsync("SubscribeToAgent", _selectedAgent.Id);
-                }
+                await SubscribeToAgent(_selectedAgent.Id);
                 
                 Logger.LogInformation("Implicit session created: {SessionId}", _currentSession.Id);
             }
@@ -307,16 +324,24 @@
         {
             // Join session group in orchestrator hub
             await _orchestratorHub.InvokeAsync("JoinSession", _currentSession.Id);
+            _joinedSessionId = _currentSession.Id;
+            Logger.LogInformation("Joined session group {SessionId}", _currentSession.Id);
             
             // Subscribe to agent updates for each agent in session
             foreach (var agentId in _currentSession.ParticipantAgentIds ?? new List<string>())
             {
-                await _agentHub.InvokeAsync("SubscribeToAgent", agentId);
+                await SubscribeToAgent(agentId);
+            }
+            
+            // Also ensure we're subscribed to the currently selected agent (if not already in session)
+            if (_selectedAgent != null && !(_currentSession.ParticipantAgentIds?.Contains(_selectedAgent.Id) ?? false))
+            {
+                await SubscribeToAgent(_selectedAgent.Id);
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error joining session groups");
+            Logger.LogError(ex, "Error joining session groups for session {SessionId}", _currentSession.Id);
         }
     }
     
@@ -325,6 +350,37 @@
         try
         {
             _agents = await AgentService.GetConfiguredAgentsAsync();
+            
+            // Auto-select agent if none is currently selected
+            if (_selectedAgent == null && _agents.Any())
+            {
+                // Try to get the default agent first
+                var defaultAgent = await AgentService.GetDefaultAgentAsync();
+                if (defaultAgent != null && _agents.Any(a => a.Id == defaultAgent.Id))
+                {
+                    _selectedAgent = defaultAgent;
+                }
+                else
+                {
+                    // Fall back to the first available agent
+                    _selectedAgent = _agents.FirstOrDefault();
+                }
+                
+                // Subscribe to the selected agent if we have SignalR connection
+                if (_selectedAgent != null && _agentHub != null)
+                {
+                    try
+                    {
+                        await SubscribeToAgent(_selectedAgent.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError(ex, "Error subscribing to auto-selected agent {AgentId}", _selectedAgent.Id);
+                    }
+                }
+                
+                StateHasChanged();
+            }
         }
         catch (Exception ex)
         {
@@ -357,9 +413,36 @@
         return Task.CompletedTask;
     }
     
-    private void SelectAgent(AgentInfo agent)
+    private async Task SelectAgent(AgentInfo agent)
     {
+        if (_selectedAgent?.Id == agent.Id)
+            return; // Already selected
+            
+        var previousAgentId = _selectedAgent?.Id;
         _selectedAgent = agent;
+        
+        if (_agentHub != null)
+        {
+            try
+            {
+                // Unsubscribe from previous agent
+                if (!string.IsNullOrEmpty(previousAgentId))
+                {
+                    await UnsubscribeFromAgent(previousAgentId);
+                }
+                
+                // Subscribe to new agent
+                await SubscribeToAgent(agent.Id);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error updating agent subscription from {PreviousAgent} to {NewAgent}", 
+                    previousAgentId, agent.Id);
+                _errorMessage = $"Failed to connect to agent: {ex.Message}";
+            }
+        }
+        
+        await InvokeAsync(StateHasChanged);
     }
     
     private async Task SendMessage(string content)
@@ -471,6 +554,22 @@
             // Select the newly created agent
             _selectedAgent = _agents.FirstOrDefault(a => a.Id == newAgent.Id);
             Console.WriteLine($"ChatInterface.CreateNewAgent: Selected agent: {(_selectedAgent?.Name ?? "null")}");
+            
+            // Set as default if no default agent exists
+            try
+            {
+                var existingDefault = await AgentService.GetDefaultAgentAsync();
+                if (existingDefault == null)
+                {
+                    await AgentService.SetDefaultAgentAsync(newAgent.Id);
+                    Console.WriteLine($"ChatInterface.CreateNewAgent: Set agent '{newAgent.Name}' as default");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Warning: Failed to set agent as default: {ex.Message}");
+            }
+            
             StateHasChanged();
             Console.WriteLine($"ChatInterface.CreateNewAgent: Method completed successfully");
         }
@@ -556,16 +655,89 @@
         await InvokeAsync(StateHasChanged);
     }
     
+    private async Task SubscribeToAgent(string agentId)
+    {
+        if (_agentHub == null || string.IsNullOrEmpty(agentId) || _subscribedAgentIds.Contains(agentId))
+            return;
+            
+        try
+        {
+            await _agentHub.InvokeAsync("SubscribeToAgent", agentId);
+            _subscribedAgentIds.Add(agentId);
+            Logger.LogInformation("Subscribed to agent {AgentId}", agentId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to subscribe to agent {AgentId}", agentId);
+            throw;
+        }
+    }
+    
+    private async Task UnsubscribeFromAgent(string agentId)
+    {
+        if (_agentHub == null || string.IsNullOrEmpty(agentId) || !_subscribedAgentIds.Contains(agentId))
+            return;
+            
+        try
+        {
+            await _agentHub.InvokeAsync("UnsubscribeFromAgent", agentId);
+            _subscribedAgentIds.Remove(agentId);
+            Logger.LogInformation("Unsubscribed from agent {AgentId}", agentId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to unsubscribe from agent {AgentId}", agentId);
+            // Don't throw on unsubscribe errors as they're non-critical
+        }
+    }
+    
     public async ValueTask DisposeAsync()
     {
-        if (_agentHub is not null)
+        try
         {
-            await _agentHub.DisposeAsync();
+            // Clean up subscriptions before disposing hubs
+            if (_agentHub is not null && _agentHub.State == HubConnectionState.Connected)
+            {
+                // Unsubscribe from all subscribed agents
+                foreach (var agentId in _subscribedAgentIds.ToList())
+                {
+                    await UnsubscribeFromAgent(agentId);
+                }
+            }
+            
+            if (_orchestratorHub is not null && _orchestratorHub.State == HubConnectionState.Connected)
+            {
+                // Leave session group if joined
+                if (!string.IsNullOrEmpty(_joinedSessionId))
+                {
+                    try
+                    {
+                        await _orchestratorHub.InvokeAsync("LeaveSession", _joinedSessionId);
+                        Logger.LogInformation("Left session group {SessionId} during disposal", _joinedSessionId);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogWarning(ex, "Failed to leave session group {SessionId} during disposal", _joinedSessionId);
+                    }
+                }
+            }
         }
-        
-        if (_orchestratorHub is not null)
+        catch (Exception ex)
         {
-            await _orchestratorHub.DisposeAsync();
+            Logger.LogError(ex, "Error during subscription cleanup in dispose");
+        }
+        finally
+        {
+            // Always dispose the hubs
+            if (_agentHub is not null)
+            {
+                await _agentHub.DisposeAsync();
+            }
+            
+            if (_orchestratorHub is not null)
+            {
+                await _orchestratorHub.DisposeAsync();
+            }
         }
     }
 }

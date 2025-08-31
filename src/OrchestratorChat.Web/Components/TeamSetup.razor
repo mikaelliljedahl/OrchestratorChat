@@ -1,0 +1,157 @@
+@using OrchestratorChat.Core.Teams
+@using OrchestratorChat.Core.Agents
+@using OrchestratorChat.Web.Services
+@inject IAgentService AgentService
+
+<MudPaper Class="pa-4 mb-4">
+    <MudText Typo="Typo.h6" Class="mb-4">Team Setup</MudText>
+    
+    @if (!_team.Members.Any())
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4">
+            No team members added yet. Add agents to your team below.
+        </MudAlert>
+    }
+    else
+    {
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Team Members (@_team.Members.Count)</MudText>
+        @foreach (var member in _team.Members)
+        {
+            <MudCard Class="mb-2">
+                <MudCardContent>
+                    <div class="d-flex justify-space-between align-center">
+                        <div>
+                            <MudText Typo="Typo.body1"><strong>@member.AgentName</strong></MudText>
+                            <MudText Typo="Typo.caption" Class="text-muted">
+                                @member.AgentType | Role: @member.Role
+                            </MudText>
+                        </div>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                       Size="Size.Small"
+                                       Color="Color.Error"
+                                       OnClick="@(() => RemoveTeamMember(member))"
+                                       title="Remove from team" />
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        }
+    }
+
+    <MudDivider Class="my-4" />
+
+    <MudText Typo="Typo.subtitle2" Class="mb-4">Add Team Member</MudText>
+    
+    <div class="d-flex gap-4 align-end mb-4">
+        <MudSelect T="AgentInfo" @bind-Value="_selectedAgent" 
+                   Label="Select Agent"
+                   Variant="Variant.Outlined"
+                   ToStringFunc="@(agent => agent?.Name ?? "Select Agent")"
+                   Class="flex-grow-1">
+            @foreach (var agent in _availableAgents)
+            {
+                <MudSelectItem T="AgentInfo" Value="@agent">
+                    @agent.Name (@agent.Type)
+                </MudSelectItem>
+            }
+        </MudSelect>
+        
+        <MudSelect T="string" @bind-Value="_selectedRole"
+                   Label="Role"
+                   Variant="Variant.Outlined">
+            <MudSelectItem T="string" Value="@("lead")">Lead</MudSelectItem>
+            <MudSelectItem T="string" Value="@("contributor")">Contributor</MudSelectItem>
+            <MudSelectItem T="string" Value="@("reviewer")">Reviewer</MudSelectItem>
+            <MudSelectItem T="string" Value="@("specialist")">Specialist</MudSelectItem>
+        </MudSelect>
+        
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="@AddTeamMember"
+                   Disabled="@(_selectedAgent == null || string.IsNullOrWhiteSpace(_selectedRole))">
+            Add
+        </MudButton>
+    </div>
+
+    <div class="d-flex justify-end gap-2 mt-4">
+        <MudButton Variant="Variant.Outlined" OnClick="@OnCancel">
+            Cancel
+        </MudButton>
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary"
+                   OnClick="@SaveTeam"
+                   Disabled="@(!_team.Members.Any())">
+            Save Team
+        </MudButton>
+    </div>
+</MudPaper>
+
+@code {
+    [Parameter] public Team Team { get; set; } = new();
+    [Parameter] public EventCallback<Team> OnTeamSaved { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private Team _team = new();
+    private List<AgentInfo> _availableAgents = new();
+    private AgentInfo? _selectedAgent;
+    private string _selectedRole = "contributor";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _team = Team ?? new Team();
+        
+        // Load available agents from AgentService
+        _availableAgents = await AgentService.GetConfiguredAgentsAsync();
+        
+        if (_availableAgents.Any())
+        {
+            _selectedAgent = _availableAgents.First();
+        }
+    }
+
+    private void AddTeamMember()
+    {
+        if (_selectedAgent == null || string.IsNullOrWhiteSpace(_selectedRole))
+            return;
+
+        // Check if agent already exists in team
+        if (_team.Members.Any(m => m.AgentId.Equals(_selectedAgent.Id, StringComparison.OrdinalIgnoreCase)))
+        {
+            // Could show a snackbar here in a real implementation
+            return;
+        }
+
+        var member = new TeamMember
+        {
+            TeamId = _team.Id,
+            AgentId = _selectedAgent.Id, // Use real agent ID
+            AgentType = _selectedAgent.Type,
+            AgentName = _selectedAgent.Name,
+            Role = _selectedRole,
+            JoinedAt = DateTime.UtcNow
+        };
+
+        _team.Members.Add(member);
+        
+        // Clear form
+        _selectedAgent = _availableAgents.FirstOrDefault();
+        _selectedRole = "contributor";
+        
+        StateHasChanged();
+    }
+
+    private void RemoveTeamMember(TeamMember member)
+    {
+        _team.Members.Remove(member);
+        StateHasChanged();
+    }
+
+    private async Task SaveTeam()
+    {
+        if (_team.Members.Any())
+        {
+            _team.UpdatedAt = DateTime.UtcNow;
+            await OnTeamSaved.InvokeAsync(_team);
+        }
+    }
+}

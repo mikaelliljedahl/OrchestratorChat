@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using OrchestratorChat.Core.Sessions;
 using OrchestratorChat.Data.Models;
+using OrchestratorChat.Data.Entities;
 
 namespace OrchestratorChat.Data;
 
@@ -22,6 +23,10 @@ public class OrchestratorDbContext : DbContext
     public DbSet<SessionSnapshotEntity> SessionSnapshots { get; set; } = null!;
     public DbSet<OrchestrationPlanEntity> OrchestrationPlans { get; set; } = null!;
     public DbSet<OrchestrationStepEntity> OrchestrationSteps { get; set; } = null!;
+    public DbSet<TeamEntity> Teams { get; set; } = null!;
+    public DbSet<TeamMemberEntity> TeamMembers { get; set; } = null!;
+    public DbSet<Plan> Plans { get; set; } = null!;
+    public DbSet<PlanStep> PlanSteps { get; set; } = null!;
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -112,6 +117,60 @@ public class OrchestratorDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.PlanId, e.Order });
             entity.HasIndex(e => e.Status);
+        });
+        
+        // Team configuration
+        modelBuilder.Entity<TeamEntity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.SessionId);
+            entity.HasIndex(e => e.CreatedAt);
+            
+            entity.HasOne(e => e.Session)
+                .WithMany()
+                .HasForeignKey(e => e.SessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasMany(e => e.Members)
+                .WithOne(m => m.Team)
+                .HasForeignKey(m => m.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        
+        // TeamMember configuration (Many-to-many: Team-Agent)
+        modelBuilder.Entity<TeamMemberEntity>(entity =>
+        {
+            entity.HasKey(e => new { e.TeamId, e.AgentId });
+            
+            entity.HasOne(e => e.Team)
+                .WithMany(t => t.Members)
+                .HasForeignKey(e => e.TeamId);
+            
+            entity.HasOne(e => e.Agent)
+                .WithMany()
+                .HasForeignKey(e => e.AgentId);
+        });
+        
+        // Plan configuration
+        modelBuilder.Entity<Plan>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.SessionId);
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => e.CommittedAt);
+            
+            entity.HasMany(e => e.Steps)
+                .WithOne(s => s.Plan)
+                .HasForeignKey(s => s.PlanId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        
+        // PlanStep configuration
+        modelBuilder.Entity<PlanStep>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.PlanId, e.StepOrder });
+            entity.HasIndex(e => e.Owner);
         });
     }
 }

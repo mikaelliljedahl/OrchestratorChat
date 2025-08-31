@@ -1,17 +1,19 @@
 using Microsoft.Extensions.Logging;
 using OrchestratorChat.Saturn.Providers.OpenRouter.Models;
 using OrchestratorChat.Saturn.Providers.OpenRouter.Services;
+using OrchestratorChat.Saturn.Models;
 
 namespace OrchestratorChat.Saturn.Providers.OpenRouter;
 
 /// <summary>
 /// Complete OpenRouter API client that coordinates all services
 /// </summary>
-public class OpenRouterClient : IDisposable
+public class OpenRouterClient : ILLMClient
 {
     private readonly HttpClientAdapter _httpClient;
     private readonly OpenRouterOptions _options;
     private readonly ILogger<OpenRouterClient> _logger;
+    private readonly ILoggerFactory _loggerFactory;
     private bool _disposed;
 
     /// <summary>
@@ -28,27 +30,41 @@ public class OpenRouterClient : IDisposable
     /// Creates a new OpenRouter client with the specified options
     /// </summary>
     public OpenRouterClient(OpenRouterOptions options, ILogger<OpenRouterClient> logger)
+        : this(options, logger, null)
+    {
+    }
+
+    /// <summary>
+    /// Creates a new OpenRouter client with the specified options and logger factory
+    /// </summary>
+    public OpenRouterClient(OpenRouterOptions options, ILogger<OpenRouterClient> logger, ILoggerFactory? loggerFactory)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _loggerFactory = loggerFactory ?? CreateDefaultLoggerFactory();
 
         // Validate options
         _options.Validate();
 
         _logger.LogDebug("Initializing OpenRouter client with base URL: {BaseUrl}", options.BaseUrl);
 
-        // Create HTTP client adapter
-        var httpLogger = new LoggerFactory().CreateLogger<HttpClientAdapter>();
+        // Create HTTP client adapter with proper logger
+        var httpLogger = _loggerFactory.CreateLogger<HttpClientAdapter>();
         _httpClient = new HttpClientAdapter(options, httpLogger);
 
-        // Initialize services
-        var chatLogger = new LoggerFactory().CreateLogger<ChatCompletionsService>();
+        // Initialize services with proper loggers
+        var chatLogger = _loggerFactory.CreateLogger<ChatCompletionsService>();
         Chat = new ChatCompletionsService(_httpClient, options, chatLogger);
 
-        var modelsLogger = new LoggerFactory().CreateLogger<ModelsService>();
+        var modelsLogger = _loggerFactory.CreateLogger<ModelsService>();
         Models = new ModelsService(_httpClient, modelsLogger);
 
         _logger.LogInformation("OpenRouter client initialized successfully");
+    }
+
+    private static ILoggerFactory CreateDefaultLoggerFactory()
+    {
+        return Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
     }
 
     /// <summary>
@@ -71,7 +87,7 @@ public class OpenRouterClient : IDisposable
             BaseUrl = baseUrl ?? "https://openrouter.ai/api/v1"
         };
 
-        var effectiveLogger = logger ?? new LoggerFactory().CreateLogger<OpenRouterClient>();
+        var effectiveLogger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<OpenRouterClient>.Instance;
         
         return new OpenRouterClient(options, effectiveLogger);
     }
@@ -245,6 +261,86 @@ public class OpenRouterClient : IDisposable
             _logger.LogError(ex, "OpenRouter API connection test failed");
             return false;
         }
+    }
+
+    /// <summary>
+    /// Sends a message and returns a complete response (ILLMClient implementation)
+    /// </summary>
+    public async Task<string> SendMessageAsync(
+        List<AgentMessage> messages,
+        string model,
+        double temperature = 0.7,
+        int maxTokens = 4096,
+        CancellationToken cancellationToken = default)
+    {
+        if (messages == null || messages.Count == 0)
+            throw new ArgumentException("At least one message is required", nameof(messages));
+
+        if (_disposed) throw new ObjectDisposedException(nameof(OpenRouterClient));
+
+        var openRouterMessages = messages.Select(m => new Message
+        {
+            Role = m.Role.ToString().ToLowerInvariant(),
+            Content = m.Content
+        }).ToList();
+
+        var response = await ChatAsync(openRouterMessages, model, temperature, maxTokens, cancellationToken: cancellationToken);
+        return response.Choices.FirstOrDefault()?.Message?.Content ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Streams a message response as it's generated (ILLMClient implementation)
+    /// </summary>
+    public async IAsyncEnumerable<string> StreamMessageAsync(
+        List<AgentMessage> messages,
+        string model,
+        double temperature = 0.7,
+        int maxTokens = 4096,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (messages == null || messages.Count == 0)
+            throw new ArgumentException("At least one message is required", nameof(messages));
+
+        if (_disposed) throw new ObjectDisposedException(nameof(OpenRouterClient));
+
+        var openRouterMessages = messages.Select(m => new Message
+        {
+            Role = m.Role.ToString().ToLowerInvariant(),
+            Content = m.Content
+        }).ToList();
+
+        await foreach (var chunk in ChatStreamAsync(openRouterMessages, model, temperature, maxTokens, cancellationToken: cancellationToken))
+        {
+            var content = chunk.Choices.FirstOrDefault()?.Delta?.Content;
+            if (!string.IsNullOrEmpty(content))
+            {
+                yield return content;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the list of available models (ILLMClient implementation)
+    /// </summary>
+    public async Task<List<LLMModelInfo>> GetAvailableModelsAsync()
+    {
+        if (_disposed) throw new ObjectDisposedException(nameof(OpenRouterClient));
+
+        var models = await ListModelsAsync();
+        return models.Select(m => new LLMModelInfo
+        {
+            Id = m.Id,
+            Name = m.Name,
+            Provider = "OpenRouter"
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Checks if the client is properly authenticated (ILLMClient implementation)
+    /// </summary>
+    public async Task<bool> IsAuthenticatedAsync()
+    {
+        return await TestConnectionAsync();
     }
 
     /// <summary>

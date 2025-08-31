@@ -54,6 +54,20 @@ public class ProviderVerificationService : IProviderVerificationService
     {
         try
         {
+            // Simple throttle to prevent repeated process spawning/log spam
+            if (_lastClaudeProbe.HasValue && (DateTime.UtcNow - _lastClaudeProbe.Value) < TimeSpan.FromMinutes(5))
+            {
+                return _lastClaudeStatus;
+            }
+
+            // Avoid first-chance Win32Exception by checking PATH before spawning a process
+            if (!IsCommandAvailable("claude"))
+            {
+                _lastClaudeProbe = DateTime.UtcNow;
+                _lastClaudeStatus = ProviderStatus.NotFound;
+                return _lastClaudeStatus;
+            }
+
             using var process = new Process();
             process.StartInfo.FileName = "claude";
             process.StartInfo.Arguments = "--version";
@@ -66,16 +80,69 @@ public class ProviderVerificationService : IProviderVerificationService
             
             process.Start();
             
+            // Read the output to check if Claude is actually working
+            var output = await process.StandardOutput.ReadToEndAsync();
+            var error = await process.StandardError.ReadToEndAsync();
+            
             await process.WaitForExitAsync(timeoutCancellationToken.Token);
             
-            return process.ExitCode == 0 ? ProviderStatus.Detected : ProviderStatus.NotFound;
+            // Check if we got any version output (Claude might not return exit code 0)
+            // Claude typically outputs version info to stdout or stderr
+            var hasVersionOutput = !string.IsNullOrWhiteSpace(output) || !string.IsNullOrWhiteSpace(error);
+            
+            _logger.LogDebug("Claude CLI detection - Exit Code: {ExitCode}, Has Output: {HasOutput}", 
+                process.ExitCode, hasVersionOutput);
+            
+            // Consider it detected if we got any output, regardless of exit code
+            _lastClaudeProbe = DateTime.UtcNow;
+            _lastClaudeStatus = hasVersionOutput ? ProviderStatus.Detected : ProviderStatus.NotFound;
+            return _lastClaudeStatus;
         }
         catch (Exception ex)
         {
             _logger.LogDebug("Claude CLI detection failed: {Message}", ex.Message);
-            return ProviderStatus.NotFound;
+            _lastClaudeProbe = DateTime.UtcNow;
+            _lastClaudeStatus = ProviderStatus.NotFound;
+            return _lastClaudeStatus;
         }
     }
+
+    private static bool IsCommandAvailable(string commandName)
+    {
+        try
+        {
+            var pathEnv = Environment.GetEnvironmentVariable("PATH");
+            if (string.IsNullOrWhiteSpace(pathEnv)) return false;
+
+            var isWindows = OperatingSystem.IsWindows();
+            var exts = isWindows
+                ? (Environment.GetEnvironmentVariable("PATHEXT")?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                   ?? new[] { ".EXE", ".CMD", ".BAT", ".COM" })
+                : new[] { string.Empty };
+
+            foreach (var dir in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (string.IsNullOrWhiteSpace(dir)) continue;
+                foreach (var ext in exts)
+                {
+                    var fileName = isWindows && !commandName.EndsWith(ext, StringComparison.OrdinalIgnoreCase)
+                        ? commandName + ext
+                        : commandName;
+                    var fullPath = Path.Combine(dir, fileName);
+                    if (File.Exists(fullPath)) return true;
+                }
+            }
+        }
+        catch
+        {
+            // If anything goes wrong, fall back to 'not available'
+        }
+        return false;
+    }
+
+    // Cache for CLI detection to avoid repeated attempts
+    private static DateTime? _lastClaudeProbe;
+    private static ProviderStatus _lastClaudeStatus = ProviderStatus.Missing;
     
     public async Task<ValidationResult> ValidateOpenRouterKeyAsync(string apiKey)
     {

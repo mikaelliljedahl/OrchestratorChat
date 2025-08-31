@@ -42,6 +42,23 @@ public class ProviderFactory
     }
 
     /// <summary>
+    /// Creates an LLM client based on provider type and settings
+    /// </summary>
+    /// <param name="providerType">The type of provider ("anthropic" or "openrouter")</param>
+    /// <param name="settings">Provider settings containing API keys and configuration</param>
+    /// <returns>ILLMClient instance</returns>
+    /// <exception cref="NotSupportedException">Thrown when provider type is not supported</exception>
+    public ILLMClient CreateClient(string providerType, Dictionary<string, object>? settings = null)
+    {
+        return providerType.ToLower() switch
+        {
+            "anthropic" => CreateAnthropicClient(settings),
+            "openrouter" => CreateOpenRouterClient(settings ?? new Dictionary<string, object>()),
+            _ => throw new NotSupportedException($"Provider type '{providerType}' is not supported")
+        };
+    }
+
+    /// <summary>
     /// Creates an Anthropic client with the specified settings
     /// </summary>
     /// <param name="settings">Provider settings containing API keys and configuration</param>
@@ -68,6 +85,6 @@ public class ProviderFactory
         };
 
         var logger = _loggerFactory.CreateLogger<OpenRouterClient>();
-        return new OpenRouterClient(options, logger);
+        return new OpenRouterClient(options, logger, _loggerFactory);
     }
 }

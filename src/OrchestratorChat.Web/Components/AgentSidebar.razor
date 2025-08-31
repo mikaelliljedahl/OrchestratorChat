@@ -1,4 +1,5 @@
-@using OrchestratorChat.Core.Agents
+@namespace OrchestratorChat.Web.Components
+@inherits ComponentBase
 
 <MudPaper Class="pa-3" Style="height: 100%;">
     <div class="d-flex justify-space-between align-center mb-3">
@@ -14,17 +15,39 @@
         @foreach (var agent in Agents)
         {
             <MudListItem T="object" @onclick="@(() => SelectAgent(agent))"
-                         Class="@(SelectedAgent?.Id == agent.Id ? "selected-agent" : "")">
-                <div class="d-flex align-center">
-                    <MudAvatar Size="Size.Small" 
-                              Color="@GetAgentStatusColor(agent)" 
-                              Class="mr-3">
-                        @agent.Name.Substring(0, 1).ToUpper()
-                    </MudAvatar>
-                    <div>
-                        <MudText Typo="Typo.body1">@agent.Name</MudText>
-                        <MudText Typo="Typo.caption" Class="text-muted">@agent.Status</MudText>
+                         Class="@(SelectedAgent?.Id == agent.Id ? "selected-agent" : "")"
+                         Style="cursor: pointer;">
+                <div class="d-flex align-center justify-space-between">
+                    <div class="d-flex align-center">
+                        <MudAvatar Size="Size.Small" 
+                                  Color="@GetAgentStatusColor(agent)" 
+                                  Class="mr-3">
+                            @agent.Name.Substring(0, 1).ToUpper()
+                        </MudAvatar>
+                        <div>
+                            <div class="d-flex align-center">
+                                <MudText Typo="Typo.body1">@agent.Name</MudText>
+                                @if (IsDefaultAgent(agent))
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" 
+                                            Size="Size.Small" 
+                                            Color="Color.Success" 
+                                            Class="ml-2" 
+                                            Title="Default Agent" />
+                                }
+                            </div>
+                            <MudText Typo="Typo.caption" Class="text-muted">@agent.Status</MudText>
+                        </div>
                     </div>
+                    @if (!IsDefaultAgent(agent))
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Star" 
+                                      Size="Size.Small" 
+                                      Color="Color.Default" 
+                                      OnClick="@((e) => SetAsDefault(agent, e))"
+                                      Title="Set as Default"
+                                      Class="ml-2" />
+                    }
                 </div>
             </MudListItem>
         }
@@ -38,44 +61,3 @@
         </div>
     }
 </MudPaper>
-
-@code {
-    [Parameter] public List<AgentInfo> Agents { get; set; } = new();
-    [Parameter] public AgentInfo? SelectedAgent { get; set; }
-    [Parameter] public EventCallback<AgentInfo> OnAgentSelected { get; set; }
-    [Parameter] public EventCallback OnCreateAgent { get; set; }
-    
-    private async Task SelectAgent(AgentInfo agent)
-    {
-        if (OnAgentSelected.HasDelegate)
-        {
-            await OnAgentSelected.InvokeAsync(agent);
-        }
-    }
-    
-    private async Task ShowCreateAgentDialog()
-    {
-        Console.WriteLine("AgentSidebar.ShowCreateAgentDialog: Button clicked");
-        if (OnCreateAgent.HasDelegate)
-        {
-            Console.WriteLine("AgentSidebar.ShowCreateAgentDialog: Invoking OnCreateAgent callback");
-            await OnCreateAgent.InvokeAsync();
-        }
-        else
-        {
-            Console.WriteLine("AgentSidebar.ShowCreateAgentDialog: OnCreateAgent.HasDelegate is false!");
-        }
-    }
-    
-    private Color GetAgentStatusColor(AgentInfo agent)
-    {
-        return agent.Status switch
-        {
-            Core.Agents.AgentStatus.Ready => Color.Success,
-            Core.Agents.AgentStatus.Busy => Color.Warning,
-            Core.Agents.AgentStatus.Error => Color.Error,
-            Core.Agents.AgentStatus.Initializing => Color.Info,
-            _ => Color.Default
-        };
-    }
-}

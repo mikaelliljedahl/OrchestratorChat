@@ -7,6 +7,7 @@ using OrchestratorChat.Core.Sessions;
 using OrchestratorChat.Core.Orchestration;
 using OrchestratorChat.Core.Events;
 using OrchestratorChat.Core.Agents;
+using OrchestratorChat.Core.Authentication;
 using OrchestratorChat.Data;
 using OrchestratorChat.Data.Repositories;
 using OrchestratorChat.Data.Adapters;
@@ -73,6 +74,11 @@ builder.Services.AddScoped<IHubConnectionManager, HubConnectionManager>();
 builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<IProviderVerificationService, ProviderVerificationService>();
 builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
+builder.Services.AddScoped<TeamPlanService>();
+
+// Add OAuth services
+builder.Services.AddScoped<IOAuthStateStore, OAuthStateStore>();
+builder.Services.AddScoped<IAnthropicOAuthService, AnthropicOAuthService>();
 
 // Add logging
 builder.Services.AddLogging();
