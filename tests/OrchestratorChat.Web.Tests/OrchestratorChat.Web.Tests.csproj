@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\OrchestratorChat.Web\OrchestratorChat.Web.csproj" />
+    <ProjectReference Include="..\OrchestratorChat.SignalR.IntegrationTests\OrchestratorChat.SignalR.IntegrationTests.csproj" />
   </ItemGroup>
 
 </Project>

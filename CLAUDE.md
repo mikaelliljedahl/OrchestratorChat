@@ -283,6 +283,121 @@ The SQLite database includes tables for:
 - Implement IDisposable for resources
 - Use dependency injection for all services
 - Write unit tests for business logic
+- **IMPORTANT: Never use JavaScript for UI interactions in Blazor components**
+  - Use standard HTML elements with proper attributes (e.g., `<a href="..." target="_blank">` for links)
+  - For OAuth flows, use MudButton with Href and Target properties instead of JavaScript window.open
+  - Avoid JSRuntime.InvokeVoidAsync for navigation or window operations
+  - Prefer server-side state management over client-side JavaScript
+
+#### Blazor Component Code-Behind Pattern
+**MANDATORY: All Blazor components MUST use the code-behind pattern with separate .razor and .razor.cs files.**
+
+This pattern separates markup from code, improving maintainability, testability, and follows best practices outlined in the Blazor architecture refactor document (docs/planning/04-blazor-service-architecture-refactor.md).
+
+**File Structure:**
+```
+Components/
+├── MyComponent.razor      # Markup only - no @code blocks
+└── MyComponent.razor.cs   # All C# code including logic, services, and state
+```
+
+**Razor File (.razor) - Markup Only:**
+```razor
+@namespace OrchestratorChat.Web.Components
+@inherits ComponentBase
+
+<MudDialog Visible="@IsVisible" VisibleChanged="@OnVisibilityChanged">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@DialogTitle</MudText>
+    </TitleContent>
+    <DialogContent>
+        <!-- Component markup here -->
+    </DialogContent>
+</MudDialog>
+```
+
+**Code-Behind File (.razor.cs) - All Logic:**
+```csharp
+using Microsoft.AspNetCore.Components;
+using OrchestratorChat.Web.Services;
+
+namespace OrchestratorChat.Web.Components;
+
+public partial class MyComponent : ComponentBase
+{
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback<bool> IsVisibleChanged { get; set; }
+    
+    [Inject] private IMyService MyService { get; set; } = null!;
+    
+    private string DialogTitle { get; set; } = "Default Title";
+    private bool _isLoading = false;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+    
+    private async Task OnVisibilityChanged(bool isVisible)
+    {
+        IsVisible = isVisible;
+        if (IsVisibleChanged.HasDelegate)
+        {
+            await IsVisibleChanged.InvokeAsync(isVisible);
+        }
+    }
+    
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            // Service calls here
+            var data = await MyService.GetDataAsync();
+            DialogTitle = data.Title;
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+}
+```
+
+**Key Requirements:**
+- ✅ **DO**: Use `@namespace OrchestratorChat.Web.Components` and `@inherits ComponentBase` in .razor files
+- ✅ **DO**: Put all C# code in .razor.cs files as `public partial class`
+- ✅ **DO**: Use dependency injection (`[Inject]`) instead of manual service instantiation
+- ✅ **DO**: Call `StateHasChanged()` when updating UI state programmatically
+- ❌ **DON'T**: Use `@code {}` blocks in .razor files
+- ❌ **DON'T**: Use `@using` directives in .razor files (put imports in .razor.cs)
+- ❌ **DON'T**: Use `@inject` directives in .razor files (use `[Inject]` properties in .razor.cs)
+
+**Service Integration Pattern:**
+```csharp
+// ✅ CORRECT - Use DI services directly in code-behind
+public partial class MyComponent : ComponentBase
+{
+    [Inject] private IAnthropicOAuthService OAuthService { get; set; } = null!;
+    
+    private async Task StartOAuthFlow()
+    {
+        var result = await OAuthService.StartAsync(HttpContext);
+        _authorizationUrl = result.AuthorizeUrl;
+        StateHasChanged();
+    }
+}
+
+// ❌ INCORRECT - Don't use HttpClient for intra-app calls
+private async Task StartOAuthFlow()
+{
+    var response = await HttpClient.PostAsync("/api/providers/anthropic/start", null);
+    // ... parsing response
+}
+```
+
+This pattern aligns with the service architecture refactor where components call DI services directly instead of round-tripping through controllers for intra-app operations.
 
 #### Nullable Reference Type Patterns
 To avoid CS8618 compiler warnings with nullable reference types enabled:
