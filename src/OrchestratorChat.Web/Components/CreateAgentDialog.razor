@@ -1,7 +1,6 @@
 @using OrchestratorChat.Core.Agents
-@using OrchestratorChat.Web.Models
 
-<MudDialog @bind-Visible="@IsVisible">
+<MudDialog Visible="@IsVisible" VisibleChanged="@OnVisibilityChanged">
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-3" />
@@ -117,6 +116,23 @@
     [Parameter] public EventCallback<bool> IsVisibleChanged { get; set; }
     [Parameter] public EventCallback<AgentConfiguration> OnAgentCreated { get; set; }
     
+    private async Task OnVisibilityChanged(bool isVisible)
+    {
+        Console.WriteLine($"CreateAgentDialog.OnVisibilityChanged: Visibility changed to {isVisible}");
+        IsVisible = isVisible;
+        
+        // Reset form when dialog opens
+        if (isVisible)
+        {
+            ResetForm();
+        }
+        
+        if (IsVisibleChanged.HasDelegate)
+        {
+            await IsVisibleChanged.InvokeAsync(isVisible);
+        }
+    }
+    
     private string _agentName = string.Empty;
     private AgentType _selectedType = AgentType.Claude;
     private string _workingDirectory = string.Empty;
@@ -132,20 +148,40 @@
     
     private async Task Cancel()
     {
-        IsVisible = false;
-        await IsVisibleChanged.InvokeAsync(false);
+        Console.WriteLine("CreateAgentDialog.Cancel: Cancelling dialog");
+        ResetForm();
+        await OnVisibilityChanged(false);
+    }
+    
+    private void ResetForm()
+    {
+        Console.WriteLine("CreateAgentDialog.ResetForm: Resetting form fields");
+        _agentName = string.Empty;
+        _selectedType = AgentType.Claude;
+        _workingDirectory = string.Empty;
+        _selectedModel = "claude-sonnet-4-20250514";
+        _selectedProvider = "OpenRouter";
+        _systemPrompt = string.Empty;
+        _temperature = 0.7;
+        _maxTokens = 4096;
+        _requireApproval = false;
+        _nameError = string.Empty;
+        _isCreating = false;
     }
     
     private async Task CreateAgent()
     {
+        Console.WriteLine("CreateAgentDialog.CreateAgent: Method started");
         _nameError = string.Empty;
         
         if (string.IsNullOrWhiteSpace(_agentName))
         {
             _nameError = "Agent name is required";
+            Console.WriteLine("CreateAgentDialog.CreateAgent: Agent name validation failed");
             return;
         }
         
+        Console.WriteLine($"CreateAgentDialog.CreateAgent: Creating agent '{_agentName}' of type '{_selectedType}'");
         _isCreating = true;
         StateHasChanged();
         
@@ -169,17 +205,26 @@
                 configuration.CustomSettings["Provider"] = _selectedProvider;
             }
             
-            // Close dialog and notify parent with the configuration
-            IsVisible = false;
-            await IsVisibleChanged.InvokeAsync(false);
+            Console.WriteLine($"CreateAgentDialog.CreateAgent: Configuration created, invoking callback");
             
+            // Notify parent with the configuration first
+            Console.WriteLine($"CreateAgentDialog.CreateAgent: OnAgentCreated.HasDelegate = {OnAgentCreated.HasDelegate}");
             if (OnAgentCreated.HasDelegate)
             {
+                Console.WriteLine("CreateAgentDialog.CreateAgent: Invoking OnAgentCreated callback");
                 await OnAgentCreated.InvokeAsync(configuration);
             }
+            
+            Console.WriteLine($"CreateAgentDialog.CreateAgent: Closing dialog");
+            // Reset form and close dialog after successful callback
+            ResetForm();
+            await OnVisibilityChanged(false);
+            Console.WriteLine("CreateAgentDialog.CreateAgent: Method completed successfully");
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"CreateAgentDialog.CreateAgent: Exception occurred: {ex.Message}");
+            Console.WriteLine($"CreateAgentDialog.CreateAgent: Exception details: {ex}");
             _nameError = $"Error creating agent: {ex.Message}";
         }
         finally

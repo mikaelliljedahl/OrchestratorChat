@@ -78,25 +78,43 @@ public class AgentService : IAgentService
 
     public async Task<AgentInfo> CreateAgentAsync(AgentType type, AgentConfiguration configuration)
     {
-        var agent = await _agentFactory.CreateAgentAsync(type, configuration);
-        _agents[agent.Id] = agent;
-
-        // Create entity and persist to database
-        var agentEntity = new AgentEntity
+        Console.WriteLine($"AgentService.CreateAgentAsync: Method called with type '{type}' and configuration for '{configuration.Name}'");
+        
+        try
         {
-            Id = agent.Id,
-            Name = agent.Name,
-            Type = type,
-            Description = $"{type} Agent",
-            WorkingDirectory = agent.WorkingDirectory ?? string.Empty,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            LastUsedAt = DateTime.UtcNow,
-            Configuration = MapConfigurationToEntity(configuration, agent.Id)
-        };
+            Console.WriteLine($"AgentService.CreateAgentAsync: Calling AgentFactory.CreateAgentAsync");
+            var agent = await _agentFactory.CreateAgentAsync(type, configuration);
+            Console.WriteLine($"AgentService.CreateAgentAsync: Agent created with ID '{agent.Id}'");
+            
+            _agents[agent.Id] = agent;
 
-        await _agentRepository.AddAsync(agentEntity);
-        return await MapEntityToAgentInfo(agentEntity);
+            // Create entity and persist to database
+            var agentEntity = new AgentEntity
+            {
+                Id = agent.Id,
+                Name = agent.Name,
+                Type = type,
+                Description = $"{type} Agent",
+                WorkingDirectory = agent.WorkingDirectory ?? string.Empty,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                LastUsedAt = DateTime.UtcNow,
+                Configuration = MapConfigurationToEntity(configuration, agent.Id)
+            };
+
+            Console.WriteLine($"AgentService.CreateAgentAsync: Persisting agent entity to database");
+            await _agentRepository.AddAsync(agentEntity);
+            
+            var result = await MapEntityToAgentInfo(agentEntity);
+            Console.WriteLine($"AgentService.CreateAgentAsync: Method completed successfully, returning AgentInfo for '{result.Name}'");
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"AgentService.CreateAgentAsync: Exception occurred: {ex.Message}");
+            Console.WriteLine($"AgentService.CreateAgentAsync: Exception details: {ex}");
+            throw;
+        }
     }
 
     public async Task UpdateAgentAsync(AgentInfo agentInfo)

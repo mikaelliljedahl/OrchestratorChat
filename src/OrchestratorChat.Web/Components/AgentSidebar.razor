@@ -1,4 +1,4 @@
-@using OrchestratorChat.Web.Models
+@using OrchestratorChat.Core.Agents
 
 <MudPaper Class="pa-3" Style="height: 100%;">
     <div class="d-flex justify-space-between align-center mb-3">
@@ -55,9 +55,15 @@
     
     private async Task ShowCreateAgentDialog()
     {
+        Console.WriteLine("AgentSidebar.ShowCreateAgentDialog: Button clicked");
         if (OnCreateAgent.HasDelegate)
         {
+            Console.WriteLine("AgentSidebar.ShowCreateAgentDialog: Invoking OnCreateAgent callback");
             await OnCreateAgent.InvokeAsync();
+        }
+        else
+        {
+            Console.WriteLine("AgentSidebar.ShowCreateAgentDialog: OnCreateAgent.HasDelegate is false!");
         }
     }
     
