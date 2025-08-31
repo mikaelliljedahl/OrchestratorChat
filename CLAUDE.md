@@ -12,16 +12,16 @@ For coding agents, use this path to find the right specs quickly:
   - docs/planning/01-multi-agent-collaboration-protocol.md
   - docs/planning/02-agent-roles-and-capabilities-catalog.md
   - docs/planning/03-orchestration-modes-and-decision-policies.md
-  - docs/planning/08-team-runbook-and-scenarios.md
+  - docs/planning/07-team-runbook-and-scenarios.md
 - Execute work:
   - Roadmap: docs/planning/gap-analysis/11-roadmap-milestones-and-owners.md
   - Engineering Checklist (PR slices, DoD): docs/planning/gap-analysis/16-engineering-checklist.md
   - Acceptance test scenarios (what to verify): docs/planning/gap-analysis/17-acceptance-test-scenarios.md
 - Providers (Saturn/Claude):
-  - Anthropic OAuth spec: docs/planning/track3/06-saturn-anthropic-oauth-feature-spec.md
+  - Anthropic OAuth spec: docs/planning/done/track3/06-saturn-anthropic-oauth-feature-spec.md
   - Provider selection/verification UX: docs/planning/track3/07-provider-selection-and-verification-plan.md
 - Gap assessments (align to product goal): files under docs/planning/gap-analysis/* (see the index for which to read).
-- Legacy docs: docs/planning/track2/* are reference only. If they conflict with the index or newer specs, follow the index/specs above.
+- Legacy docs: docs/planning/done/legacy/track2/* are reference only. If they conflict with the index or newer specs, follow the index/specs above.
 
 Quick triage map:
 - “Saturn should support Anthropic OAuth in UI” → track3/06 + 07, checklist section 1.
@@ -292,7 +292,7 @@ The SQLite database includes tables for:
 #### Blazor Component Code-Behind Pattern
 **MANDATORY: All Blazor components MUST use the code-behind pattern with separate .razor and .razor.cs files.**
 
-This pattern separates markup from code, improving maintainability, testability, and follows best practices outlined in the Blazor architecture refactor document (docs/planning/04-blazor-service-architecture-refactor.md).
+This pattern separates markup from code, improving maintainability, testability, and follows best practices outlined in the Blazor architecture refactor document (docs/planning/done/04-blazor-service-architecture-refactor.md).
 
 **File Structure:**
 ```
@@ -862,3 +862,9 @@ dotnet ef database update
 - **Primary target**: Windows 10/11
 - **Linux support**: Server deployment
 - **macOS support**: Development environment
+
+
+
+
+
+

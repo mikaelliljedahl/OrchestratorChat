@@ -3,6 +3,7 @@ using NSubstitute;
 using OrchestratorChat.Core.Agents;
 using OrchestratorChat.Core.Events;
 using OrchestratorChat.Core.Exceptions;
+using OrchestratorChat.Core.Messages;
 using OrchestratorChat.Core.Orchestration;
 using OrchestratorChat.Core.Tests.Fixtures;
 using Xunit;
@@ -17,6 +18,8 @@ public class OrchestratorTests : IDisposable
     private readonly IAgentFactory _mockAgentFactory;
     private readonly IAgentRegistry _mockAgentRegistry;
     private readonly IEventBus _mockEventBus;
+    private readonly IDecisionHandler _mockDecisionHandler;
+    private readonly IApprovalHandler _mockApprovalHandler;
     private readonly ILogger<Orchestrator> _mockLogger;
     private readonly Orchestrator _orchestrator;
     private readonly IAgent _mockAgent1;
@@ -28,18 +31,73 @@ public class OrchestratorTests : IDisposable
         _mockAgentFactory = Substitute.For<IAgentFactory>();
         _mockAgentRegistry = Substitute.For<IAgentRegistry>();
         _mockEventBus = Substitute.For<IEventBus>();
+        _mockDecisionHandler = Substitute.For<IDecisionHandler>();
+        _mockApprovalHandler = Substitute.For<IApprovalHandler>();
         _mockLogger = Substitute.For<ILogger<Orchestrator>>();
-        _orchestrator = new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, _mockLogger);
+        _orchestrator = new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, _mockDecisionHandler, _mockApprovalHandler, _mockLogger);
 
         // Create mock agents
         _mockAgent1 = Substitute.For<IAgent>();
         _mockAgent2 = Substitute.For<IAgent>();
         _mockAgent3 = Substitute.For<IAgent>();
 
-        // Setup mock agents
+        // Setup mock agents with proper properties
+        SetupMockAgent(_mockAgent1, "agent1");
+        SetupMockAgent(_mockAgent2, "agent2");
+        SetupMockAgent(_mockAgent3, "agent3");
+
+        // Setup mock agent registry to return agents
+        _mockAgentRegistry.FindAsync("agent1").Returns(_mockAgent1);
+        _mockAgentRegistry.FindAsync("agent2").Returns(_mockAgent2);
+        _mockAgentRegistry.FindAsync("agent3").Returns(_mockAgent3);
+        
+        // Setup mock agent factory
         _mockAgentFactory.GetAgentAsync("agent1").Returns(_mockAgent1);
         _mockAgentFactory.GetAgentAsync("agent2").Returns(_mockAgent2);
         _mockAgentFactory.GetAgentAsync("agent3").Returns(_mockAgent3);
+    }
+
+    private void SetupMockAgent(IAgent mockAgent, string agentId)
+    {
+        // Configure basic properties
+        mockAgent.Id.Returns(agentId);
+        mockAgent.Name.Returns($"Mock Agent {agentId}");
+        mockAgent.Type.Returns(AgentType.Claude);
+        mockAgent.Status.Returns(AgentStatus.Ready);
+        mockAgent.WorkingDirectory.Returns("/test");
+        
+        // Configure successful initialization
+        var initResult = new AgentInitializationResult
+        {
+            Success = true,
+            ErrorMessage = string.Empty,
+            Capabilities = new AgentCapabilities(),
+            InitializationTime = TimeSpan.FromMilliseconds(100)
+        };
+        mockAgent.InitializeAsync(Arg.Any<AgentConfiguration>()).Returns(initResult);
+        
+        // Configure SendMessageAsync to return a successful response and respect cancellation tokens
+        var successfulResponse = new AgentResponse
+        {
+            Content = $"Response from {agentId}",
+            Type = ResponseType.Success,
+            IsComplete = true,
+            MessageId = Guid.NewGuid().ToString(),
+            Role = MessageRole.Assistant,
+            Timestamp = DateTime.UtcNow
+        };
+        
+        mockAgent.SendMessageAsync(Arg.Any<AgentMessage>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var cancellationToken = callInfo.ArgAt<CancellationToken>(1);
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(cancellationToken);
+                }
+                
+                return Task.FromResult(successfulResponse);
+            });
     }
 
     public void Dispose()
@@ -203,6 +261,7 @@ public class OrchestratorTests : IDisposable
                 .WithAgentId("agent1")
                 .WithAssignedAgentId("agent1")
                 .WithTask("First task")
+                .WithTimeout(TimeSpan.FromMinutes(5))
                 .Build())
             .WithStep(TestDataBuilder.OrchestrationStep()
                 .WithOrder(2)
@@ -210,6 +269,7 @@ public class OrchestratorTests : IDisposable
                 .WithAssignedAgentId("agent2")
                 .WithTask("Second task")
                 .WithDependencies("1")
+                .WithTimeout(TimeSpan.FromMinutes(5))
                 .Build())
             .Build();
 
@@ -264,8 +324,9 @@ public class OrchestratorTests : IDisposable
                 .Build())
             .Build();
 
-        // Setup nonexistent agent to return null
+        // Setup nonexistent agent to return null from both factory and registry
         _mockAgentFactory.GetAgentAsync("nonexistent-agent").Returns((IAgent?)null);
+        _mockAgentRegistry.FindAsync("nonexistent-agent").Returns((IAgent?)null);
 
         // Act
         var result = await _orchestrator.ExecutePlanAsync(plan);
@@ -308,8 +369,9 @@ public class OrchestratorTests : IDisposable
                 .Build())
             .Build();
 
-        // Setup failing agent
+        // Setup failing agent to return null from both factory and registry
         _mockAgentFactory.GetAgentAsync("failing-agent").Returns((IAgent?)null);
+        _mockAgentRegistry.FindAsync("failing-agent").Returns((IAgent?)null);
 
         // Act
         var result = await _orchestrator.ExecutePlanAsync(plan);
@@ -448,8 +510,9 @@ public class OrchestratorTests : IDisposable
                 .Build())
             .Build();
 
-        // Setup failing agent
+        // Setup failing agent to return null from both factory and registry
         _mockAgentFactory.GetAgentAsync("nonexistent-agent").Returns((IAgent?)null);
+        _mockAgentRegistry.FindAsync("nonexistent-agent").Returns((IAgent?)null);
 
         // Act
         var result = await _orchestrator.ExecutePlanAsync(plan);
@@ -675,6 +738,7 @@ public class OrchestratorTests : IDisposable
                 .WithAgentId("agent1")
                 .WithAssignedAgentId("agent1")
                 .WithTask("Cancellable task")
+                .WithTimeout(TimeSpan.FromMinutes(5))
                 .Build())
             .Build();
 
@@ -869,7 +933,7 @@ public class OrchestratorTests : IDisposable
     public void Constructor_NullAgentFactory_ThrowsArgumentNullException()
     {
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(null!, _mockAgentRegistry, _mockEventBus, _mockLogger));
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(null!, _mockAgentRegistry, _mockEventBus, _mockDecisionHandler, _mockApprovalHandler, _mockLogger));
         Assert.Contains("agentFactory", ex.Message);
     }
 
@@ -877,7 +941,7 @@ public class OrchestratorTests : IDisposable
     public void Constructor_NullAgentRegistry_ThrowsArgumentNullException()
     {
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, null!, _mockEventBus, _mockLogger));
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, null!, _mockEventBus, _mockDecisionHandler, _mockApprovalHandler, _mockLogger));
         Assert.Contains("agentRegistry", ex.Message);
     }
 
@@ -885,15 +949,31 @@ public class OrchestratorTests : IDisposable
     public void Constructor_NullEventBus_ThrowsArgumentNullException()
     {
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, null!, _mockLogger));
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, null!, _mockDecisionHandler, _mockApprovalHandler, _mockLogger));
         Assert.Contains("eventBus", ex.Message);
+    }
+
+    [Fact]
+    public void Constructor_NullDecisionHandler_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, null!, _mockApprovalHandler, _mockLogger));
+        Assert.Contains("decisionHandler", ex.Message);
+    }
+
+    [Fact]
+    public void Constructor_NullApprovalHandler_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, _mockDecisionHandler, null!, _mockLogger));
+        Assert.Contains("approvalHandler", ex.Message);
     }
 
     [Fact]
     public void Constructor_NullLogger_ThrowsArgumentNullException()
     {
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, null!));
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, _mockDecisionHandler, _mockApprovalHandler, null!));
         Assert.Contains("logger", ex.Message);
     }
 

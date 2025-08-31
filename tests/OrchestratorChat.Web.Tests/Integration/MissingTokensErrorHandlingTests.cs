@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
+using Moq;
 using OrchestratorChat.Core.Agents;
 using OrchestratorChat.Core.Messages;
 using OrchestratorChat.SignalR.Contracts.Requests;
