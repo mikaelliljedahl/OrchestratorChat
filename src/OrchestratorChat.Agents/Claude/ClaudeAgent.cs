@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using OrchestratorChat.Core.Agents;
 using OrchestratorChat.Core.Messages;
 using OrchestratorChat.Core.Tools;
+using OrchestratorChat.Core.Decisions;
 using OrchestratorChat.Agents.Exceptions;
 
 namespace OrchestratorChat.Agents.Claude;
@@ -938,6 +939,27 @@ public class ClaudeAgent : IAgent, IDisposable
         return argument
             .Replace("\\", "\\\\")
             .Replace("\"", "\\\"");
+    }
+
+    public Task<IDecision> ProposeDecisionAsync(string proposal, IEnumerable<string> options, CancellationToken cancellationToken = default)
+    {
+        // TODO: Implement decision proposal logic for Claude agent
+        var decision = new Decision
+        {
+            Id = Guid.NewGuid().ToString(),
+            SessionId = string.Empty, // Would need session context
+            ProposedBy = Id,
+            Proposal = proposal,
+            Status = DecisionStatus.Proposed,
+            CreatedAt = DateTime.UtcNow
+        };
+        
+        foreach (var option in options)
+        {
+            decision.AddOption(option);
+        }
+        
+        return Task.FromResult<IDecision>(decision);
     }
 
     public void Dispose()

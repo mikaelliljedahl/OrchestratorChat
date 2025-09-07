@@ -5,6 +5,7 @@ using MudBlazor;
 using OrchestratorChat.Core.Agents;
 using OrchestratorChat.Core.Messages;
 using OrchestratorChat.Core.Sessions;
+using OrchestratorChat.Core.Teams;
 using OrchestratorChat.Web.Models;
 using OrchestratorChat.Web.Services;
 using SignalRResponses = OrchestratorChat.SignalR.Contracts.Responses;
@@ -21,6 +22,7 @@ public partial class ChatInterface : ComponentBase, IAsyncDisposable
     [Inject] private IJSRuntime JSRuntime { get; set; } = null!;
     [Inject] private IAgentService AgentService { get; set; } = null!;
     [Inject] private ISessionManager SessionManager { get; set; } = null!;
+    [Inject] private ITeamService TeamService { get; set; } = null!;
     [Inject] private NavigationManager Navigation { get; set; } = null!;
     [Inject] private ILogger<ChatInterface> Logger { get; set; } = null!;
     
@@ -35,9 +37,12 @@ public partial class ChatInterface : ComponentBase, IAsyncDisposable
     private bool _isTyping = false;
     private bool _showHistory = false;
     private bool _showCreateAgentDialog = false;
+    private bool _showTeamFormationDialog = false;
+    private bool _showTimeline = false;
     private ElementReference _messagesContainer;
     private string? _errorMessage;
     private bool _showHealthDiagnostics = false;
+    private Team? _currentTeam;
     
     // Subscription tracking for proper cleanup
     private readonly HashSet<string> _subscribedAgentIds = new();
@@ -268,6 +273,7 @@ public partial class ChatInterface : ComponentBase, IAsyncDisposable
                         _currentSession.Name, _currentSession.Id, _currentSession.Messages?.Count ?? 0, _currentSession.ParticipantAgentIds?.Count ?? 0);
                     _sessionName = _currentSession.Name;
                     await LoadMessages();
+                    await LoadExistingTeamAsync();
                     await JoinSessionGroups();
                     return;
                 }
@@ -286,6 +292,7 @@ public partial class ChatInterface : ComponentBase, IAsyncDisposable
                     _currentSession.Name, _currentSession.Id, _currentSession.Messages?.Count ?? 0);
                 _sessionName = _currentSession.Name;
                 await LoadMessages();
+                await LoadExistingTeamAsync();
                 await JoinSessionGroups();
                 return;
             }
@@ -854,6 +861,59 @@ public partial class ChatInterface : ComponentBase, IAsyncDisposable
     private void ShowAgentSettings()
     {
         // TODO: Implement agent settings
+    }
+    
+    private void ToggleTimelineView()
+    {
+        _showTimeline = !_showTimeline;
+        StateHasChanged();
+        
+        Logger.LogInformation("ToggleTimelineView: Timeline view toggled to {ShowTimeline} for session {SessionId}", 
+            _showTimeline, _currentSession?.Id);
+    }
+
+    private void ShowTeamFormationDialog()
+    {
+        _showTeamFormationDialog = true;
+        StateHasChanged();
+    }
+
+    private Task OnTeamCreated(Team team)
+    {
+        Logger.LogInformation("OnTeamCreated: Team created with {MemberCount} members for session {SessionId}", 
+            team.Members.Count, team.SessionId);
+        
+        _currentTeam = team;
+        _showTeamFormationDialog = false;
+
+        // Update session name to reflect team mode
+        if (_currentSession != null)
+        {
+            _sessionName = $"Team Session - {team.Members.Count} agents";
+        }
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task LoadExistingTeamAsync()
+    {
+        if (_currentSession?.Id == null) return;
+
+        try
+        {
+            _currentTeam = await TeamService.GetTeamBySessionAsync(_currentSession.Id);
+            if (_currentTeam != null)
+            {
+                Logger.LogInformation("LoadExistingTeam: Loaded existing team with {MemberCount} members for session {SessionId}", 
+                    _currentTeam.Members.Count, _currentSession.Id);
+                _sessionName = $"Team Session - {_currentTeam.Members.Count} agents";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "LoadExistingTeam: Error loading team for session {SessionId}", _currentSession.Id);
+        }
     }
     
     private void ShowCreateAgentDialog()

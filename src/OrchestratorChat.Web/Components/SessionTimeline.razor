@@ -1,0 +1,149 @@
+@namespace OrchestratorChat.Web.Components
+@inherits ComponentBase
+@using OrchestratorChat.Core.Timeline
+
+<MudContainer MaxWidth="MaxWidth.False" Class="pa-0">
+    @if (IsLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    
+    <MudStack Spacing="2" Class="pa-4">
+        @* Timeline Controls *@
+        <MudPaper Elevation="1" Class="pa-3">
+            <MudStack Row="true" Spacing="3" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.h6">Session Timeline</MudText>
+                
+                @* Event Type Filters *@
+                <MudChipSet @bind-SelectedValues="SelectedEventTypes" MultiSelection="true" Filter="true" T="object">
+                    <MudChip Text="Messages" Value="@TimelineEventType.Message" Color="Color.Primary" T="object">
+                        <MudIcon Icon="@Icons.Material.Filled.Message" Size="Size.Small" Style="margin-right: 4px;" />
+                        Messages (@EventCounts.GetValueOrDefault(TimelineEventType.Message, 0))
+                    </MudChip>
+                    <MudChip Text="Decisions" Value="@TimelineEventType.Decision" Color="Color.Secondary" T="object">
+                        <MudIcon Icon="@Icons.Material.Filled.HowToVote" Size="Size.Small" Style="margin-right: 4px;" />
+                        Decisions (@EventCounts.GetValueOrDefault(TimelineEventType.Decision, 0))
+                    </MudChip>
+                    <MudChip Text="Handoffs" Value="@TimelineEventType.Handoff" Color="Color.Tertiary" T="object">
+                        <MudIcon Icon="@Icons.Material.Filled.SwapHoriz" Size="Size.Small" Style="margin-right: 4px;" />
+                        Handoffs (@EventCounts.GetValueOrDefault(TimelineEventType.Handoff, 0))
+                    </MudChip>
+                    <MudChip Text="Approvals" Value="@TimelineEventType.Approval" Color="Color.Success" T="object">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Style="margin-right: 4px;" />
+                        Approvals (@EventCounts.GetValueOrDefault(TimelineEventType.Approval, 0))
+                    </MudChip>
+                    <MudChip Text="Steps" Value="@TimelineEventType.StepExecution" Color="Color.Warning" T="object">
+                        <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Size="Size.Small" Style="margin-right: 4px;" />
+                        Steps (@EventCounts.GetValueOrDefault(TimelineEventType.StepExecution, 0))
+                    </MudChip>
+                    <MudChip Text="Tools" Value="@TimelineEventType.ToolExecution" Color="Color.Info" T="object">
+                        <MudIcon Icon="@Icons.Material.Filled.Build" Size="Size.Small" Style="margin-right: 4px;" />
+                        Tools (@EventCounts.GetValueOrDefault(TimelineEventType.ToolExecution, 0))
+                    </MudChip>
+                </MudChipSet>
+                
+                <MudSpacer />
+                
+                @* Auto-refresh toggle *@
+                <MudSwitch @bind-Checked="AutoRefreshEnabled" Label="Auto-refresh" Color="Color.Primary" T="bool" />
+            </MudStack>
+        </MudPaper>
+        
+        @* Timeline Events *@
+        @if (TimelineEvents?.Any() == true)
+        {
+            <MudTimeline Position="Position.Start">
+                @foreach (var timelineEvent in TimelineEvents)
+                {
+                    <MudTimelineItem>
+                        <ItemOpposite>
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                                @timelineEvent.Timestamp.ToString("HH:mm:ss")
+                            </MudText>
+                        </ItemOpposite>
+                        <ItemDot>
+                            <MudIcon Icon="@GetEventIcon(timelineEvent.EventType)" Color="@GetEventColor(timelineEvent.EventType)" />
+                        </ItemDot>
+                        <ItemContent>
+                            <MudCard Elevation="1" Class="mb-2">
+                                <MudCardContent>
+                                    <MudStack Spacing="1">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <MudText Typo="Typo.subtitle2" Color="@GetEventColor(timelineEvent.EventType)">
+                                                @timelineEvent.Title
+                                            </MudText>
+                                            @if (!string.IsNullOrEmpty(timelineEvent.AgentId))
+                                            {
+                                                <MudChip Size="Size.Small" Color="Color.Default" T="string">
+                                                    @timelineEvent.AgentId
+                                                </MudChip>
+                                            }
+                                        </MudStack>
+                                        
+                                        <MudText Typo="Typo.body2">
+                                            @GetTruncatedDescription(timelineEvent.Description)
+                                        </MudText>
+                                        
+                                        @if (timelineEvent.Metadata?.Any() == true && ExpandedEventIds.Contains(timelineEvent.Id))
+                                        {
+                                            <MudDivider Class="my-2" />
+                                            <MudText Typo="Typo.caption" Color="Color.Tertiary">Details:</MudText>
+                                            @foreach (var metadata in timelineEvent.Metadata.Take(5))
+                                            {
+                                                <MudText Typo="Typo.caption">
+                                                    <strong>@metadata.Key:</strong> @metadata.Value?.ToString()
+                                                </MudText>
+                                            }
+                                        }
+                                        
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mt-2">
+                                            <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                                                @timelineEvent.Timestamp.ToString("MMM dd, HH:mm:ss")
+                                            </MudText>
+                                            <MudButton Size="Size.Small" 
+                                                      Variant="Variant.Text" 
+                                                      StartIcon="@(ExpandedEventIds.Contains(timelineEvent.Id) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                                                      OnClick="() => ToggleEventExpansion(timelineEvent.Id)">
+                                                @(ExpandedEventIds.Contains(timelineEvent.Id) ? "Less" : "More")
+                                            </MudButton>
+                                        </MudStack>
+                                    </MudStack>
+                                </MudCardContent>
+                            </MudCard>
+                        </ItemContent>
+                    </MudTimelineItem>
+                }
+            </MudTimeline>
+            
+            @* Load more button *@
+            @if (HasMoreEvents)
+            {
+                <MudButton Variant="Variant.Outlined" 
+                          Color="Color.Primary" 
+                          FullWidth="true" 
+                          StartIcon="@Icons.Material.Filled.ExpandMore"
+                          OnClick="LoadMoreEventsAsync"
+                          Disabled="IsLoadingMore">
+                    @if (IsLoadingMore)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Load More Events
+                </MudButton>
+            }
+        }
+        else if (!IsLoading)
+        {
+            <MudPaper Class="pa-8" Elevation="0">
+                <MudStack AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.Timeline" Size="Size.Large" Color="Color.Tertiary" />
+                    <MudText Typo="Typo.h6" Color="Color.Tertiary">No Timeline Events</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Tertiary" Align="Align.Center">
+                        Timeline events will appear here as the session progresses.<br />
+                        This includes messages, decisions, handoffs, approvals, and step executions.
+                    </MudText>
+                </MudStack>
+            </MudPaper>
+        }
+    </MudStack>
+</MudContainer>

@@ -17,11 +17,26 @@
         <MudPaper Class="chat-panel">
             <MudToolBar>
                 <div class="d-flex align-center">
-                    <MudText Typo="Typo.h6" Class="mr-3">@(_selectedAgent?.Name ?? "Select an agent")</MudText>
+                    <MudText Typo="Typo.h6" Class="mr-3">
+                        @if (_currentTeam != null)
+                        {
+                            @($"Team Mode ({_currentTeam.Members.Count} agents)")
+                        }
+                        else
+                        {
+                            @(_selectedAgent?.Name ?? "Select an agent")
+                        }
+                    </MudText>
                     @if (_selectedAgent != null)
                     {
                         <MudChip T="string" Size="Size.Small" Color="@GetAgentStatusColor(_selectedAgent.Status)">
                             @_selectedAgent.Status
+                        </MudChip>
+                    }
+                    @if (_currentTeam != null)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Class="ml-2">
+                            Team Active
                         </MudChip>
                     }
                     <div class="ml-3">
@@ -35,6 +50,14 @@
                     </div>
                 </div>
                 <MudSpacer />
+                <MudIconButton Icon="@Icons.Material.Filled.Groups" 
+                              OnClick="@ShowTeamFormationDialog" 
+                              Color="@(_currentTeam != null ? Color.Primary : Color.Default)"
+                              Title="Form Team" />
+                <MudIconButton Icon="@Icons.Material.Filled.Timeline" 
+                              OnClick="@ToggleTimelineView" 
+                              Color="@(_showTimeline ? Color.Primary : Color.Default)"
+                              Title="@(_showTimeline ? "Show Chat" : "Show Timeline")" />
                 <MudIconButton Icon="@Icons.Material.Filled.History" 
                               OnClick="@ShowHistory" />
                 <MudIconButton Icon="@Icons.Material.Filled.AttachFile" 
@@ -43,52 +66,64 @@
                               OnClick="@ShowAgentSettings" />
             </MudToolBar>
             
-            <div class="messages-container" @ref="_messagesContainer">
-                <CascadingValue Value="@_currentSession">
-                    @foreach (var message in _messages)
-                    {
-                        <MessageBubble Message="@message" />
-                    }
-                    
-                    @if (_isTyping)
-                    {
-                        <TypingIndicator AgentName="@(_selectedAgent?.Name ?? "Agent")" />
-                    }
-                    
-                    @if (!string.IsNullOrEmpty(_errorMessage))
-                    {
-                        <MudAlert Severity="Severity.Error" 
-                                  Class="ma-3"
-                                  ShowCloseIcon="true"
-                                  CloseIconClicked="@(() => _errorMessage = null)">
-                            <div>
-                                <strong>Error:</strong> @_errorMessage
-                            </div>
-                            @if (_errorMessage.Contains("Claude CLI") || _errorMessage.Contains("not found"))
-                            {
-                                <div class="mt-2">
-                                    <MudText Typo="Typo.caption">
-                                        Recommendation: Install Claude CLI and ensure it's authenticated.
-                                    </MudText>
+            @if (_showTimeline)
+            {
+                <div class="timeline-container" style="height: 600px; overflow-y: auto;">
+                    <SessionTimeline SessionId="@_currentSession?.Id" AutoRefreshEnabled="true" />
+                </div>
+            }
+            else
+            {
+                <div class="messages-container" @ref="_messagesContainer">
+                    <CascadingValue Value="@_currentSession">
+                        @foreach (var message in _messages)
+                        {
+                            <MessageBubble Message="@message" />
+                        }
+                        
+                        @if (_isTyping)
+                        {
+                            <TypingIndicator AgentName="@(_selectedAgent?.Name ?? "Agent")" />
+                        }
+                        
+                        @if (!string.IsNullOrEmpty(_errorMessage))
+                        {
+                            <MudAlert Severity="Severity.Error" 
+                                      Class="ma-3"
+                                      ShowCloseIcon="true"
+                                      CloseIconClicked="@(() => _errorMessage = null)">
+                                <div>
+                                    <strong>Error:</strong> @_errorMessage
                                 </div>
-                            }
-                            else if (_errorMessage.Contains("API key"))
-                            {
-                                <div class="mt-2">
-                                    <MudText Typo="Typo.caption">
-                                        Recommendation: Check your API key configuration in Settings.
-                                    </MudText>
-                                </div>
-                            }
-                        </MudAlert>
-                    }
-                </CascadingValue>
-            </div>
+                                @if (_errorMessage.Contains("Claude CLI") || _errorMessage.Contains("not found"))
+                                {
+                                    <div class="mt-2">
+                                        <MudText Typo="Typo.caption">
+                                            Recommendation: Install Claude CLI and ensure it's authenticated.
+                                        </MudText>
+                                    </div>
+                                }
+                                else if (_errorMessage.Contains("API key"))
+                                {
+                                    <div class="mt-2">
+                                        <MudText Typo="Typo.caption">
+                                            Recommendation: Check your API key configuration in Settings.
+                                        </MudText>
+                                    </div>
+                                }
+                            </MudAlert>
+                        }
+                    </CascadingValue>
+                </div>
+            }
             
-            <MessageInput OnSendMessage="@SendMessage" 
-                         IsEnabled="@(!_isProcessing && _selectedAgent != null)"
-                         ErrorMessage="@_errorMessage"
-                         OnAttach="@(() => AttachFile())" />
+            @if (!_showTimeline)
+            {
+                <MessageInput OnSendMessage="@SendMessage" 
+                             IsEnabled="@(!_isProcessing && _selectedAgent != null)"
+                             ErrorMessage="@_errorMessage"
+                             OnAttach="@(() => AttachFile())" />
+            }
             
             @if (_showHealthDiagnostics)
             {
@@ -112,4 +147,9 @@
 <CreateAgentDialog IsVisible="_showCreateAgentDialog" 
                    IsVisibleChanged="@((bool visible) => _showCreateAgentDialog = visible)" 
                    OnAgentCreated="@CreateNewAgent" />
+
+<TeamFormation IsVisible="_showTeamFormationDialog"
+               IsVisibleChanged="@((bool visible) => _showTeamFormationDialog = visible)"
+               SessionId="@_currentSession?.Id"
+               OnTeamCreated="@OnTeamCreated" />
 

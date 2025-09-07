@@ -20,6 +20,7 @@ public class OrchestratorTests : IDisposable
     private readonly IEventBus _mockEventBus;
     private readonly IDecisionHandler _mockDecisionHandler;
     private readonly IApprovalHandler _mockApprovalHandler;
+    private readonly IHandoffHandler _mockHandoffHandler;
     private readonly ILogger<Orchestrator> _mockLogger;
     private readonly Orchestrator _orchestrator;
     private readonly IAgent _mockAgent1;
@@ -33,8 +34,9 @@ public class OrchestratorTests : IDisposable
         _mockEventBus = Substitute.For<IEventBus>();
         _mockDecisionHandler = Substitute.For<IDecisionHandler>();
         _mockApprovalHandler = Substitute.For<IApprovalHandler>();
+        _mockHandoffHandler = Substitute.For<IHandoffHandler>();
         _mockLogger = Substitute.For<ILogger<Orchestrator>>();
-        _orchestrator = new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, _mockDecisionHandler, _mockApprovalHandler, _mockLogger);
+        _orchestrator = new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, _mockDecisionHandler, _mockApprovalHandler, _mockHandoffHandler, _mockLogger);
 
         // Create mock agents
         _mockAgent1 = Substitute.For<IAgent>();
@@ -933,7 +935,7 @@ public class OrchestratorTests : IDisposable
     public void Constructor_NullAgentFactory_ThrowsArgumentNullException()
     {
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(null!, _mockAgentRegistry, _mockEventBus, _mockDecisionHandler, _mockApprovalHandler, _mockLogger));
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(null!, _mockAgentRegistry, _mockEventBus, _mockDecisionHandler, _mockApprovalHandler, _mockHandoffHandler, _mockLogger));
         Assert.Contains("agentFactory", ex.Message);
     }
 
@@ -941,7 +943,7 @@ public class OrchestratorTests : IDisposable
     public void Constructor_NullAgentRegistry_ThrowsArgumentNullException()
     {
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, null!, _mockEventBus, _mockDecisionHandler, _mockApprovalHandler, _mockLogger));
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, null!, _mockEventBus, _mockDecisionHandler, _mockApprovalHandler, _mockHandoffHandler, _mockLogger));
         Assert.Contains("agentRegistry", ex.Message);
     }
 
@@ -949,7 +951,7 @@ public class OrchestratorTests : IDisposable
     public void Constructor_NullEventBus_ThrowsArgumentNullException()
     {
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, null!, _mockDecisionHandler, _mockApprovalHandler, _mockLogger));
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, null!, _mockDecisionHandler, _mockApprovalHandler, _mockHandoffHandler, _mockLogger));
         Assert.Contains("eventBus", ex.Message);
     }
 
@@ -957,7 +959,7 @@ public class OrchestratorTests : IDisposable
     public void Constructor_NullDecisionHandler_ThrowsArgumentNullException()
     {
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, null!, _mockApprovalHandler, _mockLogger));
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, null!, _mockApprovalHandler, _mockHandoffHandler, _mockLogger));
         Assert.Contains("decisionHandler", ex.Message);
     }
 
@@ -965,15 +967,23 @@ public class OrchestratorTests : IDisposable
     public void Constructor_NullApprovalHandler_ThrowsArgumentNullException()
     {
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, _mockDecisionHandler, null!, _mockLogger));
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, _mockDecisionHandler, null!, _mockHandoffHandler, _mockLogger));
         Assert.Contains("approvalHandler", ex.Message);
+    }
+
+    [Fact]
+    public void Constructor_NullHandoffHandler_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, _mockDecisionHandler, _mockApprovalHandler, null!, _mockLogger));
+        Assert.Contains("handoffHandler", ex.Message);
     }
 
     [Fact]
     public void Constructor_NullLogger_ThrowsArgumentNullException()
     {
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, _mockDecisionHandler, _mockApprovalHandler, null!));
+        var ex = Assert.Throws<ArgumentNullException>(() => new Orchestrator(_mockAgentFactory, _mockAgentRegistry, _mockEventBus, _mockDecisionHandler, _mockApprovalHandler, _mockHandoffHandler, null!));
         Assert.Contains("logger", ex.Message);
     }
 

@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OrchestratorChat.Core.Agents;
+using OrchestratorChat.Core.Decisions;
 using CoreAgentMessage = OrchestratorChat.Core.Messages.AgentMessage;
 using CoreAgentResponse = OrchestratorChat.Core.Messages.AgentResponse;
 using CoreToolCall = OrchestratorChat.Core.Tools.ToolCall;
@@ -545,5 +546,26 @@ public class SaturnAgent : IAgent
             OutputTokens = coreUsage.OutputTokens,
             TotalTokens = coreUsage.TotalTokens
         };
+    }
+
+    public Task<IDecision> ProposeDecisionAsync(string proposal, IEnumerable<string> options, CancellationToken cancellationToken = default)
+    {
+        // TODO: Implement decision proposal logic for Saturn agent
+        var decision = new Decision
+        {
+            Id = Guid.NewGuid().ToString(),
+            SessionId = string.Empty, // Would need session context
+            ProposedBy = Id,
+            Proposal = proposal,
+            Status = DecisionStatus.Proposed,
+            CreatedAt = DateTime.UtcNow
+        };
+        
+        foreach (var option in options)
+        {
+            decision.AddOption(option);
+        }
+        
+        return Task.FromResult<IDecision>(decision);
     }
 }

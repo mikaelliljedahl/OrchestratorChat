@@ -53,7 +53,11 @@ builder.Services.AddSingleton<OrchestratorChat.Core.Configuration.IConfiguration
 builder.Services.AddScoped<IEventBus, EventBus>();
 builder.Services.AddScoped<OrchestratorChat.Core.Sessions.ISessionRepository, OrchestratorChat.Data.Adapters.SessionRepositoryAdapter>();
 builder.Services.AddScoped<OrchestratorChat.Data.Repositories.IAgentRepository, OrchestratorChat.Data.Repositories.AgentRepository>();
+builder.Services.AddScoped<OrchestratorChat.Data.Repositories.ITeamRepository, OrchestratorChat.Data.Repositories.TeamRepository>();
 builder.Services.AddScoped<ISessionManager, SessionManager>();
+builder.Services.AddScoped<IDecisionHandler, DecisionHandler>();
+builder.Services.AddScoped<IApprovalHandler, ApprovalHandler>();
+builder.Services.AddScoped<IHandoffHandler, HandoffHandler>();
 builder.Services.AddScoped<IOrchestrator, Orchestrator>();
 
 // Add Saturn services
@@ -74,8 +78,10 @@ builder.Services.AddScoped<IHubConnectionManager, HubConnectionManager>();
 builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<IProviderVerificationService, ProviderVerificationService>();
 builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
+builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<TeamPlanService>();
 builder.Services.AddScoped<PlanMappingService>();
+builder.Services.AddScoped<ITimelineService, TimelineService>();
 
 // Add OAuth services
 builder.Services.AddScoped<IOAuthStateStore, OAuthStateStore>();

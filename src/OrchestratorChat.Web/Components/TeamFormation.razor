@@ -1,0 +1,177 @@
+@namespace OrchestratorChat.Web.Components
+@inherits ComponentBase
+
+<MudDialog @bind-Visible="IsVisible" MaxWidth="MaxWidth.Large" DisableBackdropClick="true">
+    <TitleContent>
+        <MudText Typo="Typo.h5">
+            <MudIcon Icon="@Icons.Material.Filled.Groups" Class="mr-2" />
+            Team Formation
+        </MudText>
+    </TitleContent>
+    
+    <DialogContent>
+        <MudContainer>
+            @if (_isLoading)
+            {
+                <MudProgressCircular Class="mx-auto my-4" Indeterminate="true" />
+                <MudText Align="Align.Center" Class="mb-4">Loading available agents...</MudText>
+            }
+            else if (!_availableAgents.Any())
+            {
+                <MudAlert Severity="Severity.Warning" Class="mb-4">
+                    No agents are currently available. Please create and configure agents before forming a team.
+                </MudAlert>
+            }
+            else
+            {
+                <MudGrid>
+                    <!-- Team Size Selection -->
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.h6" Class="mb-2">Team Size</MudText>
+                        <MudSlider @bind-Value="_selectedTeamSize" 
+                                  Min="3" 
+                                  Max="7" 
+                                  Step="1" 
+                                  Color="Color.Primary">
+                            <MudText>@_selectedTeamSize agents</MudText>
+                        </MudSlider>
+                    </MudItem>
+
+                    <!-- Available Agents -->
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.h6" Class="mb-2">Available Agents</MudText>
+                        <MudPaper Class="pa-3" Style="max-height: 400px; overflow-y: auto;">
+                            @foreach (var agent in _availableAgents.Where(a => !_teamMembers.Any(m => m.AgentId == a.Id)))
+                            {
+                                <MudCard Class="mb-2" Outlined="true">
+                                    <MudCardContent Class="pa-2">
+                                        <div class="d-flex align-center justify-space-between">
+                                            <div>
+                                                <MudText Typo="Typo.subtitle1">@agent.Name</MudText>
+                                                <MudText Typo="Typo.caption" Class="text-muted">
+                                                    @agent.Type | @agent.Status
+                                                </MudText>
+                                                @if (agent.Capabilities != null)
+                                                {
+                                                    <div class="mt-1">
+                                                        @if (agent.Capabilities.SupportsTools)
+                                                        {
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Text">Tools</MudChip>
+                                                        }
+                                                        @if (agent.Capabilities.SupportsFileOperations)
+                                                        {
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text">Files</MudChip>
+                                                        }
+                                                        @if (agent.Capabilities.SupportsWebSearch)
+                                                        {
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text">Web</MudChip>
+                                                        }
+                                                    </div>
+                                                }
+                                            </div>
+                                            <MudButton Size="Size.Small" 
+                                                     Variant="Variant.Filled" 
+                                                     Color="Color.Primary"
+                                                     OnClick="@(() => AddToTeam(agent))"
+                                                     Disabled="@(_teamMembers.Count >= _selectedTeamSize)">
+                                                Add
+                                            </MudButton>
+                                        </div>
+                                    </MudCardContent>
+                                </MudCard>
+                            }
+                        </MudPaper>
+                    </MudItem>
+
+                    <!-- Team Composition -->
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.h6" Class="mb-2">Team Composition (@_teamMembers.Count/@_selectedTeamSize)</MudText>
+                        <MudPaper Class="pa-3" Style="max-height: 400px; overflow-y: auto;">
+                            @if (!_teamMembers.Any())
+                            {
+                                <MudText Typo="Typo.caption" Class="text-muted">
+                                    Select agents from the available list to form your team.
+                                </MudText>
+                            }
+                            else
+                            {
+                                @foreach (var member in _teamMembers)
+                                {
+                                    <MudCard Class="mb-2" Outlined="true">
+                                        <MudCardContent Class="pa-2">
+                                            <div class="d-flex align-center justify-space-between">
+                                                <div class="flex-grow-1">
+                                                    <MudText Typo="Typo.subtitle1">@member.AgentName</MudText>
+                                                    <MudText Typo="Typo.caption" Class="text-muted">@member.AgentType</MudText>
+                                                    
+                                                    <!-- Role Selection -->
+                                                    <MudSelect @bind-Value="member.Role" 
+                                                             Placeholder="Select role" 
+                                                             Class="mt-2"
+                                                             Variant="Variant.Outlined"
+                                                             Dense="true">
+                                                        @foreach (var role in _availableRoles)
+                                                        {
+                                                            <MudSelectItem Value="@role.Key">
+                                                                <div>
+                                                                    <MudText Typo="Typo.body2">@role.Key</MudText>
+                                                                    <MudText Typo="Typo.caption" Class="text-muted">@role.Value</MudText>
+                                                                </div>
+                                                            </MudSelectItem>
+                                                        }
+                                                    </MudSelect>
+                                                </div>
+                                                <MudIconButton Icon="@Icons.Material.Filled.Remove"
+                                                             Size="Size.Small"
+                                                             Color="Color.Error"
+                                                             OnClick="@(() => RemoveFromTeam(member.AgentId))" />
+                                            </div>
+                                        </MudCardContent>
+                                    </MudCard>
+                                }
+                            }
+                        </MudPaper>
+                    </MudItem>
+
+                    <!-- Team Validation -->
+                    <MudItem xs="12">
+                        @if (_validationErrors.Any())
+                        {
+                            <MudAlert Severity="Severity.Error" Class="mb-2">
+                                <ul class="mb-0">
+                                    @foreach (var error in _validationErrors)
+                                    {
+                                        <li>@error</li>
+                                    }
+                                </ul>
+                            </MudAlert>
+                        }
+                        else if (_teamMembers.Any())
+                        {
+                            <MudAlert Severity="Severity.Success" Class="mb-2">
+                                Team configuration looks good! You can proceed with creating the team.
+                            </MudAlert>
+                        }
+                    </MudItem>
+                </MudGrid>
+            }
+        </MudContainer>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="@(() => CloseDialog(false))" 
+                   Variant="Variant.Text">
+            Cancel
+        </MudButton>
+        <MudButton OnClick="@(() => CloseDialog(true))" 
+                   Variant="Variant.Filled" 
+                   Color="Color.Primary"
+                   Disabled="@(_isLoading || !IsTeamValid() || _teamMembers.Count < 3)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+            }
+            Create Team
+        </MudButton>
+    </DialogActions>
+</MudDialog>

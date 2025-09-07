@@ -121,11 +121,12 @@ public class ProviderFactory
             ApiKey = apiKey
         };
 
-        if (!string.IsNullOrEmpty(settings.SiteUrl))
-            options.SiteUrl = settings.SiteUrl;
-        
-        if (!string.IsNullOrEmpty(settings.SiteName))
-            options.SiteName = settings.SiteName;
+        // Note: SiteUrl and SiteName properties are not available in OpenRouterOptions
+        // if (!string.IsNullOrEmpty(settings.SiteUrl))
+        //     options.SiteUrl = settings.SiteUrl;
+        // 
+        // if (!string.IsNullOrEmpty(settings.SiteName))
+        //     options.SiteName = settings.SiteName;
 
         var logger = _loggerFactory.CreateLogger<OpenRouterClient>();
         return new OpenRouterClient(options, logger, _loggerFactory);
